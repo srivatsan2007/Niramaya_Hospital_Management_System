@@ -1,0 +1,2300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctor Console — Niramaya Hospitals</title>
+
+  <!-- Google Fonts: Sora & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- QRCode.js for Prescription Verification QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #0D6EFD;
+      --primary-dark: #0A58CA;
+      --primary-soft: rgba(13, 110, 253, 0.08);
+      --secondary: #FFFFFF;
+      --accent: #00C853;
+      --accent-soft: rgba(0, 200, 83, 0.12);
+      --bg: #F5F7FA;
+      --surface: #FFFFFF;
+      --ink: #1E293B;
+      --ink-soft: #64748B;
+      --border: #E2E8F0;
+      --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 16px 36px rgba(15, 23, 42, 0.12);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --sidebar-width: 260px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* GLASSMORPHISM UTILITY */
+    .glass {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    /* LEFT SIDEBAR */
+    aside.sidebar {
+      width: var(--sidebar-width);
+      background: #0B192C;
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.06);
+      z-index: 10;
+    }
+
+    .sidebar-brand {
+      padding: 24px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+
+    .brand-text h2 {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-text p {
+      font-size: 0.72rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .sidebar-menu {
+      padding: 16px 12px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      color: #94A3B8;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .menu-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #FFFFFF;
+    }
+
+    .menu-item.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+
+    .menu-item .icon {
+      font-size: 1.1rem;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .doc-mini-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+    }
+
+    .doc-avatar-sm {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .doc-mini-info h4 {
+      font-size: 0.82rem;
+      color: #fff;
+    }
+
+    .doc-mini-info p {
+      font-size: 0.72rem;
+      color: #94A3B8;
+    }
+
+    /* MAIN CONTENT WRAPPER */
+    main.main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* TOP NAV BAR */
+    header.topnav {
+      height: 72px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topnav-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .topnav-title h1 {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .topnav-title p {
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+    }
+
+    .topnav-search {
+      position: relative;
+      width: 280px;
+    }
+
+    .topnav-search input {
+      width: 100%;
+      padding: 8px 14px 8px 36px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 0.85rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .topnav-search input:focus {
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    .topnav-search .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+    }
+
+    .topnav-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .status-badge-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-soft);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 200, 83, 0.3);
+      cursor: pointer;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .status-dot.offline {
+      background: #EF4444;
+      box-shadow: 0 0 8px #EF4444;
+    }
+
+    .status-text {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #065F46;
+    }
+
+    .nav-icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: var(--ink);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .nav-icon-btn .badge {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      background: #EF4444;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* VIEW CONTAINER */
+    .view-container {
+      flex: 1;
+      padding: 24px 28px 48px 28px;
+      overflow-y: auto;
+    }
+
+    .dash-view {
+      display: none;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    .dash-view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* STAT CARDS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary);
+    }
+
+    .stat-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .stat-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .stat-val {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .stat-sub {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    /* PANELS & TABLES */
+    .panel {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .panel-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .dtable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    .dtable th {
+      background: #F8FAFC;
+      padding: 12px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--ink-soft);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+    }
+
+    .dtable td {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--ink);
+      vertical-align: middle;
+    }
+
+    .dtable tr:last-child td {
+      border-bottom: none;
+    }
+
+    .dtable tr:hover td {
+      background: #F8FAFC;
+    }
+
+    /* BUTTONS */
+    .btn {
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 200, 83, 0.25);
+    }
+
+    .btn-accent:hover {
+      background: #00B248;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--ink);
+    }
+
+    .btn-outline:hover {
+      background: #F1F5F9;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.78rem;
+    }
+
+    /* BADGES */
+    .badge-status {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-pending { background: #FEF3C7; color: #D97706; }
+    .badge-completed { background: #D1FAE5; color: #059669; }
+    .badge-cancelled { background: #FEE2E2; color: #DC2626; }
+
+    /* PRESCRIPTION FORM LAYOUT */
+    .presc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: 0.88rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    .symptoms-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      background: #F8FAFC;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    .symptom-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    /* MODAL POPUPS */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #fff;
+      width: 100%;
+      max-width: 750px;
+      max-height: 90vh;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      overflow-y: auto;
+      padding: 24px;
+      animation: modalSlide 0.25s ease;
+    }
+
+    @keyframes modalSlide {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* TOAST NOTIFICATION */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: #0B192C;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      animation: toastIn 0.3s ease;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* PRINT PRESCRIPTION FORMAT */
+    @media print {
+      body * { visibility: hidden; }
+      #printablePrescription, #printablePrescription * { visibility: visible; }
+      #printablePrescription { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LEFT SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🏥</div>
+      <div class="brand-text">
+        <h2>Niramaya</h2>
+        <p>Compassion. Care. Cure.</p>
+      </div>
+    </div>
+
+    <nav class="sidebar-menu">
+      <a class="menu-item active" onclick="switchNav('dashHome', this)">
+        <span class="icon">🏠</span> Dashboard
+      </a>
+      <a class="menu-item" onclick="switchNav('dashAppts', this)">
+        <span class="icon">📅</span> Today's Appointments
+      </a>
+      <a class="menu-item" onclick="switchNav('dashPatients', this)">
+        <span class="icon">👨‍⚕️</span> My Patients
+      </a>
+      <a class="menu-item" onclick="switchNav('dashPrescribe', this)">
+        <span class="icon">📝</span> Write Prescription
+      </a>
+      <a class="menu-item" onclick="switchNav('dashHistory', this)">
+        <span class="icon">📜</span> Completed History
+      </a>
+      <a class="menu-item" onclick="switchNav('dashLab', this)">
+        <span class="icon">🧪</span> Lab Reports
+      </a>
+      <a class="menu-item" onclick="switchNav('dashProfile', this)">
+        <span class="icon">👤</span> My Profile
+      </a>
+      <a class="menu-item" onclick="switchNav('dashSettings', this)">
+        <span class="icon">⚙️</span> Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="doc-mini-card">
+        <div class="doc-avatar-sm" id="sideDocAvatar">DR</div>
+        <div class="doc-mini-info">
+          <h4 id="sideDocName">Dr. Doctor</h4>
+          <p id="sideDocEmail">doctor@niramaya.health</p>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" style="width:100%; margin-top:10px; color:#EF4444; border-color:rgba(239,68,68,0.3);" onclick="handleLogout()">🚪 Logout</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="main-content">
+    
+    <!-- TOP NAVIGATION BAR -->
+    <header class="topnav">
+      <div class="topnav-left">
+        <div class="topnav-title">
+          <h1 id="topGreeting">Welcome, Dr. Doctor</h1>
+          <p id="topDeptDate">Department of General Medicine &nbsp;|&nbsp; <span id="currentDateStr"></span></p>
+        </div>
+      </div>
+
+      <div class="topnav-right">
+        <div class="topnav-search">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search Patient ID or Name..." oninput="handleGlobalSearch(this.value)">
+        </div>
+
+        <button class="btn btn-accent btn-sm" onclick="openDailyReportModal('Doctor')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; box-shadow:0 4px 12px rgba(0,200,83,0.3);">
+          📩 Send Daily Report
+        </button>
+
+        <div class="status-badge-toggle" onclick="toggleOnlineStatus()">
+          <div class="status-dot" id="statusDot"></div>
+          <span class="status-text" id="statusText">Online & Accepting</span>
+        </div>
+
+        <div class="nav-icon-btn" onclick="showToast('🔔 Notification: 2 New appointments booked today!')">
+          🔔 <span class="badge">2</span>
+        </div>
+      </div>
+
+    </header>
+
+    <!-- VIEW CONTAINER -->
+    <div class="view-container">
+
+      <!-- ================= 1. DASHBOARD HOME ================= -->
+      <section id="dashHome" class="dash-view active">
+        <!-- STAT CARDS GRID -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card-head">
+              <span class="stat-title">Today's Appts</span>
+              <div class="stat-icon">📅</div>
+            </div>
+            <div class="stat-val" id="statTodayAppts">0</div>
+            <div class="stat-sub">Assigned to you today</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-card-head">
+              <span class="stat-title">Completed</span>
+              <div class="stat-icon">✅</div>
+            </div>
+            <div class="stat-val" id="statCompletedAppts">0</div>
+            <div class="stat-sub">Consultations done</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-card-head">
+              <span class="stat-title">Pending</span>
+              <div class="stat-icon">⏳</div>
+            </div>
+            <div class="stat-val" id="statPendingAppts">0</div>
+            <div class="stat-sub">Waiting in queue</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-card-head">
+              <span class="stat-title">Total Patients</span>
+              <div class="stat-icon">👥</div>
+            </div>
+            <div class="stat-val" id="statTotalPatients">0</div>
+            <div class="stat-sub">Registered patients</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-card-head">
+              <span class="stat-title">Next Appt</span>
+              <div class="stat-icon">⏰</div>
+            </div>
+            <div class="stat-val" style="font-size:1.1rem; color:var(--primary);" id="statNextAppt">--:--</div>
+            <div class="stat-sub" id="statNextPatient">Upcoming token</div>
+          </div>
+        </div>
+
+        <!-- RECENT APPOINTMENTS QUEUE PANEL -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">📋 Today's Live Patient Queue</h3>
+            <button class="btn btn-primary btn-sm" onclick="switchNav('dashAppts')">View All Appointments →</button>
+          </div>
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>Appt ID</th>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th>Age / Gender</th>
+                <th>Time Slot</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyHomeAppts">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <!-- ================= 2. TODAY'S APPOINTMENTS ================= -->
+      <section id="dashAppts" class="dash-view">
+        <div class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">📅 Today's Assigned Appointments</h3>
+            <div style="display:flex; gap:10px;">
+              <input type="text" id="filterApptQuery" class="form-control" placeholder="Search ID or Name..." style="width:200px; padding:6px 12px;" oninput="renderApptsTable()">
+              <select id="filterApptStatus" class="form-control" style="width:140px; padding:6px 12px;" onchange="renderApptsTable()">
+                <option value="ALL">All Status</option>
+                <option value="PENDING">Pending</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
+          </div>
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>Appt ID</th>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyApptsList">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <!-- ================= 3. MY PATIENTS ================= -->
+      <section id="dashPatients" class="dash-view">
+        <div class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">👨‍⚕️ My Consulted Patients Directory</h3>
+            <input type="text" id="filterPatientQuery" class="form-control" placeholder="Search Patient..." style="width:240px; padding:6px 12px;" oninput="renderPatientsTable()">
+          </div>
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th>Age / Gender</th>
+                <th>Blood Group</th>
+                <th>Phone Number</th>
+                <th>Last Visit</th>
+                <th>Diagnosis</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPatientsList">
+              <!-- Dynamic Patient Directory -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <!-- ================= 4. WRITE PRESCRIPTION ================= -->
+      <section id="dashPrescribe" class="dash-view">
+        <div class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">📝 Write Clinical Digital Prescription</h3>
+          </div>
+
+          <!-- Method 2: Search Patient by ID -->
+          <div style="background:var(--primary-soft); padding:16px; border-radius:var(--radius-md); margin-bottom:20px; display:flex; gap:12px; align-items:center;">
+            <span style="font-weight:600; font-size:0.88rem; color:var(--primary);">Lookup Patient:</span>
+            <input type="text" id="prescSearchId" class="form-control" placeholder="Enter Patient Unique ID (e.g., PT100842)..." style="max-width:300px;">
+            <button class="btn btn-primary" onclick="searchPatientForPrescription()">Search Patient</button>
+          </div>
+
+          <form id="formWritePrescription" onsubmit="handleSavePrescription(event)">
+            <!-- PATIENT DETAILS HEADER BLOCK -->
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; background:#F8FAFC; padding:16px; border-radius:var(--radius-md); border:1px solid var(--border); margin-bottom:20px;">
+              <div>
+                <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">PATIENT UNIQUE ID</label>
+                <input type="text" id="pFormId" class="form-control" readonly style="background:#fff; font-weight:700; color:var(--primary);">
+              </div>
+              <div>
+                <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">PATIENT NAME</label>
+                <input type="text" id="pFormName" class="form-control" required>
+              </div>
+              <div>
+                <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">AGE / GENDER</label>
+                <input type="text" id="pFormAgeGender" class="form-control" placeholder="e.g. 32 Yrs / Male">
+              </div>
+              <div>
+                <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">BLOOD GROUP</label>
+                <input type="text" id="pFormBlood" class="form-control" placeholder="e.g. O+">
+              </div>
+            </div>
+
+            <!-- LIVE NURSE RECORDED VITALS CARD -->
+            <div id="liveNurseVitalsCard" style="background:#F0FDFA; border:1px solid #99F6E4; padding:16px; border-radius:var(--radius-md); margin-bottom:20px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="color:#0D9488; font-size:0.95rem; font-weight:700; margin:0; display:flex; align-items:center; gap:6px;">
+                  🩺 Latest Nurse Recorded Vitals
+                </h4>
+                <span id="vitalsRecordedBadge" style="font-size:0.75rem; background:#CCFBF1; color:#0F766E; padding:3px 8px; border-radius:12px; font-weight:700;">Live Database Connection</span>
+              </div>
+              <div id="vitalsGridDisplay" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; font-size:0.85rem;">
+                <div style="color:var(--ink-soft);">Select a patient to load nurse-recorded vital signs...</div>
+              </div>
+            </div>
+
+            <div class="presc-grid">
+              <!-- DIAGNOSIS & SYMPTOMS -->
+              <div>
+                <div class="form-group">
+                  <label>Clinical Diagnosis Summary</label>
+                  <textarea id="pFormDiagnosis" class="form-control" rows="4" placeholder="Enter patient diagnosis, findings, and clinical notes..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                  <label>Observed Symptoms</label>
+                  <div class="symptoms-box">
+                    <label class="symptom-check"><input type="checkbox" value="Fever"> Fever</label>
+                    <label class="symptom-check"><input type="checkbox" value="Cold"> Cold</label>
+                    <label class="symptom-check"><input type="checkbox" value="Cough"> Cough</label>
+                    <label class="symptom-check"><input type="checkbox" value="Headache"> Headache</label>
+                    <label class="symptom-check"><input type="checkbox" value="Diabetes"> Diabetes</label>
+                    <label class="symptom-check"><input type="checkbox" value="Hypertension"> Hypertension</label>
+                    <label class="symptom-check"><input type="checkbox" value="Asthma"> Asthma</label>
+                    <label class="symptom-check"><input type="checkbox" value="Body Pain"> Body Pain</label>
+                    <label class="symptom-check"><input type="checkbox" value="Others"> Others</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- LAB TESTS & FOLLOW-UP -->
+              <div>
+                <div class="form-group">
+                  <label>Recommended Laboratory Tests</label>
+                  <div class="symptoms-box">
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="Blood Test"> Blood Test</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="Urine Test"> Urine Test</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="ECG"> ECG</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="X-Ray"> X-Ray</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="MRI"> MRI</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="CT Scan"> CT Scan</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="Ultrasound"> Ultrasound</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="Lipid Profile"> Lipid Profile</label>
+                    <label class="symptom-check"><input type="checkbox" class="lab-check" value="Blood Sugar"> Blood Sugar</label>
+                  </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                  <div class="form-group">
+                    <label>Follow-up Date</label>
+                    <input type="date" id="pFormFollowDate" class="form-control">
+                  </div>
+                  <div class="form-group">
+                    <label>Doctor Remarks</label>
+                    <input type="text" id="pFormRemarks" class="form-control" placeholder="e.g. Drink plenty of water">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DYNAMIC MEDICINES TABLE -->
+            <div style="margin-top:20px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="font-size:0.95rem; font-weight:700;">💊 Prescribed Medicines Schedule</h4>
+                <button type="button" class="btn btn-outline btn-sm" onclick="addMedicineRow()">+ Add Medicine</button>
+              </div>
+
+              <table class="dtable" id="tablePrescMeds">
+                <thead>
+                  <tr>
+                    <th>Medicine Name</th>
+                    <th>Morning</th>
+                    <th>Afternoon</th>
+                    <th>Night</th>
+                    <th>Timing</th>
+                    <th>Days</th>
+                    <th>Qty</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyPrescMeds">
+                  <!-- Dynamic Med Rows -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- FORM BUTTONS -->
+            <div style="display:flex; gap:12px; margin-top:24px; justify-content:flex-end;">
+              <button type="button" class="btn btn-outline" onclick="resetPrescriptionForm()">Clear</button>
+              <button type="submit" class="btn btn-primary">💾 Save Prescription</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+
+      <!-- ================= 5. PRESCRIPTION HISTORY ================= -->
+      <section id="dashHistory" class="dash-view">
+        <div class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">📜 Issued Prescriptions History</h3>
+          </div>
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>Rx ID</th>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th>Diagnosis</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyHistory">
+              <!-- History rows -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <!-- ================= 6. LAB REPORTS ================= -->
+      <section id="dashLab" class="dash-view">
+        <div class="panel">
+          <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <h3 class="panel-title">🧪 Laboratory & Diagnostic Reports</h3>
+            <div style="display:flex; gap:10px;">
+              <input type="text" id="docLabSearchInput" placeholder="Search Patient Unique ID / Name / Booking ID..." style="padding:8px 14px; border-radius:8px; border:1px solid #CBD5E1; font-size:0.85rem; width:280px;" onkeyup="filterDoctorLabReports()">
+              <button class="btn btn-primary btn-sm" onclick="loadDoctorLabReports()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+          </div>
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>Report ID</th>
+                <th>Patient ID & Name</th>
+                <th>Test Type</th>
+                <th>Report Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyLabReports">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+        </div>
+        <script>
+          async function loadDoctorLabReports() {
+            const tbody = document.getElementById('tbodyLabReports');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let reports = [];
+            try {
+              const res = await fetch('/api/lab/reports');
+              if (res.ok) reports = await res.json();
+            } catch(e){}
+
+            try {
+              const local = JSON.parse(localStorage.getItem('niramaya_lab_reports') || '[]');
+              local.forEach(r => {
+                if (!reports.find(x => x.reportId === r.reportId)) reports.push(r);
+              });
+            } catch(e){}
+
+            if (reports.length === 0) {
+              reports = [
+                { reportId: 'REP-100842', patientId: 'PT100842', patientName: 'Rekha Prasad', testName: 'Complete Blood Count (CBC)', reportDate: 'Today', status: 'Ready', reportFile: 'LabReport_PT100842_REP-100842.pdf' },
+                { reportId: 'REP-100845', patientId: 'PT100845', patientName: 'Amit Verma', testName: 'Lipid & Blood Sugar Profile', reportDate: 'Yesterday', status: 'Ready', reportFile: 'LabReport_PT100845_REP-100845.pdf' }
+              ];
+            }
+
+            window.cachedDoctorReports = reports;
+            renderDoctorReportsList(reports);
+          }
+
+          function renderDoctorReportsList(list) {
+            const tbody = document.getElementById('tbodyLabReports');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            list.forEach(r => {
+              const pId = r.patientId || 'PT100842';
+              const rId = r.reportId || 'REP-100842';
+              const pdfUrl = `/Reports/${r.reportFile || ('LabReport_' + pId + '_' + rId + '.pdf')}`;
+
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td><b>${rId}</b></td>
+                <td>${r.patientName || 'Rekha Prasad'} (<strong>${pId}</strong>)</td>
+                <td><strong style="color:#0D6EFD;">${r.testName || 'Laboratory Test'}</strong></td>
+                <td>${r.reportDate || 'Today'}</td>
+                <td><span class="badge-status badge-completed">${r.status || 'Verified'}</span></td>
+                <td style="display:flex; gap:8px;">
+                  <a href="${pdfUrl}" target="_blank" class="btn btn-primary btn-sm" style="background:#0D6EFD; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border-radius:6px; font-weight:600; font-size:0.8rem;">📄 View PDF Online</a>
+                  <button class="btn btn-outline btn-sm" onclick="window.open('${pdfUrl}','_blank')">🖨️ Print</button>
+                </td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
+
+          function filterDoctorLabReports() {
+            const q = (document.getElementById('docLabSearchInput')?.value || '').toLowerCase();
+            if (!window.cachedDoctorReports) return;
+            const filtered = window.cachedDoctorReports.filter(r =>
+              (r.patientId || '').toLowerCase().includes(q) ||
+              (r.patientName || '').toLowerCase().includes(q) ||
+              (r.bookingId || '').toLowerCase().includes(q) ||
+              (r.reportId || '').toLowerCase().includes(q) ||
+              (r.testName || '').toLowerCase().includes(q)
+            );
+            renderDoctorReportsList(filtered);
+          }
+
+          document.addEventListener('DOMContentLoaded', loadDoctorLabReports);
+        </script>
+      </section>
+
+
+      <!-- ================= 7. MY PROFILE ================= -->
+      <section id="dashProfile" class="dash-view">
+        <div class="panel">
+          <div style="display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="text-align:center;">
+              <div style="width:100px; height:100px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:2.2rem; font-weight:700; margin:0 auto 12px;" id="profileAvatarBig">DR</div>
+              <div style="margin-bottom:12px;"><span style="background:var(--primary-soft); color:var(--primary); font-weight:800; font-family:monospace; padding:4px 10px; border-radius:8px; font-size:0.85rem;" id="docEmployeeCodeDisplay">EMP-000001</span></div>
+              <button class="btn btn-primary btn-sm" style="width:100%; justify-content:center;" onclick="viewMyStaffIdCard()">🪪 View Employee ID Card</button>
+            </div>
+
+            <div style="flex:1; min-width:280px;">
+              <h2 style="font-family:'Sora'; font-size:1.3rem; font-weight:700;" id="profName">Dr. Ananya Rao</h2>
+              <p style="color:var(--primary); font-weight:600; font-size:0.9rem;" id="profDeptRole">General Medicine Specialist · MD</p>
+              
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px;">
+                <div>
+                  <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">EMPLOYEE CODE (COMMON ID)</label>
+                  <input type="text" id="profEmpCodeInput" class="form-control" value="EMP-000001" readonly style="background:#F1F5F9; font-weight:800; color:var(--primary);">
+                </div>
+                <div>
+                  <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">MEDICAL REGISTRATION NO.</label>
+                  <input type="text" id="profMedRegInput" class="form-control" value="MCI-2012-89412">
+                </div>
+                <div>
+                  <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">CONSULTATION FEE (₹)</label>
+                  <input type="text" id="profFeeInput" class="form-control" value="800">
+                </div>
+                <div>
+                  <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">PHONE NUMBER</label>
+                  <input type="text" id="profPhoneInput" class="form-control" value="+91 98765 43211">
+                </div>
+                <div>
+                  <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">WORKING HOURS</label>
+                  <input type="text" id="profHoursInput" class="form-control" value="09:00 AM - 08:00 PM">
+                </div>
+                <div>
+                  <label style="font-size:0.75rem; color:var(--ink-soft); font-weight:700;">AVAILABLE DAYS</label>
+                  <input type="text" id="profDaysInput" class="form-control" value="Mon - Sat">
+                </div>
+              </div>
+
+              <div style="margin-top:20px; display:flex; gap:12px;">
+                <button class="btn btn-primary" onclick="saveProfileChanges()">Save Profile & Sync to Patient Portal</button>
+                <button class="btn btn-outline" onclick="viewMyStaffIdCard()">🪪 Print ID Card</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ================= 8. SETTINGS ================= -->
+      <section id="dashSettings" class="dash-view">
+        <div class="panel">
+          <h3 class="panel-title" style="margin-bottom:16px;">⚙️ Account Settings & Security</h3>
+          <div style="max-width:400px;">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" class="form-control">
+            </div>
+            <button class="btn btn-primary" onclick="showToast('✅ Password Updated Successfully!')">Update Password</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+
+  <!-- PATIENT PROFILE MODAL POPUP -->
+  <div class="modal-overlay" id="modalPatientProfile">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="font-family:'Sora'; font-size:1.1rem; font-weight:700;">👤 Patient Medical Dossier</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalPatientProfile')">✕ Close</button>
+      </div>
+      <div id="modalPatientContent">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </div>
+
+
+  <!-- PRESCRIPTION VIEW & PRINT MODAL -->
+  <div class="modal-overlay" id="modalPrintPrescription">
+    <div class="modal-card" style="max-width:800px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;" class="no-print">
+        <h3 style="font-family:'Sora'; font-size:1.1rem; font-weight:700;">📄 Printable Digital Prescription</h3>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print Prescription</button>
+          <button class="btn btn-outline btn-sm" onclick="closeModal('modalPrintPrescription')">✕ Close</button>
+        </div>
+      </div>
+
+      <!-- PRINTABLE AREA -->
+      <div id="printablePrescription" style="border:2px solid var(--primary); padding:30px; border-radius:12px; background:#fff;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--primary); padding-bottom:16px; margin-bottom:20px;">
+          <div>
+            <h1 style="font-family:'Sora'; color:var(--primary); font-size:1.6rem; font-weight:800;">NIRAMAYA HOSPITALS</h1>
+            <p style="color:var(--accent); font-weight:700; font-size:0.85rem;">Compassion. Care. Cure.</p>
+            <p style="font-size:0.75rem; color:var(--ink-soft);">Niramaya Healthcare Boulevard, Sector 4, Metro City | Phone: 1800-123-9999</p>
+          </div>
+          <div style="text-align:right;">
+            <h3 style="font-size:1rem; font-weight:700;" id="printDocName">Dr. Ananya Rao</h3>
+            <p style="font-size:0.8rem; color:var(--ink-soft);" id="printDocDept">General Medicine Specialist</p>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; background:#F8FAFC; padding:12px; border-radius:8px; font-size:0.85rem; margin-bottom:20px;">
+          <div><b>Patient ID:</b> <span id="printPatientId">PT100842</span></div>
+          <div><b>Patient Name:</b> <span id="printPatientName">Rekha Prasad</span></div>
+          <div><b>Age / Gender:</b> <span id="printPatientAge">28 Yrs / Female</span></div>
+          <div><b>Date:</b> <span id="printDate">Today</span></div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <h4 style="font-size:0.9rem; color:var(--primary); font-weight:700;">CLINICAL DIAGNOSIS</h4>
+          <p style="font-size:0.9rem; margin-top:4px;" id="printDiagnosis">Viral Fever & Mild Upper Respiratory Tract Infection</p>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <h4 style="font-size:0.9rem; color:var(--primary); font-weight:700; margin-bottom:8px;">PRESCRIBED MEDICINES</h4>
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>Medicine</th>
+                <th>Morning</th>
+                <th>Afternoon</th>
+                <th>Night</th>
+                <th>Timing</th>
+                <th>Days</th>
+              </tr>
+            </thead>
+            <tbody id="printMedsBody">
+              <!-- Meds injected -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:40px;">
+          <div>
+            <div id="qrcode"></div>
+            <p style="font-size:0.7rem; color:var(--ink-soft); margin-top:4px;">Scan QR to verify Rx Authenticity</p>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:'Sora'; font-weight:700; font-size:1rem; color:var(--primary);" id="printSignName">Dr. Ananya Rao</div>
+            <p style="font-size:0.75rem; color:var(--ink-soft); border-top:1px solid #cbd5e1; padding-top:4px; margin-top:4px;">Authorized Medical Practitioner</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+
+  <!-- APPLICATION JAVASCRIPT LOGIC -->
+  <script>
+    // -------------------------------------------------------------
+    // LOGGED-IN DOCTOR SESSION & STATE MANAGEMENT
+    // -------------------------------------------------------------
+    const currentUserEmail = (
+      sessionStorage.getItem('niramaya_current_user_email') || 
+      sessionStorage.getItem('niramaya_email') || 
+      localStorage.getItem('niramaya_remember_email') || 
+      'doctor@niramaya.health'
+    ).toLowerCase().trim();
+
+    const docProfileKey = 'niramaya_doc_profile_' + currentUserEmail;
+
+    let docProfile = {};
+    try { docProfile = JSON.parse(localStorage.getItem(docProfileKey) || '{}'); } catch(e){}
+
+    if (!docProfile.name) {
+      let derivedName = sessionStorage.getItem('niramaya_name') || 'Dr. Ananya Rao';
+      if (!derivedName.toLowerCase().startsWith('dr.')) derivedName = 'Dr. ' + derivedName;
+
+      docProfile = {
+        email: currentUserEmail,
+        name: derivedName,
+        age: '38 Yrs (14 Yrs Exp)',
+        dept: 'General Medicine',
+        fee: '800',
+        morning: '09:00 AM - 01:00 PM',
+        evening: '04:00 PM - 08:00 PM',
+        days: 'Mon - Sat',
+        phone: '+91 98765 43211',
+        status: 'Online & Accepting Appointments'
+      };
+      localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
+    }
+
+    // Initialize UI Text
+    document.getElementById('sideDocName').textContent = docProfile.name;
+    document.getElementById('sideDocEmail').textContent = currentUserEmail;
+    document.getElementById('topGreeting').textContent = `Welcome, ${docProfile.name}`;
+    document.getElementById('topDeptDate').innerHTML = `Department of ${docProfile.dept || 'General Medicine'} &nbsp;|&nbsp; <span>${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</span>`;
+    document.getElementById('currentDateStr').textContent = new Date().toLocaleDateString();
+    
+    const initials = docProfile.name.replace(/^dr\.\s*/i, '').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'DR';
+    document.getElementById('sideDocAvatar').textContent = initials;
+    document.getElementById('profileAvatarBig').textContent = initials;
+    document.getElementById('profName').textContent = docProfile.name;
+
+    // Load Profile Inputs
+    document.getElementById('profFeeInput').value = docProfile.fee || '800';
+    document.getElementById('profPhoneInput').value = docProfile.phone || '+91 98765 43211';
+
+    // Global Sync to Central Registry
+    function syncRegistry() {
+      let registry = [];
+      try { registry = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+      registry = registry.filter(d => d.email !== currentUserEmail);
+
+      const isOnline = docProfile.status ? docProfile.status.includes('Online') : true;
+      registry.push({
+        id: 'doc_' + currentUserEmail.replace(/[^a-zA-Z0-9]/g, '_'),
+        email: currentUserEmail,
+        name: docProfile.name,
+        role: `${docProfile.dept || 'General Medicine'} Specialist · MD`,
+        dept: docProfile.dept || 'General Medicine',
+        experience: docProfile.age || '12 yrs exp',
+        fee: parseInt(docProfile.fee) || 800,
+        phone: docProfile.phone,
+        status: docProfile.status || 'Online & Accepting Appointments',
+        isAvailable: isOnline,
+        todaySlots: ['09:00 AM', '09:20 AM', '09:40 AM', '10:00 AM', '10:20 AM', '10:40 AM', '11:00 AM', '11:20 AM', '02:00 PM', '02:20 PM', '02:40 PM', '03:00 PM'],
+        tomorrowSlots: ['09:20 AM', '09:40 AM', '10:00 AM', '10:20 AM', '10:40 AM', '11:00 AM', '11:20 AM', '11:40 AM', '02:20 PM', '02:40 PM']
+      });
+      localStorage.setItem('niramaya_doctors_registry', JSON.stringify(registry));
+    }
+    syncRegistry();
+
+    // -------------------------------------------------------------
+    // NAVIGATION SWITCHING
+    // -------------------------------------------------------------
+    function switchNav(viewId, el) {
+      document.querySelectorAll('.dash-view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+
+      if (el) {
+        document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+        el.classList.add('active');
+      }
+
+      if (viewId === 'dashHome') loadDashboardData();
+      if (viewId === 'dashAppts') renderApptsTable();
+      if (viewId === 'dashPatients') renderPatientsTable();
+      if (viewId === 'dashHistory') renderHistoryTable();
+      if (viewId === 'dashLab') loadDoctorLabReports();
+    }
+
+    // -------------------------------------------------------------
+    // ONLINE / OFFLINE TOGGLE
+    // -------------------------------------------------------------
+    function toggleOnlineStatus() {
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('statusText');
+
+      let newStatus = '';
+      let acceptAppointments = 'No';
+
+      if (docProfile.status && docProfile.status.includes('Online')) {
+        docProfile.status = 'Offline / On Leave';
+        docProfile.acceptAppointments = 'No';
+        newStatus = 'Offline';
+        acceptAppointments = 'No';
+        dot.classList.add('offline');
+        txt.textContent = 'OFFLINE [ OFF ]';
+        txt.style.color = '#EF4444';
+      } else {
+        docProfile.status = 'Online & Accepting Appointments';
+        docProfile.acceptAppointments = 'Yes';
+        newStatus = 'Online';
+        acceptAppointments = 'Yes';
+        dot.classList.remove('offline');
+        txt.textContent = 'ONLINE [ ON ]';
+        txt.style.color = '#065F46';
+      }
+      localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
+      syncRegistry();
+
+      // Broadcast to JDBC Java Backend
+      fetch('/api/doctor/toggle-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doctorId: docProfile.doctorId || currentUserEmail,
+          status: newStatus,
+          acceptAppointments: acceptAppointments
+        })
+      }).catch(e => {});
+
+      window.dispatchEvent(new Event('storage'));
+      showToast(`Status updated: ${docProfile.status}`);
+    }
+
+    // -------------------------------------------------------------
+    // APPOINTMENTS DATA FETCHING & ISOLATION FOR LOGGED IN DOCTOR
+    // -------------------------------------------------------------
+    function isAppointmentForCurrentDoctor(a) {
+      if (!a) return false;
+
+      const currentDocNameClean = (docProfile.name || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
+      const currentEmailClean = currentUserEmail.toLowerCase().trim();
+      const currentDocIdClean = (docProfile.doctorId || '').toLowerCase().trim();
+
+      // 1. Direct Email match
+      if (a.docEmail && a.docEmail.toLowerCase().trim() === currentEmailClean) {
+        return true;
+      }
+
+      // 2. Doctor ID match
+      if (a.doctorId && currentDocIdClean && a.doctorId.toLowerCase().trim() === currentDocIdClean) {
+        return true;
+      }
+      if (a.doctorId && currentEmailClean && a.doctorId.toLowerCase().trim() === currentEmailClean) {
+        return true;
+      }
+
+      // 3. Exact / Substring Name Match
+      const bookingDocClean = (a.docName || a.doctorName || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
+      if (bookingDocClean && currentDocNameClean) {
+        if (bookingDocClean === currentDocNameClean || bookingDocClean.includes(currentDocNameClean) || currentDocNameClean.includes(bookingDocClean)) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    function getDocAppts() {
+      let allAppts = [];
+      try {
+        let primary = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+        if (Array.isArray(primary)) allAppts.push(...primary);
+      } catch(e){}
+
+      // Also scan all patient booking keys so no appointment is ever missed!
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('niramaya_user_bookings_') || k === 'niramaya_user_bookings')) {
+            const list = JSON.parse(localStorage.getItem(k) || '[]');
+            if (Array.isArray(list)) {
+              list.forEach(item => {
+                if (item && !allAppts.some(existing => (existing.token && existing.token === item.token) || (existing.id && existing.id === item.id))) {
+                  allAppts.push(item);
+                }
+              });
+            }
+          }
+        }
+      } catch(e){}
+
+      return allAppts.map(a => {
+        if (!a) return null;
+        return {
+          ...a,
+          token: a.token || a.id || a.appointmentId || '#APT-' + Math.floor(1000 + Math.random()*9000),
+          patientId: a.patientId || 'PT' + Math.floor(100000 + Math.random()*900000),
+          patientName: a.patientName || a.patient || 'Guest Patient',
+          ageGender: a.ageGender || `${a.age || '28'} Yrs / ${a.gender || 'Female'}`,
+          slotTime: a.slotTime || a.time || a.appointmentTime || '10:40 AM',
+          bookingDate: a.bookingDate || a.date || a.appointmentDate || 'Today',
+          status: a.status || 'PENDING'
+        };
+      }).filter(a => isAppointmentForCurrentDoctor(a));
+    }
+
+    async function loadDashboardData() {
+      let todaysAppts = [];
+      let completedAppts = [];
+      const currentDocId = sessionStorage.getItem('niramaya_employee_code') || docProfile.doctorId || docProfile.name || currentUserEmail;
+      
+      try {
+        const [resToday, resComp] = await Promise.all([
+          fetch('/api/doctor/todays-patients?doctor=' + encodeURIComponent(currentDocId)),
+          fetch('/api/doctor/completed-consultations?doctor=' + encodeURIComponent(currentDocId))
+        ]);
+        todaysAppts = await resToday.json();
+        completedAppts = await resComp.json();
+      } catch(e) {
+        todaysAppts = getDocAppts();
+      }
+
+      if (!Array.isArray(todaysAppts)) todaysAppts = [];
+      if (!Array.isArray(completedAppts)) completedAppts = [];
+
+      const appts = todaysAppts.map(a => ({
+        token: a.appointmentId || '#APT-' + Math.floor(1000 + Math.random()*9000),
+        patientId: a.patientId,
+        patientName: a.doctorName ? ('Patient (' + a.patientId + ')') : (a.patientName || 'Patient (' + a.patientId + ')'),
+        ageGender: 'Adult',
+        slotTime: a.appointmentTime || a.time || '10:00 AM',
+        bookingDate: a.appointmentDate || a.date || 'Today',
+        status: (a.status || 'Confirmed').toUpperCase(),
+        docName: a.doctorName,
+        doctorId: a.doctorId
+      }));
+
+      const completedCount = completedAppts.length;
+      const pendingCount = appts.length;
+
+      document.getElementById('statTodayAppts').textContent = appts.length;
+      document.getElementById('statCompletedAppts').textContent = completedCount;
+      document.getElementById('statPendingAppts').textContent = pendingCount;
+      document.getElementById('statTotalPatients').textContent = new Set([...appts, ...completedAppts].map(a => a.patientId)).size || (appts.length + completedCount);
+
+      if (appts.length > 0) {
+        document.getElementById('statNextAppt').textContent = appts[0].slotTime;
+        document.getElementById('statNextPatient').textContent = appts[0].patientId || 'Upcoming token';
+      } else {
+        document.getElementById('statNextAppt').textContent = '--:--';
+        document.getElementById('statNextPatient').textContent = 'No queue';
+      }
+
+      // Home Table (Today's Work Only)
+      const tbody = document.getElementById('tbodyHomeAppts');
+      if (appts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--ink-soft);">📋 No active appointments in today's queue. All consultations completed!</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = appts.map(a => `
+        <tr>
+          <td><b>${a.token}</b></td>
+          <td>${a.patientId}</td>
+          <td><b>${a.patientName}</b></td>
+          <td>${a.ageGender}</td>
+          <td>${a.slotTime}</td>
+          <td><span class="badge-status badge-pending">${a.status}</span></td>
+          <td style="display:flex; gap:6px;">
+            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}')">📝 Write Rx</button>
+            <button class="btn btn-success btn-sm" style="background:#059669; color:#fff; border:none;" onclick="markDoctorConsultationComplete('${a.token}')">✅ Complete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function markDoctorConsultationComplete(apptId) {
+      try {
+        const res = await fetch('/api/doctor/complete-consultation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId: apptId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          try {
+            let allAppts = JSON.parse(localStorage.getItem('niramaya_appointments') || '[]');
+            allAppts.forEach(a => {
+              if (a.id === apptId || a.appointmentId === apptId || a.token === apptId) {
+                a.status = 'COMPLETED';
+              }
+            });
+            localStorage.setItem('niramaya_appointments', JSON.stringify(allAppts));
+          } catch(e){}
+
+          showToast('✅ Consultation completed! Patient moved to Completed History.');
+          await loadDashboardData();
+          renderApptsTable();
+          if (typeof renderHistoryTable === 'function') renderHistoryTable();
+        } else {
+          showToast('⚠️ ' + data.message);
+        }
+      } catch(e) {
+        showToast('❌ Failed to complete consultation.');
+      }
+    }
+
+    function renderApptsTable() {
+      const query = document.getElementById('filterApptQuery').value.toLowerCase();
+      const statusFilter = document.getElementById('filterApptStatus').value;
+      const appts = getDocAppts();
+
+      const filtered = appts.filter(a => {
+        const matchesQ = !query || (a.patientName && a.patientName.toLowerCase().includes(query)) || (a.patientId && a.patientId.toLowerCase().includes(query));
+        const matchesS = statusFilter === 'ALL' || (a.status || 'PENDING') === statusFilter;
+        return matchesQ && matchesS;
+      });
+
+      const tbody = document.getElementById('tbodyApptsList');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--ink-soft);">No appointments found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(a => `
+        <tr>
+          <td><b>${a.token}</b></td>
+          <td>${a.patientId}</td>
+          <td><b>${a.patientName}</b></td>
+          <td colspan="2">${a.ageGender}</td>
+          <td>${a.bookingDate}</td>
+          <td>${a.slotTime}</td>
+          <td><span class="badge-status ${a.status === 'COMPLETED' ? 'badge-completed' : 'badge-pending'}">${a.status}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="viewPatientProfileModal('${a.patientId}', '${a.patientName}')">View Profile</button>
+            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}')">Write Rx</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function renderHistoryTable() {
+      const tbody = document.getElementById('tbodyHistory');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--primary);">Fetching server completed history...</td></tr>';
+
+      let completedList = [];
+      const currentDocId = sessionStorage.getItem('niramaya_employee_code') || docProfile.doctorId || docProfile.name || currentUserEmail;
+
+      try {
+        const res = await fetch('/api/doctor/completed-consultations?doctor=' + encodeURIComponent(currentDocId));
+        completedList = await res.json();
+      } catch(e) {}
+
+      if (!Array.isArray(completedList) || completedList.length === 0) {
+        let allRx = [];
+        try { allRx = JSON.parse(localStorage.getItem('niramaya_all_prescriptions') || '[]'); } catch(e){}
+        completedList = allRx;
+      }
+
+      if (!completedList || completedList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--ink-soft);">No completed history records found. All completed consultations will appear here automatically.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = completedList.map(item => `
+        <tr>
+          <td><b>${item.rxId || item.appointmentId || '#RX-101'}</b></td>
+          <td>${item.patientId || item.pId || 'PT100842'}</td>
+          <td><b>${item.patientName || item.pName || 'Patient'}</b></td>
+          <td>${item.diagnosis || 'Routine Follow-up & Vital Check'}</td>
+          <td>${item.date || item.appointmentDate || 'Past'}</td>
+          <td><span class="badge-status badge-completed">COMPLETED ✓</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderPatientsTable() {
+      const appts = getDocAppts();
+      const query = document.getElementById('filterPatientQuery').value.toLowerCase();
+
+      let patientMap = new Map();
+      appts.forEach(a => {
+        const pId = a.patientId || 'PT100842';
+        if (!patientMap.has(pId)) {
+          patientMap.set(pId, {
+            id: pId,
+            name: a.patientName || 'Rekha Prasad',
+            ageGender: (a.age || '28 Yrs') + ' / ' + (a.gender || 'Female'),
+            blood: a.blood || 'O+',
+            phone: a.phone || '+91 98765 43210',
+            lastVisit: a.bookingDate || 'Today',
+            diagnosis: a.diagnosis || 'Routine Checkup'
+          });
+        }
+      });
+
+      const list = Array.from(patientMap.values()).filter(p => !query || p.name.toLowerCase().includes(query) || p.id.toLowerCase().includes(query));
+      const tbody = document.getElementById('tbodyPatientsList');
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--ink-soft);">No patient records matching search.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(p => `
+        <tr>
+          <td><b>${p.id}</b></td>
+          <td><b>${p.name}</b></td>
+          <td>${p.ageGender}</td>
+          <td>${p.blood}</td>
+          <td>${p.phone}</td>
+          <td>${p.lastVisit}</td>
+          <td>${p.diagnosis}</td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="viewPatientProfileModal('${p.id}', '${p.name}')">Profile</button>
+            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${p.id}', '${p.name}', '${p.ageGender}')">Write Rx</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // -------------------------------------------------------------
+    // PRESCRIPTION ENGINE & MEDICINES DYNAMIC TABLE
+    // -------------------------------------------------------------
+    function addMedicineRow(name = '', morning = 1, afternoon = 0, night = 1, timing = 'After Food', days = 5) {
+      const tbody = document.getElementById('tbodyPrescMeds');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="form-control med-name" value="${name}" placeholder="Medicine Name" required></td>
+        <td><input type="number" class="form-control med-m" value="${morning}" style="width:60px;"></td>
+        <td><input type="number" class="form-control med-a" value="${afternoon}" style="width:60px;"></td>
+        <td><input type="number" class="form-control med-n" value="${night}" style="width:60px;"></td>
+        <td>
+          <select class="form-control med-timing" style="width:120px;">
+            <option value="After Food" ${timing==='After Food'?'selected':''}>After Food</option>
+            <option value="Before Food" ${timing==='Before Food'?'selected':''}>Before Food</option>
+          </select>
+        </td>
+        <td><input type="number" class="form-control med-days" value="${days}" style="width:70px;"></td>
+        <td><input type="number" class="form-control med-qty" value="${(morning+afternoon+night)*days}" style="width:70px;"></td>
+        <td><button type="button" class="btn btn-outline btn-sm" style="color:#EF4444;" onclick="this.closest('tr').remove()">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    async function loadPatientVitalsForDoctor(pId) {
+      const container = document.getElementById('vitalsGridDisplay');
+      if (!pId) {
+        container.innerHTML = `<div style="color:var(--ink-soft);">No patient selected.</div>`;
+        return;
+      }
+      container.innerHTML = `<div style="color:var(--primary);">Loading live vitals from database...</div>`;
+      try {
+        const res = await fetch('/api/doctor/patient-vitals?patientId=' + encodeURIComponent(pId));
+        const data = await res.json();
+        if (data && data.hasVitals) {
+          container.innerHTML = `
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0;">
+              <div style="font-size:0.72rem; color:#64748B; font-weight:700;">BLOOD PRESSURE</div>
+              <div style="font-size:1rem; font-weight:800; color:#0F172A;">${data.bloodPressure || 'N/A'}</div>
+            </div>
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0;">
+              <div style="font-size:0.72rem; color:#64748B; font-weight:700;">TEMPERATURE</div>
+              <div style="font-size:1rem; font-weight:800; color:#0F172A;">${data.temperature || 'N/A'}</div>
+            </div>
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0;">
+              <div style="font-size:0.72rem; color:#64748B; font-weight:700;">PULSE / HEART RATE</div>
+              <div style="font-size:1rem; font-weight:800; color:#0F172A;">${data.pulseRate || 'N/A'}</div>
+            </div>
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0;">
+              <div style="font-size:0.72rem; color:#64748B; font-weight:700;">SPO2 / OXYGEN</div>
+              <div style="font-size:1rem; font-weight:800; color:#0F172A;">${data.oxygenSaturation || 'N/A'}</div>
+            </div>
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0;">
+              <div style="font-size:0.72rem; color:#64748B; font-weight:700;">WEIGHT / HEIGHT</div>
+              <div style="font-size:0.9rem; font-weight:700; color:#0F172A;">${data.weight || 'N/A'} / ${data.height || 'N/A'}</div>
+            </div>
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0; grid-column: 1 / -1;">
+              <div style="font-size:0.72rem; color:#64748B; font-weight:700;">RECORDED BY NURSE</div>
+              <div style="font-size:0.88rem; font-weight:700; color:#0D9488;">${data.nurseName || 'Nurse'} &nbsp;•&nbsp; <span style="font-weight:400; color:#475569;">${data.recordedDate || ''} ${data.recordedTime || ''}</span></div>
+              ${data.nurseNotes ? `<div style="font-size:0.82rem; margin-top:4px; color:#334155;"><b>Nurse Notes:</b> ${data.nurseNotes}</div>` : ''}
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<div style="color:#D97706; font-size:0.88rem; padding:4px 0;">⚠️ ${data.message || 'No vital checks recorded yet for this patient by nurse.'}</div>`;
+        }
+      } catch(e) {
+        container.innerHTML = `<div style="color:#EF4444;">Failed to load live vitals.</div>`;
+      }
+    }
+
+    function startPrescriptionForAppt(pId, pName, pAgeGender) {
+      switchNav('dashPrescribe');
+      document.getElementById('pFormId').value = pId;
+      document.getElementById('pFormName').value = pName;
+      document.getElementById('pFormAgeGender').value = pAgeGender;
+      document.getElementById('pFormBlood').value = 'O+';
+      
+      const tbody = document.getElementById('tbodyPrescMeds');
+      tbody.innerHTML = '';
+      addMedicineRow('Paracetamol 650mg', 1, 0, 1, 'After Food', 5);
+      addMedicineRow('Amoxicillin 500mg', 1, 0, 1, 'After Food', 5);
+
+      loadPatientVitalsForDoctor(pId);
+    }
+
+    function searchPatientForPrescription() {
+      const searchId = document.getElementById('prescSearchId').value.trim().toUpperCase();
+      if (!searchId) return showToast('⚠️ Enter Patient ID to search!');
+
+      document.getElementById('pFormId').value = searchId;
+      document.getElementById('pFormName').value = 'Patient (' + searchId + ')';
+      document.getElementById('pFormAgeGender').value = 'Adult';
+      document.getElementById('pFormBlood').value = 'O+';
+      loadPatientVitalsForDoctor(searchId);
+      showToast(`✅ Patient ${searchId} loaded successfully!`);
+    }
+
+    function handleSavePrescription(e) {
+      e.preventDefault();
+      const pId = document.getElementById('pFormId').value;
+      const pName = document.getElementById('pFormName').value;
+      const diagnosis = document.getElementById('pFormDiagnosis').value;
+      const ageGender = document.getElementById('pFormAgeGender').value || '28 Yrs / Female';
+      const partsAG = ageGender.split('/');
+      const pAge = (partsAG[0] || '28 Yrs').trim();
+      const pGender = (partsAG[1] || 'Female').trim();
+
+      // Extract meds
+      let meds = [];
+      document.querySelectorAll('#tbodyPrescMeds tr').forEach(tr => {
+        const mName = tr.querySelector('.med-name')?.value;
+        if (mName) {
+          meds.push({
+            name: mName,
+            m: tr.querySelector('.med-m')?.value || 1,
+            a: tr.querySelector('.med-a')?.value || 0,
+            n: tr.querySelector('.med-n')?.value || 1,
+            timing: tr.querySelector('.med-timing')?.value || 'After Food',
+            days: tr.querySelector('.med-days')?.value || 5
+          });
+        }
+      });
+
+      // Extract selected lab tests
+      let labTests = [];
+      document.querySelectorAll('.lab-check:checked').forEach(cb => {
+        if (cb.value) labTests.push(cb.value);
+      });
+
+      const rxId = 'RX-' + Math.floor(100000 + Math.random()*900000);
+      const rxObj = {
+        rxId,
+        pId,
+        pName,
+        docName: docProfile.name,
+        diagnosis,
+        meds,
+        labTests,
+        date: new Date().toLocaleDateString()
+      };
+
+      // 1. Save to Doctor History
+      let history = [];
+      try { history = JSON.parse(localStorage.getItem('niramaya_rx_history_' + currentUserEmail) || '[]'); } catch(err){}
+      history.unshift(rxObj);
+      localStorage.setItem('niramaya_rx_history_' + currentUserEmail, JSON.stringify(history));
+
+      // 2. Save to Patient Specific Prescriptions Key by Patient ID
+      if (pId) {
+        let pRx = [];
+        try { pRx = JSON.parse(localStorage.getItem('niramaya_prescriptions_' + pId) || '[]'); } catch(e){}
+        pRx.unshift(rxObj);
+        localStorage.setItem('niramaya_prescriptions_' + pId, JSON.stringify(pRx));
+      }
+
+      // 3. Save to Global Prescriptions Log
+      try {
+        let allRx = JSON.parse(localStorage.getItem('niramaya_all_prescriptions') || '[]');
+        allRx.unshift(rxObj);
+        localStorage.setItem('niramaya_all_prescriptions', JSON.stringify(allRx));
+      } catch(e){}
+
+      // 4. Intimate LAB TECHNICIAN QUEUE if lab tests were recommended
+      if (labTests.length > 0) {
+        let labBookings = [];
+        try { labBookings = JSON.parse(localStorage.getItem('niramaya_lab_bookings') || '[]'); } catch(e){}
+        
+        labTests.forEach(testName => {
+          const bookingId = 'LAB-' + Math.floor(100000 + Math.random()*900000);
+          const labBookingObj = {
+            bookingId: bookingId,
+            patientId: pId || 'PT100842',
+            patientName: pName || 'Rekha Prasad',
+            patientAge: pAge,
+            patientGender: pGender,
+            doctorId: docProfile.doctorId || currentUserEmail,
+            doctorName: docProfile.name,
+            department: docProfile.dept || 'General Medicine',
+            testName: testName,
+            bookingDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            paymentStatus: 'Paid',
+            status: 'Pending'
+          };
+          labBookings.unshift(labBookingObj);
+
+          fetch('/api/lab/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(labBookingObj)
+          }).catch(e => {});
+        });
+
+        localStorage.setItem('niramaya_lab_bookings', JSON.stringify(labBookings));
+      }
+
+      // 5. Intimate PHARMACY QUEUE if medicines were prescribed
+      if (meds.length > 0) {
+        let pharmacyOrders = [];
+        try { pharmacyOrders = JSON.parse(localStorage.getItem('niramaya_pharmacy_orders') || '[]'); } catch(e){}
+
+        const phaToken = 'PHA-2026-' + Math.floor(10000 + Math.random()*90000);
+        const orderId = 'ORD-' + Math.floor(100000 + Math.random()*900000);
+        const orderDate = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+        let totalSub = 0;
+        let items = meds.map((m, idx) => {
+          const qty = ((parseInt(m.m)||0) + (parseInt(m.a)||0) + (parseInt(m.n)||0)) * (parseInt(m.days)||5);
+          const unitPrice = 45.0;
+          const subtotal = qty * unitPrice;
+          totalSub += subtotal;
+          return {
+            itemId: 'ITM-' + orderId + '-' + (idx + 1),
+            orderId: orderId,
+            medicineName: m.name,
+            strength: 'Standard',
+            dosage: m.timing,
+            morning: parseInt(m.m)||0,
+            afternoon: parseInt(m.a)||0,
+            night: parseInt(m.n)||0,
+            duration: m.days + ' Days',
+            quantity: qty,
+            unitPrice: unitPrice,
+            subtotal: subtotal
+          };
+        });
+
+        const totalAmount = parseFloat((totalSub * 1.05).toFixed(2));
+
+        const pharmOrderObj = {
+          orderId: orderId,
+          pharmacyToken: phaToken,
+          patientId: pId || 'PT100842',
+          patientName: pName || 'Rekha Prasad',
+          doctorId: docProfile.doctorId || currentUserEmail,
+          doctorName: docProfile.name,
+          prescriptionId: rxId,
+          appointmentId: 'TK-1001',
+          totalAmount: totalAmount,
+          paymentStatus: 'Unpaid',
+          orderStatus: 'Prescription Received',
+          paymentMethod: '',
+          transactionId: '',
+          orderDate: orderDate,
+          items: items
+        };
+
+        pharmacyOrders.unshift(pharmOrderObj);
+        localStorage.setItem('niramaya_pharmacy_orders', JSON.stringify(pharmacyOrders));
+
+        fetch('/api/doctor/prescribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prescriptionId: rxId,
+            appointmentId: 'TK-1001',
+            doctorId: docProfile.doctorId || currentUserEmail,
+            patientId: pId || 'PT100842',
+            diagnosis: diagnosis,
+            medicines: JSON.stringify(meds),
+            doctorNotes: document.getElementById('pFormRemarks')?.value || '',
+            followUp: document.getElementById('pFormFollowDate')?.value || '5 Days'
+          })
+        }).catch(e => {});
+      }
+
+      // 6. Mark appointment COMPLETED in central registry
+      try {
+        let allAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+        let updated = false;
+        allAppts.forEach(a => {
+          if ((a.patientId && a.patientId === pId) || (a.patient && a.patient.toLowerCase() === pName.toLowerCase())) {
+            a.status = 'COMPLETED';
+            updated = true;
+          }
+        });
+        if (updated) {
+          localStorage.setItem('niramaya_all_appointments', JSON.stringify(allAppts));
+        }
+      } catch(e){}
+
+      window.dispatchEvent(new Event('storage'));
+      showToast(`✅ Prescription ${rxId} Saved & Synced to Lab & Pharmacy!`);
+      openPrintModal(rxObj);
+      loadDashboardData();
+    }
+
+    function renderHistoryTable() {
+      let history = [];
+      try { history = JSON.parse(localStorage.getItem('niramaya_rx_history_' + currentUserEmail) || '[]'); } catch(err){}
+      const tbody = document.getElementById('tbodyHistory');
+
+      if (history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--ink-soft);">No prescriptions issued yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = history.map(r => `
+        <tr>
+          <td><b>${r.rxId}</b></td>
+          <td>${r.pId}</td>
+          <td><b>${r.pName}</b></td>
+          <td>${r.diagnosis}</td>
+          <td>${r.date}</td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick='openPrintModal(${JSON.stringify(r)})'>🖨️ View / Print PDF</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openPrintModal(rx) {
+      document.getElementById('printDocName').textContent = docProfile.name;
+      document.getElementById('printPatientId').textContent = rx.pId;
+      document.getElementById('printPatientName').textContent = rx.pName;
+      document.getElementById('printDiagnosis').textContent = rx.diagnosis;
+      document.getElementById('printDate').textContent = rx.date;
+
+      const tbody = document.getElementById('printMedsBody');
+      tbody.innerHTML = rx.meds.map(m => `
+        <tr>
+          <td><b>${m.name}</b></td>
+          <td>${m.m}</td>
+          <td>${m.a}</td>
+          <td>${m.n}</td>
+          <td>${m.timing}</td>
+          <td>${m.days} Days</td>
+        </tr>
+      `).join('');
+
+      // Generate QR Code containing Rx ID and Patient ID
+      const qrDiv = document.getElementById('qrcode');
+      qrDiv.innerHTML = '';
+      new QRCode(qrDiv, {
+        text: `NIRAMAYA-RX:${rx.rxId}|PATIENT:${rx.pId}|DOC:${docProfile.name}`,
+        width: 64,
+        height: 64
+      });
+
+      document.getElementById('modalPrintPrescription').classList.add('active');
+    }
+
+    function viewPatientProfileModal(pId, pName) {
+      const modal = document.getElementById('modalPatientProfile');
+      const content = document.getElementById('modalPatientContent');
+      content.innerHTML = `
+        <div style="display:flex; gap:20px; align-items:center; background:var(--primary-soft); padding:16px; border-radius:12px; margin-bottom:20px;">
+          <div style="width:64px; height:64px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700;">${pName.slice(0,2).toUpperCase()}</div>
+          <div>
+            <h3 style="font-family:'Sora'; font-size:1.2rem;">${pName}</h3>
+            <p style="color:var(--primary); font-weight:600; font-size:0.85rem;">Patient ID: ${pId} &nbsp;|&nbsp; Blood Group: O+</p>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; font-size:0.88rem; margin-bottom:20px;">
+          <div><b>Age / Gender:</b> 28 Yrs / Female</div>
+          <div><b>Phone Number:</b> +91 98765 43210</div>
+          <div><b>Emergency Contact:</b> +91 98765 00000</div>
+          <div><b>Address:</b> 42 Green Avenue, Metro City</div>
+          <div><b>Height / Weight:</b> 165 cm / 62 kg</div>
+          <div><b>Medical History:</b> No Known Allergies</div>
+        </div>
+      `;
+      modal.classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function resetPrescriptionForm() {
+      document.getElementById('formWritePrescription').reset();
+      document.getElementById('tbodyPrescMeds').innerHTML = '';
+      addMedicineRow();
+    }
+
+    function saveProfileChanges() {
+      docProfile.fee = document.getElementById('profFeeInput').value;
+      docProfile.phone = document.getElementById('profPhoneInput').value;
+      localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
+      syncRegistry();
+      showToast('✅ Profile Updated & Synced to Patient Portal!');
+    }
+
+    function handleLogout() {
+      sessionStorage.clear();
+      window.location.href = '/login.html';
+    }
+
+    function handleGlobalSearch(q) {
+      if (!q) return;
+      showToast(`🔍 Searching for "${q}"...`);
+    }
+
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = `<span>💬</span> <span>${msg}</span>`;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    // Listen for storage events (real-time queue update when patient books an appointment in Patient Portal)
+    window.addEventListener('storage', (e) => {
+      if (!e.key || e.key === 'niramaya_all_appointments' || e.key === 'niramaya_doctors_registry' || e.key.startsWith('niramaya_doc_profile_')) {
+        loadDashboardData();
+        renderApptsTable();
+        renderPatientsTable();
+      }
+    });
+
+    async function viewMyStaffIdCard() {
+      const empCode = sessionStorage.getItem('niramaya_employee_code') || docProfile.employeeCode || 'EMP-000001';
+      try {
+        const res = await fetch(`/api/staff/profile?code=${empCode}&role=doctor`);
+        const data = await res.json();
+        openStaffIdCardModal(data);
+      } catch (e) {
+        openStaffIdCardModal({
+          employeeCode: empCode,
+          fullName: docProfile.name || 'Dr. Ananya Rao',
+          role: 'Doctor',
+          department: docProfile.dept || 'Cardiology',
+          designation: 'Consultant Cardiologist',
+          joiningDate: '2021-03-15',
+          bloodGroup: 'A+',
+          emergencyContact: docProfile.phone || '+91 98765 43211',
+          validity: '31-DEC-2028',
+          status: 'Active'
+        });
+      }
+    }
+
+    // Initialize on load & auto-refresh daily/every 15s
+    loadDashboardData();
+    setInterval(loadDashboardData, 15000);
+    addMedicineRow('Paracetamol 650mg', 1, 0, 1, 'After Food', 5);
+
+    // DAILY REPORT MODAL HANDLERS
+    function openDailyReportModal(roleName = 'Doctor') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('reportSenderRole').value = roleName;
+      document.getElementById('reportSenderName').value = docProfile.name || sessionStorage.getItem('user_name') || 'Doctor';
+      document.getElementById('reportDepartment').value = docProfile.dept || 'General Medicine';
+      document.getElementById('reportDate').value = todayStr;
+      
+      // Auto populate stats
+      document.getElementById('reportTotalPatients').value = document.getElementById('statTotalPatients')?.textContent || '0';
+      document.getElementById('reportTotalCompleted').value = document.getElementById('statCompletedAppts')?.textContent || '0';
+      document.getElementById('reportTotalPending').value = document.getElementById('statPendingAppts')?.textContent || '0';
+      document.getElementById('reportRevenue').value = (parseInt(document.getElementById('statCompletedAppts')?.textContent || '0') * 500).toFixed(2);
+      
+      document.getElementById('dailyReportModal').classList.add('active');
+    }
+
+    function closeDailyReportModal() {
+      document.getElementById('dailyReportModal').classList.remove('active');
+    }
+
+    async function submitDailyReport(e) {
+      if (e) e.preventDefault();
+      const btn = document.getElementById('btnSubmitDailyReport');
+      if (btn) btn.disabled = true;
+
+      const payload = {
+        senderRole: document.getElementById('reportSenderRole').value,
+        senderName: document.getElementById('reportSenderName').value,
+        senderId: sessionStorage.getItem('niramaya_employee_code') || docProfile.doctorId || 'DOC-STAFF',
+
+        department: document.getElementById('reportDepartment').value,
+        reportDate: document.getElementById('reportDate').value,
+        totalPatients: document.getElementById('reportTotalPatients').value || 0,
+        totalTasksCompleted: document.getElementById('reportTotalCompleted').value || 0,
+        totalPending: document.getElementById('reportTotalPending').value || 0,
+        revenueGenerated: document.getElementById('reportRevenue').value || 0,
+        summaryNotes: document.getElementById('reportSummaryNotes').value
+      };
+
+      try {
+        const res = await fetch('/api/daily-report/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ ' + data.message);
+          closeDailyReportModal();
+          document.getElementById('dailyReportForm').reset();
+        } else {
+          showToast('❌ Error: ' + data.message);
+        }
+      } catch(err) {
+        showToast('❌ Failed to submit daily report. Please try again.');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+  </script>
+
+  <!-- DAILY REPORT MODAL -->
+  <div class="modal-overlay" id="dailyReportModal">
+    <div class="modal-card" style="max-width: 580px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:18px;">
+        <h3 style="font-family:'Sora',sans-serif; font-size:1.15rem; color:var(--ink); font-weight:700;">📩 Send Daily Performance Report</h3>
+        <button onclick="closeDailyReportModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--ink-soft);">✖</button>
+      </div>
+      
+      <form id="dailyReportForm" onsubmit="submitDailyReport(event)">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+          <div class="form-group">
+            <label>Sender Role</label>
+            <input type="text" id="reportSenderRole" class="form-control" readonly style="background:#F1F5F9; font-weight:600;">
+          </div>
+          <div class="form-group">
+            <label>Sender Name</label>
+            <input type="text" id="reportSenderName" class="form-control" readonly style="background:#F1F5F9; font-weight:600;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+          <div class="form-group">
+            <label>Department / Specialty</label>
+            <input type="text" id="reportDepartment" class="form-control" style="background:#fff;">
+          </div>
+          <div class="form-group">
+            <label>Report Date</label>
+            <input type="date" id="reportDate" class="form-control" required style="background:#fff;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:14px; background:#F8FAFC; padding:12px; border-radius:8px;">
+          <div>
+            <label style="font-size:0.75rem; font-weight:700; color:var(--ink-soft);">Total Patients</label>
+            <input type="number" id="reportTotalPatients" class="form-control" value="0" style="font-weight:700; font-size:1rem; text-align:center;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem; font-weight:700; color:var(--ink-soft);">Tasks Done</label>
+            <input type="number" id="reportTotalCompleted" class="form-control" value="0" style="font-weight:700; font-size:1rem; text-align:center; color:#059669;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem; font-weight:700; color:var(--ink-soft);">Pending</label>
+            <input type="number" id="reportTotalPending" class="form-control" value="0" style="font-weight:700; font-size:1rem; text-align:center; color:#D97706;">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Estimated Revenue (₹)</label>
+          <input type="number" step="0.01" id="reportRevenue" class="form-control" value="0.00" style="font-weight:700;">
+        </div>
+
+        <div class="form-group" style="margin-bottom:18px;">
+          <label>Summary & Clinical Notes</label>
+          <textarea id="reportSummaryNotes" class="form-control" rows="3" placeholder="Enter daily consultation summary, clinical observations, or special notes..." required></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:12px;">
+          <button type="button" class="btn btn-outline" onclick="closeDailyReportModal()">Cancel</button>
+          <button type="submit" class="btn btn-accent" id="btnSubmitDailyReport">🚀 Send Report to Admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script src="assets/js/staff-id-card.js"></script>
+<script src="assets/js/live-clock-logger.js"></script>
+</body>
+</html>

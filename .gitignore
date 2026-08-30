@@ -1,0 +1,17 @@
+# Build directories and binaries
+out/
+target/
+bin/
+*.class
+
+# IDE and Editor files
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS metadata
+.DS_Store
+Thumbs.db

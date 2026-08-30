@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Niramaya — Nurse Management Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    :root {
+      --nurse-teal: #0D9488;
+      --nurse-teal-dark: #0F766E;
+      --nurse-teal-light: #CCFBF1;
+      --nurse-blue: #0284C7;
+      --nurse-danger: #E11D48;
+      --nurse-bg: #F8FAFC;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--nurse-bg);
+      color: #0F172A;
+      margin: 0;
+      padding: 0;
+    }
+    .nurse-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+    .nurse-sidebar {
+      background: #0F172A;
+      color: #94A3B8;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    .nurse-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 12px 24px 12px;
+      border-bottom: 1px solid #1E293B;
+    }
+    .nurse-brand-logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #0D9488, #0284C7);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+      font-weight: 800;
+    }
+    .nurse-nav {
+      list-style: none;
+      padding: 0;
+      margin: 24px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .nurse-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #94A3B8;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .nurse-nav-item:hover, .nurse-nav-item.active {
+      background: rgba(13, 148, 136, 0.15);
+      color: #2DD4BF;
+    }
+    .nurse-content {
+      padding: 24px 36px;
+      overflow-y: auto;
+    }
+    .nurse-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 20px 28px;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+    }
+    .nurse-header-info h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: #0F172A;
+    }
+    .nurse-header-info p {
+      margin: 4px 0 0 0;
+      font-size: 0.88rem;
+      color: #64748B;
+    }
+    .nurse-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .nurse-stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border-left: 4px solid var(--nurse-teal);
+    }
+    .nurse-stat-card.orange { border-left-color: #F59E0B; }
+    .nurse-stat-card.red { border-left-color: #EF4444; }
+    .nurse-stat-card.blue { border-left-color: #0284C7; }
+    .nurse-stat-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .nurse-stat-val {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #0F172A;
+      margin-top: 6px;
+    }
+    .nurse-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+    }
+    .nurse-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    .nurse-table th {
+      text-align: left;
+      padding: 12px 16px;
+      background: #F8FAFC;
+      color: #475569;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      border-bottom: 1px solid #E2E8F0;
+    }
+    .nurse-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #F1F5F9;
+      font-size: 0.9rem;
+      color: #334155;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .badge-success { background: #DCFCE7; color: #15803D; }
+    .badge-warning { background: #FEF3C7; color: #B45309; }
+    .badge-danger { background: #FFE4E6; color: #BE123C; }
+    .badge-blue { background: #E0F2FE; color: #0369A1; }
+    .btn-sos {
+      background: linear-gradient(135deg, #E11D48, #BE123C);
+      color: white;
+      font-weight: 700;
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+      transition: all 0.2s;
+    }
+    .btn-sos:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(225, 29, 72, 0.4);
+    }
+    .btn-nurse {
+      background: var(--nurse-teal);
+      color: white;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+
+    }
+    .btn-nurse:hover { background: var(--nurse-teal-dark); }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 28px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+
+<div class="nurse-layout">
+  <!-- Sidebar -->
+  <aside class="nurse-sidebar">
+    <div class="nurse-brand">
+      <div class="nurse-brand-logo">N</div>
+      <div>
+        <div style="font-weight: 800; color: white; font-size: 1.1rem; letter-spacing: -0.5px;">NIRAMAYA</div>
+        <div style="font-size: 0.75rem; color: #2DD4BF; font-weight: 600;">NURSE PORTAL</div>
+      </div>
+    </div>
+
+    <ul class="nurse-nav">
+      <li class="nurse-nav-item active" onclick="showTab('tab-dashboard', this)">📊 Overview & Stats</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-patients', this)">📜 Completed History / Tasks</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-vitals', this)">🩸 Vital Signs Tracker</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-meds', this)">💊 Medication MAR</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-notes', this)">📝 Nursing Progress Notes</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-injections', this)">💉 Injection Records</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-emergency', this)">🚨 Emergency SOS Alerts</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-inventory', this)">📦 Consumables Supply</li>
+      <li class="nurse-nav-item" onclick="showTab('tab-profile', this)">👤 Nurse Profile</li>
+    </ul>
+
+    <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #1E293B;">
+      <button onclick="logout()" style="width: 100%; background: #1E293B; color: #F8FAFC; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer;">
+        🚪 Log Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="nurse-content">
+    <!-- Header -->
+    <header class="nurse-header">
+      <div class="nurse-header-info">
+        <h2 id="lblNurseHeaderName">👩‍⚕️ Nurse Priya Sharma (NUR10084)</h2>
+        <p id="lblNurseHeaderSub">ICU & Emergency Ward | Shift: Morning (07:00 AM - 03:00 PM)</p>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button class="btn-sos" onclick="openModal('modal-emergency')">🚨 EMERGENCY SOS BROADCAST</button>
+        <button class="btn-nurse" onclick="openNurseDailyReportModal()" style="background:#059669; font-weight:700; box-shadow: 0 4px 12px rgba(5,150,105,0.3);">📩 Send Daily Report</button>
+        <button class="btn-nurse" onclick="refreshNurseData()">🔄 Refresh</button>
+      </div>
+
+    </header>
+
+    <!-- Stats Row -->
+    <div class="nurse-stats-grid">
+      <div class="nurse-stat-card">
+        <div class="nurse-stat-title">Assigned Patients</div>
+        <div class="nurse-stat-val" id="statPatients">0</div>
+      </div>
+      <div class="nurse-stat-card blue">
+        <div class="nurse-stat-title">Vitals Recorded</div>
+        <div class="nurse-stat-val" id="statVitals">0</div>
+      </div>
+      <div class="nurse-stat-card orange">
+        <div class="nurse-stat-title">Medications Due</div>
+        <div class="nurse-stat-val" id="statMeds">0</div>
+      </div>
+      <div class="nurse-stat-card red">
+        <div class="nurse-stat-title">Active SOS Alerts</div>
+        <div class="nurse-stat-val" id="statAlerts">0</div>
+      </div>
+    </div>
+
+    <!-- TAB 1: OVERVIEW -->
+    <div id="tab-dashboard" class="tab-pane">
+      <div class="nurse-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 1.1rem; color: #0F172A;">👥 Currently Assigned ICU Patients</h3>
+          <button class="btn-nurse" onclick="openModal('modal-vitals')">🩸 Record Vitals</button>
+        </div>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Patient ID</th>
+              <th>Patient Name</th>
+              <th>Doctor</th>
+              <th>Ward / Room / Bed</th>
+              <th>Admission Date</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAssignedPatients">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="nurse-card">
+        <h3 style="margin: 0 0 16px 0; font-size: 1.1rem; color: #0F172A;">🚨 Active Hospital Emergency Alerts</h3>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Alert ID</th>
+              <th>Patient</th>
+              <th>Room / Ward</th>
+              <th>Emergency Condition</th>
+              <th>Alert Time</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyLiveEmergency">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: PATIENTS -->
+    <div id="tab-patients" class="tab-pane" style="display: none;">
+      <div class="nurse-card">
+        <h3>Assigned Patients Full Directory</h3>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Assignment ID</th>
+              <th>Patient ID</th>
+              <th>Patient Name</th>
+              <th>Doctor</th>
+              <th>Ward</th>
+              <th>Room</th>
+              <th>Bed</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPatientsFull"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: VITALS -->
+    <div id="tab-vitals" class="tab-pane" style="display: none;">
+      <div class="nurse-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">🩸 Patient Vital Signs History</h3>
+          <button class="btn-nurse" onclick="openModal('modal-vitals')">➕ Record New Vitals</button>
+        </div>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Vital ID</th>
+              <th>Patient</th>
+              <th>Temp (°F)</th>
+              <th>BP (mmHg)</th>
+              <th>Pulse (bpm)</th>
+              <th>Resp Rate</th>
+              <th>SpO2 (%)</th>
+              <th>Blood Sugar</th>
+              <th>Date & Time</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyVitals"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: MEDICATION MAR -->
+    <div id="tab-meds" class="tab-pane" style="display: none;">
+      <div class="nurse-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">💊 Medication Administration Record (MAR)</h3>
+          <button class="btn-nurse" onclick="openModal('modal-med')">💊 Log Administered Dose</button>
+        </div>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Admin ID</th>
+              <th>Patient ID</th>
+              <th>Medicine</th>
+              <th>Dosage</th>
+              <th>Time Scheduled</th>
+              <th>Status</th>
+              <th>Nurse</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyMeds"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: NOTES -->
+    <div id="tab-notes" class="tab-pane" style="display: none;">
+      <div class="nurse-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">📝 Clinical Nursing Progress Notes</h3>
+          <button class="btn-nurse" onclick="openModal('modal-note')">📝 Add New Note</button>
+        </div>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Note ID</th>
+              <th>Patient ID</th>
+              <th>Observation Details</th>
+              <th>Nurse</th>
+              <th>Date & Time</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyNotes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 6: INJECTIONS -->
+    <div id="tab-injections" class="tab-pane" style="display: none;">
+      <div class="nurse-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">💉 Injection Administration Records</h3>
+          <button class="btn-nurse" onclick="openModal('modal-inj')">💉 Record Injection</button>
+        </div>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Injection ID</th>
+              <th>Patient ID</th>
+              <th>Injection Name</th>
+              <th>Dose</th>
+              <th>Route</th>
+              <th>Remarks</th>
+              <th>Date & Time</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyInjections"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 7: EMERGENCY -->
+    <div id="tab-emergency" class="tab-pane" style="display: none;">
+      <div class="nurse-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0; color: #BE123C;">🚨 Emergency Panic Broadcast Center</h3>
+          <button class="btn-sos" onclick="openModal('modal-emergency')">🚨 TRIGGER EMERGENCY SOS BROADCAST</button>
+        </div>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Alert ID</th>
+              <th>Patient Name</th>
+              <th>Room & Ward</th>
+              <th>Condition</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyEmergencyTab"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 8: INVENTORY -->
+    <div id="tab-inventory" class="tab-pane" style="display: none;">
+      <div class="nurse-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">📦 Pharmacy & Consumables Supply Requests</h3>
+          <button class="btn-nurse" onclick="openModal('modal-inv')">📦 Request Supply Item</button>
+        </div>
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Nurse Name</th>
+              <th>Item Requested</th>
+              <th>Quantity</th>
+              <th>Status</th>
+              <th>Request Date</th>
+              <th>Approved By</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyInventory"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 9: PROFILE -->
+    <div id="tab-profile" class="tab-pane" style="display: none;">
+      <div class="nurse-card" style="max-width: 600px;">
+        <h3>👤 Nurse Profile Management</h3>
+        <form id="formProfile" onsubmit="saveProfile(event)">
+          <div style="margin-bottom: 14px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">Nurse Full Name</label>
+            <input type="text" id="profName" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;" required>
+          </div>
+          <div style="margin-bottom: 14px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">Phone Number</label>
+            <input type="text" id="profPhone" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;" required>
+          </div>
+          <div style="margin-bottom: 14px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">Department / Ward</label>
+            <input type="text" id="profDept" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;" required>
+          </div>
+          <div style="margin-bottom: 14px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">Shift</label>
+            <input type="text" id="profShift" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;" required>
+          </div>
+          <div style="margin-bottom: 18px;">
+            <label style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px;">Account Password</label>
+            <input type="password" id="profPass" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;" required>
+          </div>
+          <button type="submit" class="btn-nurse">💾 Save Profile Updates</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL: Record Vitals -->
+<div class="modal-overlay" id="modal-vitals">
+  <div class="modal-content">
+    <h3 style="margin-top: 0;" id="lblVitalsPatientTitle">🩸 Record Patient Vital Signs</h3>
+    <form onsubmit="submitVitals(event)">
+      <div style="margin-bottom: 10px;">
+        <label>Temp (°F)</label>
+        <input type="text" id="vTemp" placeholder="e.g. 98.6 °F" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Blood Pressure (mmHg)</label>
+        <input type="text" id="vBp" placeholder="e.g. 120/80 mmHg" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Pulse Rate (bpm)</label>
+        <input type="text" id="vPulse" placeholder="e.g. 72 bpm" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Oxygen Saturation (SpO2 %)</label>
+        <input type="text" id="vSpO2" placeholder="e.g. 98%" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label>Blood Sugar (mg/dL)</label>
+        <input type="text" id="vSugar" placeholder="e.g. 110 mg/dL" style="width: 100%; padding: 8px; margin-top: 4px;">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" onclick="closeModal('modal-vitals')" style="padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn-nurse">Save Vitals</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Emergency SOS -->
+<div class="modal-overlay" id="modal-emergency">
+  <div class="modal-content">
+    <h3 style="margin-top: 0; color: #E11D48;">🚨 Broadcast Emergency SOS Alert</h3>
+    <form onsubmit="submitEmergency(event)">
+      <div style="margin-bottom: 10px;">
+        <label>Patient ID / Name</label>
+        <input type="text" id="ePatient" placeholder="e.g. PT100842 (Rekha Prasad)" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Room & Ward</label>
+        <input type="text" id="eRoom" placeholder="e.g. ICU-302" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label>Emergency Condition</label>
+        <select id="eType" style="width: 100%; padding: 8px; margin-top: 4px;">
+          <option value="Critical Cardiac Arrest / Code Blue">Critical Cardiac Arrest / Code Blue</option>
+          <option value="Low Oxygen Saturation (SpO2 < 85%)">Low Oxygen Saturation (SpO2 < 85%)</option>
+          <option value="Severe Hypotension / Septic Shock">Severe Hypotension / Septic Shock</option>
+          <option value="Uncontrolled Post-Op Bleeding">Uncontrolled Post-Op Bleeding</option>
+        </select>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" onclick="closeModal('modal-emergency')" style="padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn-sos">BROADCAST NOW</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Add Note -->
+<div class="modal-overlay" id="modal-note">
+  <div class="modal-content">
+    <h3 style="margin-top: 0;">📝 Add Clinical Nursing Note</h3>
+    <form onsubmit="submitNote(event)">
+      <div style="margin-bottom: 14px;">
+        <label>Clinical Observation</label>
+        <textarea id="noteText" rows="4" style="width: 100%; padding: 8px; margin-top: 4px;" required placeholder="Enter clinical observation details..."></textarea>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" onclick="closeModal('modal-note')" style="padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn-nurse">Save Note</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Med Admin -->
+<div class="modal-overlay" id="modal-med">
+  <div class="modal-content">
+    <h3 style="margin-top: 0;">💊 Administer Medication</h3>
+    <form onsubmit="submitMed(event)">
+      <div style="margin-bottom: 10px;">
+        <label>Medicine Name</label>
+        <input type="text" id="mName" placeholder="e.g. Paracetamol 650mg" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Dosage</label>
+        <input type="text" id="mDose" placeholder="e.g. 1 Tablet" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label>Status</label>
+        <select id="mStatus" style="width: 100%; padding: 8px; margin-top: 4px;">
+          <option value="Given">Given</option>
+          <option value="Missed">Missed</option>
+          <option value="Refused">Refused by Patient</option>
+        </select>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" onclick="closeModal('modal-med')" style="padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn-nurse">Record Admin</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Injection -->
+<div class="modal-overlay" id="modal-inj">
+  <div class="modal-content">
+    <h3 style="margin-top: 0;">💉 Record Injection</h3>
+    <form onsubmit="submitInjection(event)">
+      <div style="margin-bottom: 10px;">
+        <label>Injection Name</label>
+        <input type="text" id="iName" placeholder="e.g. Inj. Ceftriaxone 1g" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Dose & Route</label>
+        <input type="text" id="iDose" placeholder="e.g. 1g IV Push" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label>Remarks</label>
+        <input type="text" id="iRemarks" placeholder="e.g. Administered slowly over 3 minutes" style="width: 100%; padding: 8px; margin-top: 4px;">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" onclick="closeModal('modal-inj')" style="padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn-nurse">Save Injection Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Consumable Inventory -->
+<div class="modal-overlay" id="modal-inv">
+  <div class="modal-content">
+    <h3 style="margin-top: 0;">📦 Request Consumable Supplies</h3>
+    <form onsubmit="submitInventory(event)">
+      <div style="margin-bottom: 10px;">
+        <label>Item Name Required</label>
+        <input type="text" id="invItem" placeholder="e.g. Sterile Surgical Gloves (Medium)" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Quantity</label>
+        <input type="number" id="invQty" placeholder="e.g. 50" style="width: 100%; padding: 8px; margin-top: 4px;" required>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" onclick="closeModal('modal-inv')" style="padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn-nurse">Submit Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let currentNurseEmail = sessionStorage.getItem('niramaya_current_user_email') || 'nurse@niramaya.health';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    refreshNurseData();
+  });
+
+  function showTab(tabId, el) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.nurse-nav-item').forEach(i => i.classList.remove('active'));
+    document.getElementById(tabId).style.display = 'block';
+    if (el) el.classList.add('active');
+  }
+
+  function openModal(id) { document.getElementById(id).classList.add('show'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  async function refreshNurseData() {
+    try {
+      // Profile
+      const pRes = await fetch('/api/nurse/profile?email=' + encodeURIComponent(currentNurseEmail));
+      const prof = await pRes.json();
+      document.getElementById('lblNurseHeaderName').textContent = '👩‍⚕️ ' + prof.name + ' (' + prof.nurseId + ')';
+      document.getElementById('lblNurseHeaderSub').textContent = prof.department + ' | Shift: ' + prof.shift;
+      document.getElementById('profName').value = prof.name;
+      document.getElementById('profPhone').value = prof.phone;
+      document.getElementById('profDept').value = prof.department;
+      document.getElementById('profShift').value = prof.shift;
+
+      // Patients (Today's Work & Completed Tasks)
+      const [ptRes, compRes] = await Promise.all([
+        fetch('/api/nurse/todays-patients?nurseId=' + prof.nurseId),
+        fetch('/api/nurse/completed-tasks?nurseId=' + prof.nurseId)
+      ]);
+      const pts = await ptRes.json();
+      const compTasks = await compRes.json();
+
+      document.getElementById('statPatients').textContent = pts.length;
+      
+      let ptHtml = '';
+      if (pts.length === 0) {
+        ptHtml = '<tr><td colspan="7" style="text-align:center; color:#64748B; padding:20px;">No pending active patients for today\'s vitals check. 🟢</td></tr>';
+      } else {
+        pts.forEach(p => {
+          ptHtml += `<tr>
+            <td><b>${p.patientId || 'PT100842'}</b></td>
+            <td>${p.patientName || 'Patient'}</td>
+            <td>${p.doctorName || 'Dr. Medical Officer'}</td>
+            <td>${p.ward || 'OPD'} / ${p.roomNumber || 'Cons-101'} / ${p.bedNumber || 'N/A'}</td>
+            <td>${p.admissionDate || 'Today'}</td>
+            <td><span class="badge badge-warning">${p.status || 'Active'}</span></td>
+            <td style="display:flex; gap:6px;">
+              <button class="btn-nurse" style="padding: 4px 10px; font-size: 0.8rem;" onclick="openVitalsModalForPatient('${p.patientId}', '${p.patientName}', '${p.assignmentId || ''}')">🩸 Record Vitals</button>
+              <button class="btn-nurse" style="padding: 4px 10px; font-size: 0.8rem; background:#059669; color:#fff;" onclick="completeNurseVitalCheck('${p.assignmentId || ''}', '${p.appointmentId || ''}')">✅ Complete Vitals</button>
+            </td>
+          </tr>`;
+        });
+      }
+      document.getElementById('tbodyAssignedPatients').innerHTML = ptHtml;
+
+      let compHtml = '';
+      if (compTasks.length === 0) {
+        compHtml = '<tr><td colspan="7" style="text-align:center; color:#64748B; padding:20px;">No completed vitals recorded yet.</td></tr>';
+      } else {
+        compTasks.forEach(p => {
+          compHtml += `<tr>
+            <td><b>${p.patientId || 'PT100842'}</b></td>
+            <td>${p.patientName || 'Patient'}</td>
+            <td>${p.doctorName || 'Dr. Medical Officer'}</td>
+            <td>${p.ward || 'OPD'} / ${p.roomNumber || 'Cons-101'}</td>
+            <td>${p.admissionDate || 'Today'}</td>
+            <td><span class="badge badge-success">COMPLETED</span></td>
+            <td><span style="color:#059669; font-weight:700;">✅ Vitals Done</span></td>
+          </tr>`;
+        });
+      }
+      document.getElementById('tbodyPatientsFull').innerHTML = compHtml;
+
+      // Vitals
+      const vRes = await fetch('/api/nurse/vitals?patientId=PT100842');
+      const vitals = await vRes.json();
+      document.getElementById('statVitals').textContent = vitals.length;
+      let vHtml = '';
+      vitals.forEach(v => {
+        vHtml += `<tr>
+          <td><b>${v.vitalId}</b></td>
+          <td>${v.patientId}</td>
+          <td><b style="color: #0D9488;">${v.temperature}</b></td>
+          <td><b>${v.bloodPressure}</b></td>
+          <td>${v.pulseRate}</td>
+          <td>${v.respiratoryRate}</td>
+          <td><b style="color: #0284C7;">${v.oxygenSaturation}</b></td>
+          <td>${v.bloodSugar}</td>
+          <td>${v.recordedDate} ${v.recordedTime}</td>
+        </tr>`;
+      });
+      document.getElementById('tbodyVitals').innerHTML = vHtml;
+
+      // Meds
+      const mRes = await fetch('/api/nurse/medications?patientId=PT100842');
+      const meds = await mRes.json();
+      document.getElementById('statMeds').textContent = meds.length;
+      let mHtml = '';
+      meds.forEach(m => {
+        mHtml += `<tr>
+          <td><b>${m.adminId}</b></td>
+          <td>${m.patientId}</td>
+          <td>${m.medicineName}</td>
+          <td>${m.dosage}</td>
+          <td>${m.dosageTime}</td>
+          <td><span class="badge badge-warning">${m.status}</span></td>
+          <td>${m.nurseName}</td>
+        </tr>`;
+      });
+      document.getElementById('tbodyMeds').innerHTML = mHtml;
+
+      // Notes
+      const nRes = await fetch('/api/nurse/notes?patientId=PT100842');
+      const notes = await nRes.json();
+      let nHtml = '';
+      notes.forEach(n => {
+        nHtml += `<tr>
+          <td><b>${n.noteId}</b></td>
+          <td>${n.patientId}</td>
+          <td>${n.observation}</td>
+          <td>${n.nurseName}</td>
+          <td>${n.noteDate} ${n.noteTime}</td>
+        </tr>`;
+      });
+      document.getElementById('tbodyNotes').innerHTML = nHtml;
+
+      // Emergency
+      const eRes = await fetch('/api/nurse/emergency-alerts');
+      const alerts = await eRes.json();
+      document.getElementById('statAlerts').textContent = alerts.length;
+      let eHtml = '';
+      alerts.forEach(e => {
+        eHtml += `<tr>
+          <td><b>${e.alertId}</b></td>
+          <td><b style="color:#BE123C">${e.patientName}</b></td>
+          <td>${e.roomNumber} (${e.ward})</td>
+          <td><span class="badge badge-danger">${e.alertType}</span></td>
+          <td>${e.alertTime}</td>
+          <td><span class="badge badge-danger">${e.status}</span></td>
+          <td><button class="btn-nurse" onclick="resolveAlert('${e.alertId}')">✔️ Resolve</button></td>
+        </tr>`;
+      });
+      document.getElementById('tbodyLiveEmergency').innerHTML = eHtml || '<tr><td colspan="7" style="text-align:center; color:#64748B;">No active emergency alerts. All wards clear. 🟢</td></tr>';
+      document.getElementById('tbodyEmergencyTab').innerHTML = eHtml || '<tr><td colspan="7" style="text-align:center; color:#64748B;">No active emergency alerts. All wards clear. 🟢</td></tr>';
+
+      // Injections
+      const iRes = await fetch('/api/nurse/injections?patientId=PT100842');
+      const injs = await iRes.json();
+      let iHtml = '';
+      injs.forEach(i => {
+        iHtml += `<tr>
+          <td><b>${i.injectionId}</b></td>
+          <td>${i.patientId}</td>
+          <td>${i.injectionName}</td>
+          <td>${i.dose}</td>
+          <td>${i.route}</td>
+          <td>${i.remarks}</td>
+          <td>${i.recordDate} ${i.recordTime}</td>
+        </tr>`;
+      });
+      document.getElementById('tbodyInjections').innerHTML = iHtml;
+
+      // Inventory
+      const invRes = await fetch('/api/nurse/inventory-requests');
+      const invs = await invRes.json();
+      let invHtml = '';
+      invs.forEach(r => {
+        invHtml += `<tr>
+          <td><b>${r.requestId}</b></td>
+          <td>${r.nurseName}</td>
+          <td>${r.itemName}</td>
+          <td>${r.quantity}</td>
+          <td><span class="badge badge-warning">${r.status}</span></td>
+          <td>${r.requestDate}</td>
+          <td>${r.approvedBy || '-'}</td>
+        </tr>`;
+      });
+      document.getElementById('tbodyInventory').innerHTML = invHtml;
+
+    } catch (e) {
+      console.error("Error refreshing nurse data: ", e);
+    }
+  }
+
+  let activeVitalsPatientId = 'PT100842';
+  let activeVitalsApptId = '';
+
+  function openVitalsModalForPatient(pId, pName, apptId) {
+    activeVitalsPatientId = pId || 'PT100842';
+    activeVitalsApptId = apptId || '';
+    const titleEl = document.getElementById('lblVitalsPatientTitle');
+    if (titleEl) titleEl.textContent = `🩸 Record Vitals: ${pName || pId} (${activeVitalsPatientId})`;
+    openModal('modal-vitals');
+  }
+
+  async function submitVitals(e) {
+    e.preventDefault();
+    await fetch('/api/nurse/vitals', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        patientId: activeVitalsPatientId,
+        appointmentId: activeVitalsApptId,
+        temperature: document.getElementById('vTemp').value,
+        bloodPressure: document.getElementById('vBp').value,
+        pulseRate: document.getElementById('vPulse').value,
+        oxygenSaturation: document.getElementById('vSpO2').value,
+        bloodSugar: document.getElementById('vSugar').value,
+        nurseNotes: 'Routine clinical vital check'
+      })
+    });
+    closeModal('modal-vitals');
+    refreshNurseData();
+    alert('Vitals recorded successfully for ' + activeVitalsPatientId + '!');
+  }
+
+  async function completeNurseVitalCheck(assignId, apptId) {
+    try {
+      const res = await fetch('/api/nurse/complete-vitals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignmentId: assignId, appointmentId: apptId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        try {
+          let localPts = JSON.parse(localStorage.getItem('niramaya_nurse_assigned_patients') || '[]');
+          localPts.forEach(p => {
+            if (p.assignmentId === assignId || p.appointmentId === apptId) {
+              p.status = 'COMPLETED';
+            }
+          });
+          localStorage.setItem('niramaya_nurse_assigned_patients', JSON.stringify(localPts));
+        } catch(e){}
+
+        alert('✅ Vital check marked COMPLETED and moved to History tab!');
+        refreshNurseData();
+      } else {
+        alert('⚠️ ' + data.message);
+      }
+    } catch(e) {
+      alert('❌ Failed to complete vital check.');
+    }
+  }
+
+  async function submitEmergency(e) {
+    e.preventDefault();
+    await fetch('/api/nurse/emergency-alerts', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        patientId: 'PT100842',
+        patientName: 'Rekha Prasad',
+        roomNumber: 'ICU-302',
+        ward: 'ICU Ward 3',
+        alertType: document.getElementById('eType').value
+      })
+    });
+    closeModal('modal-emergency');
+    refreshNurseData();
+    alert('🚨 EMERGENCY ALERT BROADCASTED TO DOCTORS & ADMINS!');
+  }
+
+  async function submitNote(e) {
+    e.preventDefault();
+    await fetch('/api/nurse/notes', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        patientId: 'PT100842',
+        observation: document.getElementById('noteText').value
+      })
+    });
+    closeModal('modal-note');
+    refreshNurseData();
+    alert('Nursing note saved!');
+  }
+
+  async function submitMed(e) {
+    e.preventDefault();
+    await fetch('/api/nurse/medications', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        patientId: 'PT100842',
+        medicineName: document.getElementById('mName').value,
+        dosage: document.getElementById('mDose').value,
+        status: document.getElementById('mStatus').value
+      })
+    });
+    closeModal('modal-med');
+    refreshNurseData();
+    alert('Medication administration logged!');
+  }
+
+  async function submitInjection(e) {
+    e.preventDefault();
+    await fetch('/api/nurse/injections', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        patientId: 'PT100842',
+        injectionName: document.getElementById('iName').value,
+        dose: document.getElementById('iDose').value,
+        remarks: document.getElementById('iRemarks').value
+      })
+    });
+    closeModal('modal-inj');
+    refreshNurseData();
+    alert('Injection record saved!');
+  }
+
+  async function submitInventory(e) {
+    e.preventDefault();
+    await fetch('/api/nurse/inventory-requests', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        itemName: document.getElementById('invItem').value,
+        quantity: document.getElementById('invQty').value
+      })
+    });
+    closeModal('modal-inv');
+    refreshNurseData();
+    alert('Supply request submitted!');
+  }
+
+  async function resolveAlert(alertId) {
+    await fetch('/api/nurse/emergency-alerts', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ alertId: alertId, resolvedBy: 'Nurse Priya Sharma' })
+    });
+    refreshNurseData();
+    alert('Emergency alert resolved.');
+  }
+
+  async function saveProfile(e) {
+    e.preventDefault();
+    await fetch('/api/nurse/profile', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name: document.getElementById('profName').value,
+        phone: document.getElementById('profPhone').value,
+        department: document.getElementById('profDept').value,
+        shift: document.getElementById('profShift').value
+      })
+    });
+    refreshNurseData();
+    alert('Profile saved!');
+  }
+
+  function logout() {
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+  }
+
+  // Auto Refresh & Daily Report Handlers
+  setInterval(refreshNurseData, 15000);
+
+  function openNurseDailyReportModal() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('nReportRole').value = 'Nurse';
+    document.getElementById('nReportName').value = document.getElementById('profName')?.value || sessionStorage.getItem('user_name') || 'Nurse';
+    document.getElementById('nReportDept').value = document.getElementById('profDept')?.value || 'Nursing Department';
+    document.getElementById('nReportDate').value = todayStr;
+
+    document.getElementById('nReportPatients').value = document.getElementById('statPatients')?.textContent || '0';
+    document.getElementById('nReportCompleted').value = document.getElementById('statVitals')?.textContent || '0';
+    document.getElementById('nReportPending').value = document.getElementById('statMeds')?.textContent || '0';
+    document.getElementById('nReportRevenue').value = "0.00";
+
+    document.getElementById('modal-nurse-daily-report').classList.add('show');
+  }
+
+  function closeNurseDailyReportModal() {
+    document.getElementById('modal-nurse-daily-report').classList.remove('show');
+  }
+
+  async function submitNurseDailyReport(e) {
+    if (e) e.preventDefault();
+    const btn = document.getElementById('btnSubmitNurseReport');
+    if (btn) btn.disabled = true;
+
+    const payload = {
+      senderRole: 'Nurse',
+      senderName: document.getElementById('nReportName').value,
+      senderId: sessionStorage.getItem('niramaya_employee_code') || document.getElementById('profId')?.value || 'NUR10084',
+      department: document.getElementById('nReportDept').value,
+      reportDate: document.getElementById('nReportDate').value,
+      totalPatients: document.getElementById('nReportPatients').value || 0,
+      totalTasksCompleted: document.getElementById('nReportCompleted').value || 0,
+      totalPending: document.getElementById('nReportPending').value || 0,
+      revenueGenerated: document.getElementById('nReportRevenue').value || 0,
+      summaryNotes: document.getElementById('nReportNotes').value
+    };
+
+
+    try {
+      const res = await fetch('/api/daily-report/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ ' + data.message);
+        closeNurseDailyReportModal();
+        document.getElementById('formNurseDailyReport').reset();
+      } else {
+        alert('❌ Error: ' + data.message);
+      }
+    } catch(err) {
+      alert('❌ Failed to submit daily report.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+</script>
+
+<!-- MODAL: Nurse Daily Report -->
+<div class="modal-overlay" id="modal-nurse-daily-report">
+  <div class="modal-content" style="max-width: 560px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:16px;">
+      <h3 style="margin:0; font-size:1.15rem; color:#0F172A;">📩 Send Nursing Daily Report</h3>
+      <button onclick="closeNurseDailyReportModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#64748B;">✖</button>
+    </div>
+    
+    <form id="formNurseDailyReport" onsubmit="submitNurseDailyReport(event)">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Role</label>
+          <input type="text" id="nReportRole" value="Nurse" readonly style="width:100%; padding:8px; background:#F1F5F9; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Nurse Name</label>
+          <input type="text" id="nReportName" readonly style="width:100%; padding:8px; background:#F1F5F9; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Ward / Department</label>
+          <input type="text" id="nReportDept" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Report Date</label>
+          <input type="date" id="nReportDate" required style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:12px; background:#F8FAFC; padding:10px; border-radius:8px;">
+        <div>
+          <label style="font-size:0.75rem; font-weight:700;">Assigned Patients</label>
+          <input type="number" id="nReportPatients" value="1" style="width:100%; padding:6px; font-weight:700; text-align:center;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; font-weight:700;">Vitals / Tasks Done</label>
+          <input type="number" id="nReportCompleted" value="3" style="width:100%; padding:6px; font-weight:700; text-align:center; color:#059669;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; font-weight:700;">Pending Meds</label>
+          <input type="number" id="nReportPending" value="2" style="width:100%; padding:6px; font-weight:700; text-align:center; color:#D97706;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:700; font-size:0.8rem;">Ward Revenue / Charges (₹)</label>
+        <input type="number" step="0.01" id="nReportRevenue" value="0.00" style="width:100%; padding:8px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px;">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:700; font-size:0.8rem;">Shift Handover & Patient Summary</label>
+        <textarea id="nReportNotes" rows="3" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:8px;" placeholder="Summary of shift, patient monitoring status, emergency logs, supplies needed..." required></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="closeNurseDailyReportModal()" style="padding:10px 16px; border:none; border-radius:8px; cursor:pointer;">Cancel</button>
+        <button type="submit" class="btn-nurse" id="btnSubmitNurseReport" style="background:#059669;">🚀 Send Daily Report to Admin</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="assets/js/staff-id-card.js"></script>
+<script src="assets/js/live-clock-logger.js"></script>
+</body>
+
+</html>

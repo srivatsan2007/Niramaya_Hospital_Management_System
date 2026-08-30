@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Niramaya — Smart Hospital Management System</title>
+<!-- Google Fonts -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Primary Stylesheet -->
+<link rel="stylesheet" href="css/style.css">
+
+<style>
+  /* Extra Custom Styling for Modern Landing Page Redesign */
+  .navbar-scroll-bg {
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+  }
+  .navbar.scrolled {
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow: 0 10px 30px rgba(6, 48, 107, 0.1) !important;
+    backdrop-filter: blur(16px);
+  }
+
+  /* Hero Section Enhancements */
+  .hero-wrapper {
+    position: relative;
+    padding: 120px 0 80px;
+    background: radial-gradient(1200px 600px at 85% -10%, rgba(10, 178, 167, 0.15), transparent 60%),
+                radial-gradient(900px 500px at -10% 10%, rgba(10, 77, 166, 0.12), transparent 55%),
+                linear-gradient(180deg, #F5F8FB 0%, #FFFFFF 100%);
+    overflow: hidden;
+  }
+
+  .hero-img-box {
+    position: relative;
+    border-radius: 28px;
+    overflow: visible;
+  }
+  .hero-main-img {
+    width: 100%;
+    height: 480px;
+    object-fit: cover;
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgba(6, 48, 107, 0.2);
+    border: 4px solid #ffffff;
+  }
+
+  /* Hero Floating Badge Cards */
+  .hero-float-card {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(225, 233, 240, 0.9);
+    border-radius: 16px;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 14px 36px rgba(10, 77, 166, 0.15);
+    z-index: 5;
+    animation: floatAnim 5s ease-in-out infinite;
+  }
+  .hero-float-card i {
+    font-size: 1.4rem;
+  }
+  .hero-float-card b {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.9rem;
+    color: var(--blue-900);
+    display: block;
+  }
+  .hero-float-card span {
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+  }
+
+  .h-fc-1 { top: -20px; left: -20px; animation-delay: 0s; }
+  .h-fc-2 { top: 25%; right: -25px; animation-delay: 1.2s; }
+  .h-fc-3 { bottom: 20%; left: -30px; animation-delay: 2.4s; }
+  .h-fc-4 { bottom: -20px; right: 10px; animation-delay: 3.6s; }
+
+  @keyframes floatAnim {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Feature Checklist Grid */
+  .about-feature-card {
+    background: #ffffff;
+    border: 1.5px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .about-feature-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--teal-500);
+  }
+  .about-feature-card .check-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(10, 178, 167, 0.12);
+    color: var(--teal-500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  /* Services Grid Cards */
+  .service-card-v2 {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+  }
+  .service-card-v2:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(10, 77, 166, 0.12);
+    border-color: rgba(10, 178, 167, 0.4);
+  }
+  .service-img-wrap {
+    height: 190px;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  .service-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+  .service-card-v2:hover .service-img-wrap img {
+    transform: scale(1.08);
+  }
+  .service-badge-icon {
+    position: absolute;
+    bottom: -18px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--blue-700), var(--teal-500));
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 8px 20px rgba(10, 77, 166, 0.3);
+  }
+  .service-content {
+    padding: 24px 22px;
+  }
+  .service-content h3 {
+    font-size: 1.15rem;
+    margin-bottom: 10px;
+  }
+  .service-feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+  }
+  .service-feature-list li {
+    font-size: 0.86rem;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .service-feature-list li i {
+    color: var(--teal-500);
+    font-size: 0.78rem;
+  }
+
+  /* Emergency Red Gradient Banner */
+  .emergency-banner-box {
+    background: linear-gradient(135deg, #DC2626 0%, #991B1B 50%, #0F2A4A 100%);
+    border-radius: 28px;
+    padding: 48px;
+    color: #ffffff;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(220, 38, 38, 0.3);
+  }
+  .emergency-banner-box::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: url('assets/service_emergency.png') center/cover no-repeat;
+    opacity: 0.18;
+    mix-blend-mode: overlay;
+  }
+  .emergency-pulse-btn {
+    position: relative;
+  }
+  .emergency-pulse-btn::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 100px;
+    border: 2px solid #ffffff;
+    animation: emgPulse 1.8s ease-out infinite;
+  }
+  @keyframes emgPulse {
+    0% { transform: scale(0.95); opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+
+  /* Masonry Gallery */
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .gallery-item {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    height: 220px;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+  }
+  .gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+  .gallery-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 40%, rgba(6, 48, 107, 0.9) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 16px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .gallery-item:hover img {
+    transform: scale(1.1);
+  }
+  .gallery-item:hover .gallery-overlay {
+    opacity: 1;
+  }
+  .gallery-overlay h4 {
+    color: #ffffff;
+    font-size: 1rem;
+    margin: 0;
+  }
+  .gallery-overlay span {
+    color: #5FD6CC;
+    font-size: 0.78rem;
+  }
+
+  /* Doctors Team Card */
+  .doctor-card-v2 {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+  }
+  .doctor-card-v2:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-md);
+  }
+  .doctor-img-box {
+    height: 220px;
+    width: 100%;
+    position: relative;
+  }
+  .doctor-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .doctor-status-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    color: #047857;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 100px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  /* Animated Counter Cards */
+  .stat-card-v2 {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 32px 24px;
+    text-align: center;
+    color: #ffffff;
+  }
+  .stat-card-v2 i {
+    font-size: 2.2rem;
+    color: #5FD6CC;
+    margin-bottom: 12px;
+  }
+  .stat-card-v2 .counter-num {
+    font-family: 'Sora', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 800;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* How it works Timeline */
+  .timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    position: relative;
+  }
+  .timeline-step {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 28px 22px;
+    position: relative;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease;
+  }
+  .timeline-step:hover {
+    transform: translateY(-6px);
+    border-color: var(--teal-500);
+  }
+  .timeline-num {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue-700), var(--teal-500));
+    color: #ffffff;
+    font-family: 'Sora', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    box-shadow: 0 8px 20px rgba(10, 178, 167, 0.3);
+  }
+
+  @media (max-width: 980px) {
+    .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+    .timeline-grid { grid-template-columns: repeat(2, 1fr); }
+    .hero-float-card { display: none; }
+  }
+  @media (max-width: 640px) {
+    .gallery-grid { grid-template-columns: 1fr; }
+    .timeline-grid { grid-template-columns: 1fr; }
+    .emergency-banner-box { padding: 28px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Splash Screen (10s Display Requirement) -->
+<div id="splashScreen" class="splash-screen">
+  <div class="splash-content">
+    <div class="splash-logo-wrap">
+      <div class="splash-logo-glow"></div>
+      <div class="splash-logo-ring"></div>
+      <img src="assets/logo.png" alt="Niramaya Hospital Logo" class="splash-logo">
+    </div>
+    <h1 class="splash-title">Niramaya</h1>
+    <div class="splash-subtitle">Smart Hospital Management Platform</div>
+    
+    <!-- Animated ECG Pulse Line -->
+    <div class="pulse-wrap" style="width:220px; margin: 8px auto 16px;">
+      <svg class="pulse-line pulse-anim" viewBox="0 0 700 90" preserveAspectRatio="none">
+        <path d="M0 45 L120 45 L145 10 L170 80 L195 45 L260 45 L285 20 L305 70 L330 45 L700 45"
+              fill="none" stroke="url(#gSplash)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <defs>
+          <linearGradient id="gSplash" x1="0" x2="1">
+            <stop offset="0%" stop-color="#0A4DA6"/>
+            <stop offset="100%" stop-color="#0AB2A7"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <div class="splash-progress-container">
+      <div id="splashProgressBar" class="splash-progress-bar"></div>
+    </div>
+    <div class="splash-timer-text">Launching hospital portal in <span id="splashTimer">10</span>s...</div>
+    
+    <button id="skipSplashBtn" class="splash-skip-btn" onclick="dismissSplash()">Skip to website →</button>
+  </div>
+</div>
+
+<!-- ============ NAVIGATION BAR ============ -->
+<nav class="navbar navbar-scroll-bg" id="mainNavbar">
+  <div class="container">
+    <a href="index.html" class="brand">
+      <img src="assets/logo.png" alt="Niramaya Hospital Logo">
+      <span>
+        <span class="brand-name">Niramaya</span>
+        <span class="brand-tag">Smart Hospital</span>
+      </span>
+    </a>
+    <div class="nav-links">
+      <a href="#hero">Home</a>
+      <a href="#about">About</a>
+      <a href="#services">Services</a>
+      <a href="#doctors">Doctors</a>
+      <a href="#emergency">Emergency</a>
+      <a href="#contact">Contact</a>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <a href="login.html" class="btn btn-ghost btn-sm">
+        <i class="fa-solid fa-right-to-bracket"></i> Login
+      </a>
+      <a href="login.html" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-user-plus"></i> Register
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ 1. HERO SECTION ============ -->
+<section class="hero-wrapper" id="hero">
+  <div class="container hero-grid">
+    <div>
+      <div class="eyebrow">
+        <span class="dot"></span> Next-Gen Connected Hospital Platform
+      </div>
+      <h1>Smart Healthcare, <em>Simplified</em></h1>
+      <p class="lede">
+        Niramaya brings patients, doctors, nurses, laboratories, and pharmacies together through an intelligent hospital management platform.
+      </p>
+      <div class="hero-ctas">
+        <a href="login.html" class="btn btn-primary" style="font-size:1rem; padding:14px 28px;">
+          <i class="fa-solid fa-calendar-check"></i> Book Appointment
+        </a>
+        <a href="#emergency" class="btn btn-ghost" style="font-size:1rem; padding:14px 28px; border-color:var(--danger); color:var(--danger);">
+          <i class="fa-solid fa-truck-medical"></i> Emergency Ambulance Request
+        </a>
+        <a href="login.html" class="btn btn-teal" style="font-size:1rem; padding:14px 28px;">
+          <i class="fa-solid fa-user-shield"></i> Login / Register
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <b>50,000+</b>
+          <span>Patients Cared For</span>
+        </div>
+        <div class="hero-stat">
+          <b>240+</b>
+          <span>Specialist Doctors</span>
+        </div>
+        <div class="hero-stat">
+          <b>4.9 ★</b>
+          <span>Patient Satisfaction</span>
+        </div>
+        <div class="hero-stat">
+          <b>24×7</b>
+          <span>Emergency Response</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Side Visual with Floating Cards -->
+    <div class="hero-visual">
+      <div class="hero-img-box">
+        <img src="assets/hero_hospital.png" alt="Niramaya Smart Hospital Building" class="hero-main-img">
+        
+        <!-- Floating Info Cards -->
+        <div class="hero-float-card h-fc-1">
+          <i class="fa-solid fa-hospital-user" style="color:var(--danger);"></i>
+          <div>
+            <b>🏥 24/7 Emergency Care</b>
+            <span>Instant Trauma Response</span>
+          </div>
+        </div>
+
+        <div class="hero-float-card h-fc-2">
+          <i class="fa-solid fa-user-doctor" style="color:var(--blue-700);"></i>
+          <div>
+            <b>👨‍⚕️ Expert Doctors</b>
+            <span>Multi-Specialty Team</span>
+          </div>
+        </div>
+
+        <div class="hero-float-card h-fc-3">
+          <i class="fa-solid fa-file-medical" style="color:var(--teal-500);"></i>
+          <div>
+            <b>📋 Digital Medical Records</b>
+            <span>100% Encrypted & Accessible</span>
+          </div>
+        </div>
+
+        <div class="hero-float-card h-fc-4">
+          <i class="fa-solid fa-truck-medical" style="color:#D97706;"></i>
+          <div>
+            <b>🚑 Fast Ambulance Service</b>
+            <span>GPS Tracking Enabled</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DEPARTMENTS STRIP ============ -->
+<section class="container" style="margin:20px auto 60px;">
+  <div class="dept-strip">
+    <div class="dept-chip"><i class="fa-solid fa-heart-pulse" style="color:var(--danger);"></i> Cardiology</div>
+    <div class="dept-chip"><i class="fa-solid fa-brain" style="color:#8B5CF6;"></i> Neurology</div>
+    <div class="dept-chip"><i class="fa-solid fa-bone" style="color:#D97706;"></i> Orthopedics</div>
+    <div class="dept-chip"><i class="fa-solid fa-baby" style="color:#EC4899;"></i> Pediatrics</div>
+    <div class="dept-chip"><i class="fa-solid fa-x-ray" style="color:var(--blue-700);"></i> Radiology</div>
+    <div class="dept-chip"><i class="fa-solid fa-stethoscope" style="color:var(--teal-500);"></i> General Medicine</div>
+    <div class="dept-chip"><i class="fa-solid fa-tooth" style="color:#0EA5E9;"></i> Dental Care</div>
+    <div class="dept-chip"><i class="fa-solid fa-eye" style="color:#10B981;"></i> Ophthalmology</div>
+    <div class="dept-chip"><i class="fa-solid fa-dna" style="color:#6366F1;"></i> Oncology</div>
+  </div>
+</section>
+
+<!-- ============ 3. ABOUT HOSPITAL SECTION ============ -->
+<section class="section section-alt" id="about">
+  <div class="container">
+    <div class="grid-3" style="grid-template-columns: 1.1fr 0.9fr; gap:50px; align-items:center;">
+      <div>
+        <div class="eyebrow"><i class="fa-solid fa-hospital"></i> About Niramaya</div>
+        <h2 style="font-size:2.4rem; margin-bottom:18px;">Empowering Modern Healthcare Through Technology</h2>
+        <p style="color:var(--ink-soft); font-size:1.08rem; line-height:1.7; margin-bottom:28px;">
+          Niramaya is a smart healthcare ecosystem designed to provide efficient patient care, digital medical records, online consultations, laboratory services, pharmacy management, and emergency support.
+        </p>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:28px;">
+          <div class="about-feature-card">
+            <div class="check-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div>
+              <b style="font-size:0.92rem; color:var(--blue-900);">Advanced Healthcare Tech</b>
+              <span style="font-size:0.78rem; color:var(--ink-soft); display:block;">Smart diagnostic systems</span>
+            </div>
+          </div>
+
+          <div class="about-feature-card">
+            <div class="check-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div>
+              <b style="font-size:0.92rem; color:var(--blue-900);">Experienced Medical Team</b>
+              <span style="font-size:0.78rem; color:var(--ink-soft); display:block;">Senior board specialists</span>
+            </div>
+          </div>
+
+          <div class="about-feature-card">
+            <div class="check-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div>
+              <b style="font-size:0.92rem; color:var(--blue-900);">Secure Digital Records</b>
+              <span style="font-size:0.78rem; color:var(--ink-soft); display:block;">Unified E-Prescriptions & EHR</span>
+            </div>
+          </div>
+
+          <div class="about-feature-card">
+            <div class="check-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div>
+              <b style="font-size:0.92rem; color:var(--blue-900);">24/7 Emergency Support</b>
+              <span style="font-size:0.78rem; color:var(--ink-soft); display:block;">Instant ambulance dispatch</span>
+            </div>
+          </div>
+        </div>
+
+        <a href="login.html" class="btn btn-primary">Learn More About Portal →</a>
+      </div>
+
+      <div style="position:relative;">
+        <img src="assets/about_hospital.png" alt="Niramaya Hospital Interior Lobby" style="border-radius:24px; box-shadow:var(--shadow-lg); width:100%; border:3px solid #fff;">
+        <div style="position:absolute; bottom:-20px; left:-20px; background:var(--blue-900); color:#fff; padding:20px 24px; border-radius:18px; box-shadow:var(--shadow-md);">
+          <b style="font-family:'Sora'; font-size:1.8rem; display:block; color:#5FD6CC;">15+ Years</b>
+          <span style="font-size:0.84rem; opacity:0.85;">Excellence in Clinical Care</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. SERVICES SECTION ============ -->
+<section class="section" id="services">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow"><i class="fa-solid fa-cubes"></i> Comprehensive Care</div>
+      <h2>Integrated Hospital Modules & Services</h2>
+      <p>Seamlessly linking patients, doctors, nurses, laboratories, and pharmacies into one unified digital workspace.</p>
+    </div>
+
+    <div class="grid-3">
+      <!-- 1. Patient Management -->
+      <div class="service-card-v2">
+        <div class="service-img-wrap">
+          <img src="assets/about_hospital.png" alt="Patient Reception & Registration">
+          <div class="service-badge-icon"><i class="fa-solid fa-hospital-user"></i></div>
+        </div>
+        <div class="service-content">
+          <h3>Patient Management</h3>
+          <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5;">Complete registration, appointment booking, digital ID generation, and personal medical history tracking.</p>
+          <ul class="service-feature-list">
+            <li><i class="fa-solid fa-check"></i> 2-Day Railway-Style Appointment Booking</li>
+            <li><i class="fa-solid fa-check"></i> Digital Patient ID Card & QR Code</li>
+            <li><i class="fa-solid fa-check"></i> Comprehensive EHR History</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2. Doctor Consultation -->
+      <div class="service-card-v2">
+        <div class="service-img-wrap">
+          <img src="assets/service_doctor.png" alt="Doctor Consultation & Video Call">
+          <div class="service-badge-icon"><i class="fa-solid fa-user-doctor"></i></div>
+        </div>
+        <div class="service-content">
+          <h3>Doctor Consultation</h3>
+          <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5;">In-clinic scheduling, live video telemedicine meetings, and automated digital prescription issuance.</p>
+          <ul class="service-feature-list">
+            <li><i class="fa-solid fa-check"></i> Telemedicine Online Video Meetings</li>
+            <li><i class="fa-solid fa-check"></i> Digital Prescription Management</li>
+            <li><i class="fa-solid fa-check"></i> Doctor Schedule & Tokens</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. Nursing Care -->
+      <div class="service-card-v2">
+        <div class="service-img-wrap">
+          <img src="assets/service_nurse.png" alt="Nurse Monitoring Patient Vitals">
+          <div class="service-badge-icon"><i class="fa-solid fa-user-nurse"></i></div>
+        </div>
+        <div class="service-content">
+          <h3>Nursing Care</h3>
+          <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5;">Real-time patient monitoring, continuous vital sign logging, shift handovers, and SOS emergency broadcasts.</p>
+          <ul class="service-feature-list">
+            <li><i class="fa-solid fa-check"></i> Vital Signs Tracking (BP, SpO2, Pulse)</li>
+            <li><i class="fa-solid fa-check"></i> Medication Administration Logs</li>
+            <li><i class="fa-solid fa-check"></i> Shift Handover & Ward Management</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 4. Laboratory Services -->
+      <div class="service-card-v2">
+        <div class="service-img-wrap">
+          <img src="assets/service_lab.png" alt="High Tech Diagnostic Laboratory">
+          <div class="service-badge-icon"><i class="fa-solid fa-flask-vial"></i></div>
+        </div>
+        <div class="service-content">
+          <h3>Laboratory Services</h3>
+          <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5;">Automated test booking, sample collection tracking, digital lab report generation, and instant PDF downloads.</p>
+          <ul class="service-feature-list">
+            <li><i class="fa-solid fa-check"></i> Test Booking & Sample Tracking</li>
+            <li><i class="fa-solid fa-check"></i> Digital PDF Lab Reports</li>
+            <li><i class="fa-solid fa-check"></i> Technician Verification Portal</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 5. Pharmacy Management -->
+      <div class="service-card-v2">
+        <div class="service-img-wrap">
+          <img src="assets/service_pharmacy.png" alt="Hospital Pharmacy Inventory">
+          <div class="service-badge-icon"><i class="fa-solid fa-pills"></i></div>
+        </div>
+        <div class="service-content">
+          <h3>Pharmacy Management</h3>
+          <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5;">Batch inventory control, prescription order fulfillment, multi-channel payment gateway, and instant GST invoices.</p>
+          <ul class="service-feature-list">
+            <li><i class="fa-solid fa-check"></i> Medicine Stock & Batch Control</li>
+            <li><i class="fa-solid fa-check"></i> E-Prescription Processing</li>
+            <li><i class="fa-solid fa-check"></i> Tax Invoice & Billing Receipts</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 6. Emergency Services -->
+      <div class="service-card-v2">
+        <div class="service-img-wrap">
+          <img src="assets/service_emergency.png" alt="Emergency Ambulance Support">
+          <div class="service-badge-icon" style="background:var(--danger);"><i class="fa-solid fa-truck-medical"></i></div>
+        </div>
+        <div class="service-content">
+          <h3>Emergency Services</h3>
+          <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5;">Rapid ambulance dispatch, 24/7 emergency helpline, trauma care coordination, and instant doctor SOS alerts.</p>
+          <ul class="service-feature-list">
+            <li><i class="fa-solid fa-check"></i> 1-Click Ambulance Booking</li>
+            <li><i class="fa-solid fa-check"></i> 24/7 Trauma Unit Coordination</li>
+            <li><i class="fa-solid fa-check"></i> Instant Doctor & Admin SOS Alerts</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. EMERGENCY AMBULANCE SECTION ============ -->
+<section class="section" id="emergency" style="padding:40px 0;">
+  <div class="container">
+    <div class="emergency-banner-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:24px; position:relative; z-index:2;">
+        <div style="max-width:620px;">
+          <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.2); padding:6px 14px; border-radius:100px; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> Critical Response Team
+          </div>
+          <h2 style="color:#ffffff; font-size:2.2rem; margin-bottom:12px;">Need Emergency Medical Assistance?</h2>
+          <p style="color:rgba(255,255,255,0.9); font-size:1.05rem; line-height:1.6; margin:0;">
+            Request an ambulance instantly and get immediate hospital support with active ICU bed preparation and trauma specialist notification.
+          </p>
+        </div>
+
+        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+          <a href="login.html" class="btn btn-teal emergency-pulse-btn" style="background:#ffffff; color:#DC2626; font-size:1rem; font-weight:800; padding:16px 28px; box-shadow:0 10px 24px rgba(0,0,0,0.2);">
+            <i class="fa-solid fa-truck-medical"></i> Request Ambulance
+          </a>
+          <a href="tel:18001204560" class="btn" style="background:rgba(255,255,255,0.2); color:#ffffff; border:2px solid #ffffff; font-size:1rem; font-weight:800; padding:16px 28px;">
+            <i class="fa-solid fa-phone-volume"></i> Call Helpline: 108
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. HOSPITAL GALLERY SECTION ============ -->
+<section class="section section-alt" id="gallery">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow"><i class="fa-solid fa-images"></i> Hospital Infrastructure</div>
+      <h2>World-Class Medical Facilities</h2>
+      <p>Explore our advanced clinical environments, ICU rooms, diagnostic labs, and modern patient suites.</p>
+    </div>
+
+    <div class="gallery-grid">
+      <div class="gallery-item">
+        <img src="assets/hero_hospital.png" alt="Modern Hospital Exterior">
+        <div class="gallery-overlay">
+          <h4>Modern Hospital Exterior</h4>
+          <span>Smart Clinical Campus</span>
+        </div>
+      </div>
+
+      <div class="gallery-item">
+        <img src="assets/service_nurse.png" alt="ICU Room & Vital Monitoring">
+        <div class="gallery-overlay">
+          <h4>Advanced ICU Suite</h4>
+          <span>24/7 Cardiac Monitoring</span>
+        </div>
+      </div>
+
+      <div class="gallery-item">
+        <img src="assets/service_doctor.png" alt="Operation Theatre Suite">
+        <div class="gallery-overlay">
+          <h4>Operation Theatre</h4>
+          <span>Laparoscopic & Robotic Surgery</span>
+        </div>
+      </div>
+
+      <div class="gallery-item">
+        <img src="assets/service_emergency.png" alt="Emergency Trauma Center">
+        <div class="gallery-overlay">
+          <h4>Emergency Department</h4>
+          <span>Rapid Trauma Response</span>
+        </div>
+      </div>
+
+      <div class="gallery-item">
+        <img src="assets/doctor_arun.png" alt="Multi-Specialty Doctors Team">
+        <div class="gallery-overlay">
+          <h4>Specialist Doctor Team</h4>
+          <span>Experienced Clinical Faculty</span>
+        </div>
+      </div>
+
+      <div class="gallery-item">
+        <img src="assets/about_hospital.png" alt="Patient Care Room">
+        <div class="gallery-overlay">
+          <h4>Premium Patient Suite</h4>
+          <span>Comfortable Healthcare Environment</span>
+        </div>
+      </div>
+
+      <div class="gallery-item">
+        <img src="assets/service_lab.png" alt="Diagnostic Laboratory">
+        <div class="gallery-overlay">
+          <h4>Automated Lab Suite</h4>
+          <span>NABL Accredited Diagnostics</span>
+        </div>
+      </div>
+
+      <div class="gallery-item">
+        <img src="assets/service_pharmacy.png" alt="Hospital Pharmacy Store">
+        <div class="gallery-overlay">
+          <h4>Central Pharmacy Store</h4>
+          <span>24/7 Digital Dispensing</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. DOCTOR TEAM SECTION ============ -->
+<section class="section" id="doctors">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow"><i class="fa-solid fa-user-doctor"></i> Medical Faculty</div>
+      <h2>Our Senior Specialists</h2>
+      <p>Consult with renowned medical practitioners available for both in-person and online video appointments.</p>
+    </div>
+
+    <div class="grid-3" style="grid-template-columns: repeat(4, 1fr);">
+      <!-- Doctor 1 -->
+      <div class="doctor-card-v2">
+        <div class="doctor-img-box">
+          <img src="assets/doctor_arun.png" alt="Dr. Arun Kumar">
+          <span class="doctor-status-badge">🟢 Available</span>
+        </div>
+        <div style="padding:20px;">
+          <h4 style="font-size:1.1rem; margin-bottom:4px;">Dr. Arun Kumar</h4>
+          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Cardiology Specialist</div>
+          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 15 Years Experience</div>
+          <a href="login.html" class="btn btn-ghost btn-block btn-sm">Book Appointment</a>
+        </div>
+      </div>
+
+      <!-- Doctor 2 -->
+      <div class="doctor-card-v2">
+        <div class="doctor-img-box">
+          <img src="assets/doctor_ananya.png" alt="Dr. Ananya Rao">
+          <span class="doctor-status-badge">🟢 Available</span>
+        </div>
+        <div style="padding:20px;">
+          <h4 style="font-size:1.1rem; margin-bottom:4px;">Dr. Ananya Rao</h4>
+          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Chief Cardiologist (MD, DM)</div>
+          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 14 Years Experience</div>
+          <a href="login.html" class="btn btn-ghost btn-block btn-sm">Book Appointment</a>
+        </div>
+      </div>
+
+      <!-- Doctor 3 -->
+      <div class="doctor-card-v2">
+        <div class="doctor-img-box">
+          <img src="assets/service_doctor.png" alt="Dr. Vikram Nair">
+          <span class="doctor-status-badge">🟢 Available</span>
+        </div>
+        <div style="padding:20px;">
+          <h4 style="font-size:1.1rem; margin-bottom:4px;">Dr. Vikram Nair</h4>
+          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Neurology Consultant</div>
+          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 12 Years Experience</div>
+          <a href="login.html" class="btn btn-ghost btn-block btn-sm">Book Appointment</a>
+        </div>
+      </div>
+
+      <!-- Doctor 4 -->
+      <div class="doctor-card-v2">
+        <div class="doctor-img-box">
+          <img src="assets/service_nurse.png" alt="Nurse Priya Sharma">
+          <span class="doctor-status-badge">🟢 Available</span>
+        </div>
+        <div style="padding:20px;">
+          <h4 style="font-size:1.1rem; margin-bottom:4px;">Priya Sharma</h4>
+          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Lead ICU Nurse Specialist</div>
+          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 8 Years Experience</div>
+          <a href="login.html" class="btn btn-ghost btn-block btn-sm">View Care Roster</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8. HEALTHCARE STATISTICS SECTION ============ -->
+<section class="section" id="stats" style="background: linear-gradient(135deg, #0F2A4A 0%, #06306B 100%); position:relative; overflow:hidden;">
+  <div class="container" style="position:relative; z-index:2;">
+    <div class="grid-3" style="grid-template-columns: repeat(4, 1fr); gap:24px;">
+      <div class="stat-card-v2">
+        <i class="fa-solid fa-hospital-user"></i>
+        <span class="counter-num" data-target="1000">1000+</span>
+        <span style="font-size:0.9rem; opacity:0.85;">Patients Served</span>
+      </div>
+
+      <div class="stat-card-v2">
+        <i class="fa-solid fa-user-nurse"></i>
+        <span class="counter-num" data-target="50">50+</span>
+        <span style="font-size:0.9rem; opacity:0.85;">Healthcare Staff</span>
+      </div>
+
+      <div class="stat-card-v2">
+        <i class="fa-solid fa-clock"></i>
+        <span class="counter-num">24/7</span>
+        <span style="font-size:0.9rem; opacity:0.85;">Emergency Support</span>
+      </div>
+
+      <div class="stat-card-v2">
+        <i class="fa-solid fa-face-smile"></i>
+        <span class="counter-num">99%</span>
+        <span style="font-size:0.9rem; opacity:0.85;">Patient Satisfaction</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9. HOW NIRAMAYA WORKS ============ -->
+<section class="section section-alt" id="workflow">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow"><i class="fa-solid fa-diagram-project"></i> Simple Process</div>
+      <h2>How Niramaya Works</h2>
+      <p>Get seamless care in 4 easy steps from your home to the consultation room.</p>
+    </div>
+
+    <div class="timeline-grid">
+      <!-- Step 1 -->
+      <div class="timeline-step">
+        <div class="timeline-num">1</div>
+        <h4 style="font-size:1.1rem; margin-bottom:8px;">Create Account</h4>
+        <p style="font-size:0.86rem; color:var(--ink-soft); margin:0;">Register your patient profile and receive an instant digital Patient ID.</p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="timeline-step">
+        <div class="timeline-num">2</div>
+        <h4 style="font-size:1.1rem; margin-bottom:8px;">Book Appointment</h4>
+        <p style="font-size:0.86rem; color:var(--ink-soft); margin:0;">Choose doctor, date, and preferred time slot with instant token generation.</p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="timeline-step">
+        <div class="timeline-num">3</div>
+        <h4 style="font-size:1.1rem; margin-bottom:8px;">Meet Doctor</h4>
+        <p style="font-size:0.86rem; color:var(--ink-soft); margin:0;">Attend clinic visit or join a live online telemedicine video call.</p>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="timeline-step">
+        <div class="timeline-num">4</div>
+        <h4 style="font-size:1.1rem; margin-bottom:8px;">Get Treatment</h4>
+        <p style="font-size:0.86rem; color:var(--ink-soft); margin:0;">Download digital prescriptions, order pharmacy medicines, & access lab reports.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10. PATIENT TESTIMONIALS ============ -->
+<section class="section" id="testimonials">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow"><i class="fa-solid fa-comments"></i> Verified Stories</div>
+      <h2>What Our Patients Say</h2>
+      <p>Real feedback from patients and families who trust Niramaya for their healthcare needs.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="testi-card">
+        <div class="stars">★★★★★</div>
+        <p>"I booked a cardiology consult on my lunch break and had a prescription by evening. The whole digital flow is smooth and fast."</p>
+        <div class="testi-who">
+          <div class="avatar" style="background:linear-gradient(135deg,#0A4DA6,#0AB2A7);">RP</div>
+          <div>
+            <b>Rekha Prasad</b><br>
+            <span>Patient (Cardiology Care)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card">
+        <div class="stars">★★★★★</div>
+        <p>"Lab results, billing receipts, and my son's medical records — everything lives in one clean, easy-to-use dashboard now."</p>
+        <div class="testi-who">
+          <div class="avatar" style="background:linear-gradient(135deg,#06306B,#0B5FCB);">VN</div>
+          <div>
+            <b>Vikram Nair</b><br>
+            <span>Patient Family Member</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card">
+        <div class="stars">★★★★★</div>
+        <p>"As attending staff, nurse handover notes, vital logging, and doctor alert broadcasts make ward management efficient."</p>
+        <div class="testi-who">
+          <div class="avatar" style="background:linear-gradient(135deg,#0AB2A7,#5FD6CC);">PS</div>
+          <div>
+            <b>Priya Sharma</b><br>
+            <span>Senior Nursing Officer</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11. FOOTER ============ -->
+<footer id="contact">
+  <div class="container">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/logo.png" alt="Niramaya Hospital Logo">
+          <span style="font-family:'Sora'; font-weight:800; font-size:1.3rem; color:#fff;">Niramaya</span>
+        </div>
+        <p style="font-size:0.88rem; line-height:1.6; max-width:290px; color:rgba(255,255,255,0.75);">
+          A connected smart hospital platform connecting patients, doctors, nurses, laboratories, and pharmacies for unified healthcare.
+        </p>
+      </div>
+
+      <div>
+        <h5>Hospital Services</h5>
+        <ul>
+          <li><a href="#services">Patient Management</a></li>
+          <li><a href="#services">Doctor Consultation</a></li>
+          <li><a href="#services">Nursing Care Module</a></li>
+          <li><a href="#services">Diagnostic Laboratory</a></li>
+          <li><a href="#services">Pharmacy Inventory</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h5>Quick Links</h5>
+        <ul>
+          <li><a href="#hero">Home</a></li>
+          <li><a href="#about">About Niramaya</a></li>
+          <li><a href="#doctors">Doctor Faculty</a></li>
+          <li><a href="#emergency">Emergency Helpline</a></li>
+          <li><a href="login.html">Login Portal</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h5>Contact & Emergency</h5>
+        <div style="font-size:0.88rem; color:rgba(255,255,255,0.75); line-height:1.8;">
+          <div><i class="fa-solid fa-location-dot" style="color:#5FD6CC;"></i> No. 25, Healthcare Avenue, City</div>
+          <div><i class="fa-solid fa-phone" style="color:#5FD6CC;"></i> +91 98765 43210</div>
+          <div><i class="fa-solid fa-envelope" style="color:#5FD6CC;"></i> care@niramaya.health</div>
+          <div style="margin-top:10px;"><b style="color:var(--danger);">🚑 24/7 Helpline: 108 / 1800-120-4560</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot-bottom">
+      <span>© 2026 Niramaya Smart Hospital Management System. All Rights Reserved.</span>
+      <span>Powered by Java JDBC PostgreSQL / SQLite Embedded Architecture</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ SCRIPTS ============ -->
+<script>
+// Splash Screen Timer Script (10s Display Requirement)
+(function() {
+  const TOTAL_TIME = 10;
+  const splash = document.getElementById('splashScreen');
+  const timerEl = document.getElementById('splashTimer');
+  const progressBar = document.getElementById('splashProgressBar');
+  let splashDismissed = false;
+
+  const startTime = Date.now();
+  const endTime = startTime + (TOTAL_TIME * 1000);
+
+  function updateSplash() {
+    if (splashDismissed) return;
+    const now = Date.now();
+    const elapsed = now - startTime;
+    const remainingMs = Math.max(0, endTime - now);
+    const remainingSec = Math.ceil(remainingMs / 1000);
+    const pct = Math.min(100, (elapsed / (TOTAL_TIME * 1000)) * 100);
+
+    if (timerEl) timerEl.textContent = remainingSec;
+    if (progressBar) progressBar.style.width = pct + '%';
+
+    if (remainingMs <= 0) {
+      dismissSplash();
+    } else {
+      requestAnimationFrame(updateSplash);
+    }
+  }
+
+  window.dismissSplash = function() {
+    if (splashDismissed) return;
+    splashDismissed = true;
+    if (splash) {
+      splash.classList.add('hidden');
+      setTimeout(function() {
+        splash.style.display = 'none';
+      }, 850);
+    }
+  };
+
+  requestAnimationFrame(updateSplash);
+})();
+
+// Navbar Transparent-to-Solid Scroll Effect
+window.addEventListener('scroll', () => {
+  const navbar = document.getElementById('mainNavbar');
+  if (window.scrollY > 50) {
+    navbar.classList.add('scrolled');
+  } else {
+    navbar.classList.remove('scrolled');
+  }
+});
+</script>
+
+</body>
+</html>

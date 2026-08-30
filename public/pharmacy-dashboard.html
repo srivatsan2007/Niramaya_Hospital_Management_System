@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pharmacist Console & Inventory — Niramaya Smart Hospital</title>
+<link rel="stylesheet" href="css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pharm-navy: #0F172A;
+    --pharm-emerald: #059669;
+    --pharm-emerald-light: #D1FAE5;
+    --pharm-blue: #2563EB;
+    --amber: #D97706;
+    --danger: #EF4444;
+  }
+  body {
+    background: #F8FAFC;
+    font-family: 'Inter', sans-serif;
+    margin: 0; padding: 0;
+  }
+  .pharm-nav {
+    background: var(--pharm-navy);
+    color: white;
+    padding: 16px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  .pharm-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Sora', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+  .pharm-badge {
+    background: var(--pharm-emerald);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .nav-tabs-bar {
+    background: #1E293B;
+    padding: 0 32px;
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid #334155;
+  }
+  .tab-btn {
+    padding: 14px 20px;
+    color: #94A3B8;
+    background: transparent;
+    border: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active {
+    color: white;
+    border-bottom-color: var(--pharm-emerald);
+    background: rgba(255,255,255,0.05);
+  }
+
+  .stat-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin: 28px 32px 0 32px;
+  }
+  .pharm-stat {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .pharm-stat .val {
+    font-family: 'Sora', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--pharm-navy);
+    margin-top: 4px;
+  }
+  .pharm-stat .lbl {
+    font-size: 0.85rem;
+    color: #64748B;
+    font-weight: 600;
+  }
+  .pharm-stat .ico {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+
+  .main-content {
+    padding: 28px 32px;
+  }
+  .table-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .table-header-bar {
+    padding: 20px 24px;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .search-box-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .search-box-wrap input, .search-box-wrap select {
+    padding: 10px 14px;
+    border: 1px solid #CBD5E1;
+    border-radius: 10px;
+    font-size: 0.88rem;
+  }
+  .pharm-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .pharm-table th {
+    background: #F1F5F9;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 14px 16px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .pharm-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 0.88rem;
+    color: #1E293B;
+    white-space: nowrap;
+  }
+  .pharm-table tr:hover {
+    background: #F8FAFC;
+  }
+  
+  /* Status Colors */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  .status-pill.instock { background: #D1FAE5; color: #065F46; }
+  .status-pill.lowstock { background: #FEF3C7; color: #92400E; }
+  .status-pill.outofstock { background: #FEE2E2; color: #991B1B; }
+  .status-pill.expiringsoon { background: #FFEDD5; color: #C2410C; }
+  .status-pill.expired { background: #FEE2E2; color: #7F1D1D; text-decoration: line-through; }
+
+  /* Modal Styling */
+  .pharm-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .pharm-modal.show { display: flex; }
+  .pharm-modal-box {
+    background: white;
+    border-radius: 20px;
+    width: 92%;
+    max-width: 720px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .form-group label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #334155;
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 10px 12px;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+  }
+
+  .view-tab { display: none; }
+  .view-tab.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- NAVIGATION BAR -->
+<div class="pharm-nav">
+  <div class="pharm-brand">
+    <span style="font-size:1.6rem;">💊</span>
+    <div>
+      <div>NIRAMAYA HOSPITALS</div>
+      <div style="font-size:0.75rem; opacity:0.8; font-weight:500;">Automated Central Pharmacy Console</div>
+    </div>
+    <span class="pharm-badge">Pharmacist</span>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:16px;">
+    <div style="text-align:right;">
+      <b id="staffName" style="display:block; font-size:0.95rem;">Priya Sharma</b>
+      <span style="font-size:0.75rem; color:#5FD6CC; font-weight:800; font-family:monospace;" id="staffEmpCode">EMP-000003</span>
+    </div>
+    <button class="btn btn-primary" onclick="openPharmacyDailyReportModal()" style="font-size:0.8rem; padding:6px 14px; background:#059669; border:none; font-weight:700; box-shadow:0 4px 12px rgba(5,150,105,0.3);">📩 Send Daily Report</button>
+    <button class="btn btn-primary" onclick="viewPharmacistIdCard()" style="font-size:0.8rem; padding:6px 12px; background:#0AB2A7; border:none;">🪪 ID Card</button>
+    <button class="btn btn-ghost" onclick="logout()" style="color:#F87171; border:1px solid rgba(248,113,113,0.4);">Log Out 🚪</button>
+
+  </div>
+</div>
+
+<!-- SUB NAVIGATION TABS -->
+<div class="nav-tabs-bar">
+  <button class="tab-btn active" id="btnTabOrders" onclick="switchMainTab('orders')">⚡ Today's Active Prescriptions Queue</button>
+  <button class="tab-btn" id="btnTabHistory" onclick="switchMainTab('history')">📜 Completed Orders History</button>
+  <button class="tab-btn" id="btnTabInventory" onclick="switchMainTab('inventory')">📦 Medicine Inventory</button>
+</div>
+
+<!-- STATS CARDS -->
+<div class="stat-card-grid">
+  <div class="pharm-stat">
+    <div>
+      <div class="lbl">Pending Orders</div>
+      <div class="val" id="statPending">0</div>
+    </div>
+    <div class="ico" style="background:#E0F2FE; color:#0284C7;">📋</div>
+  </div>
+  <div class="pharm-stat">
+    <div>
+      <div class="lbl">Dispensed Today</div>
+      <div class="val" id="statDispensed">0</div>
+    </div>
+    <div class="ico" style="background:#D1FAE5; color:#059669;">💊</div>
+  </div>
+  <div class="pharm-stat">
+    <div>
+      <div class="lbl">Pharmacy Revenue</div>
+      <div class="val" id="statRevenue">₹0.00</div>
+    </div>
+    <div class="ico" style="background:#FEF3C7; color:#D97706;">💳</div>
+  </div>
+  <div class="pharm-stat">
+    <div>
+      <div class="lbl">Medicines In Stock</div>
+      <div class="val" id="statMedicines">0</div>
+    </div>
+    <div class="ico" style="background:#F3E8FF; color:#9333EA;">📦</div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT WRAPPER -->
+<div class="main-content">
+
+  <!-- TAB 1: PHARMACY ORDERS QUEUE -->
+  <div id="viewOrders" class="view-tab active">
+    <div class="table-card">
+      <div class="table-header-bar">
+        <div>
+          <h2 style="font-family:'Sora'; font-size:1.25rem; color:var(--pharm-navy); margin:0;">Automated Pharmacy Orders Queue</h2>
+          <p style="font-size:0.85rem; color:#64748B; margin:4px 0 0 0;">Prescriptions generated automatically from Doctor Console appear here instantly with unique tokens.</p>
+        </div>
+
+        <div class="search-box-wrap">
+          <input type="text" id="searchInput" placeholder="Search Token, Order ID, Patient ID..." oninput="filterOrders()">
+          <button class="btn btn-primary" onclick="loadPharmacyOrders()" style="background:var(--pharm-navy);">🔄 Refresh Queue</button>
+        </div>
+      </div>
+
+      <table class="pharm-table">
+        <thead>
+          <tr>
+            <th>Pharmacy Token</th>
+            <th>Order ID</th>
+            <th>Patient ID</th>
+            <th>Doctor ID</th>
+            <th>Total Amount (₹)</th>
+            <th>Payment</th>
+            <th>Order Status</th>
+            <th>Order Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ordersTableBody">
+          <!-- Dynamic Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 2: COMPLETED ORDERS HISTORY -->
+  <div id="viewHistory" class="view-tab">
+    <div class="table-card">
+      <div class="table-header-bar">
+        <div>
+          <h2 style="font-family:'Sora'; font-size:1.25rem; color:var(--pharm-navy); margin:0;">📜 Completed & Dispensed Orders History</h2>
+          <p style="font-size:0.85rem; color:#64748B; margin:4px 0 0 0;">All completed medicine orders and dispensed prescriptions archived from server database.</p>
+        </div>
+        <button class="btn btn-primary" onclick="loadPharmacyHistory()" style="background:var(--pharm-navy);">🔄 Refresh History</button>
+      </div>
+
+      <table class="pharm-table">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Token</th>
+            <th>Patient ID</th>
+            <th>Total Amount</th>
+            <th>Payment Status</th>
+            <th>Order Status</th>
+            <th>Order Date</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody">
+          <!-- Dynamic History Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 3: MEDICINE INVENTORY MANAGEMENT -->
+  <div id="viewInventory" class="view-tab">
+    <div class="table-card">
+      <div class="table-header-bar">
+        <div>
+          <h2 style="font-family:'Sora'; font-size:1.25rem; color:var(--pharm-navy); margin:0;">📦 Hospital Medicine Inventory Catalog</h2>
+          <p style="font-size:0.85rem; color:#64748B; margin:4px 0 0 0;">Manage hospital medicine stock, prices, expiry dates, batch tracking, and stock adjustments.</p>
+        </div>
+
+        <!-- TOP ACTION BUTTONS -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="openAddMedicineModal()" style="background:var(--pharm-emerald);">➕ Add Medicine</button>
+          <button class="btn btn-primary" onclick="openEditMedicineModal()" style="background:var(--pharm-blue);">✏ Edit Medicine</button>
+          <button class="btn btn-primary" onclick="openUpdateStockModal()" style="background:var(--amber);">📈 Update Stock</button>
+          <button class="btn btn-danger" onclick="deleteMedicineAction()" style="background:var(--danger);">🗑 Delete Medicine</button>
+          <button class="btn btn-ghost" onclick="viewMedicineDetails()">👁 View Details</button>
+          <button class="btn btn-ghost" onclick="exportInventoryCSV()">📤 Export Inventory</button>
+        </div>
+      </div>
+
+      <!-- SEARCH & FILTER TOOLBAR -->
+      <div style="padding:16px 24px; background:#F8FAFC; border-bottom:1px solid #E2E8F0; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-weight:700; font-size:0.85rem;">🔍 Search:</span>
+          <input type="text" id="invSearchInput" placeholder="Name, Generic, Batch, ID, Manufacturer..." oninput="loadInventoryTable()" style="padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px; width:220px;">
+        </div>
+
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-weight:700; font-size:0.85rem;">Category:</span>
+          <select id="invCatFilter" onchange="loadInventoryTable()" style="padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px;">
+            <option value="All">All Categories</option>
+            <option value="Tablet">Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Injection">Injection</option>
+            <option value="Syrup">Syrup</option>
+            <option value="Drops">Drops</option>
+            <option value="Cream">Cream</option>
+            <option value="Ointment">Ointment</option>
+            <option value="Inhaler">Inhaler</option>
+          </select>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-weight:700; font-size:0.85rem;">Status:</span>
+          <select id="invStatusFilter" onchange="loadInventoryTable()" style="padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px;">
+            <option value="All">All Statuses</option>
+            <option value="In Stock">🟢 In Stock</option>
+            <option value="Low Stock">🟡 Low Stock</option>
+            <option value="Out of Stock">🔴 Out of Stock</option>
+            <option value="Expiring Soon">⚠️ Expiring Soon</option>
+            <option value="Expired">❌ Expired</option>
+          </select>
+        </div>
+
+        <button class="btn btn-ghost" onclick="loadInventoryTable()" style="margin-left:auto;">🔄 Refresh Inventory</button>
+      </div>
+
+      <!-- INVENTORY TABLE -->
+      <div style="overflow-x:auto;">
+        <table class="pharm-table" id="invTable">
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Actions</th>
+              <th>Medicine ID</th>
+              <th>Medicine Name</th>
+              <th>Generic Name</th>
+              <th>Category</th>
+              <th>Strength</th>
+              <th>Dosage Form</th>
+              <th>Manufacturer</th>
+              <th>Batch No</th>
+              <th>Mfg Date</th>
+              <th>Expiry Date</th>
+              <th>Purchase (₹)</th>
+              <th>Selling (₹)</th>
+              <th>GST %</th>
+              <th>Stock Qty</th>
+              <th>Min Stock</th>
+              <th>Rack No</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableFullBody">
+            <!-- Dynamic Medicine Rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL: ADD MEDICINE -->
+<div class="pharm-modal" id="addMedModal">
+  <div class="pharm-modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+      <h3 style="font-family:'Sora'; font-size:1.2rem; color:var(--pharm-navy); margin:0;">➕ Add New Medicine to Inventory</h3>
+      <button class="icon-btn" onclick="closeModal('addMedModal')">✕</button>
+    </div>
+
+    <form id="addMedForm" onsubmit="submitAddMedicine(event)">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Medicine Name *</label>
+          <input type="text" id="addName" required placeholder="e.g. Paracetamol">
+        </div>
+        <div class="form-group">
+          <label>Generic Name *</label>
+          <input type="text" id="addGeneric" required placeholder="e.g. Acetaminophen">
+        </div>
+        <div class="form-group">
+          <label>Medicine Category *</label>
+          <select id="addCategory">
+            <option value="Tablet">Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Injection">Injection</option>
+            <option value="Syrup">Syrup</option>
+            <option value="Drops">Drops</option>
+            <option value="Cream">Cream</option>
+            <option value="Ointment">Ointment</option>
+            <option value="Inhaler">Inhaler</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Strength *</label>
+          <input type="text" id="addStrength" required placeholder="e.g. 650mg">
+        </div>
+        <div class="form-group">
+          <label>Dosage Form *</label>
+          <select id="addDosage">
+            <option value="Tablet">Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Syrup">Syrup</option>
+            <option value="Injection">Injection</option>
+            <option value="Drops">Drops</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Manufacturer *</label>
+          <input type="text" id="addManufacturer" required placeholder="e.g. Cipla Healthcare">
+        </div>
+        <div class="form-group">
+          <label>Batch Number *</label>
+          <input type="text" id="addBatch" required placeholder="e.g. BN-9041">
+        </div>
+        <div class="form-group">
+          <label>Manufacturing Date *</label>
+          <input type="date" id="addMfgDate" required value="2024-01-01">
+        </div>
+        <div class="form-group">
+          <label>Expiry Date *</label>
+          <input type="date" id="addExpDate" required value="2028-12-31">
+        </div>
+        <div class="form-group">
+          <label>Purchase Price (₹) *</label>
+          <input type="number" step="0.01" id="addPurchasePrice" required placeholder="40.00">
+        </div>
+        <div class="form-group">
+          <label>Selling Price (₹) *</label>
+          <input type="number" step="0.01" id="addSellingPrice" required placeholder="55.00">
+        </div>
+        <div class="form-group">
+          <label>GST Percentage (%)</label>
+          <input type="number" step="0.01" id="addGst" value="12.0">
+        </div>
+        <div class="form-group">
+          <label>Stock Quantity *</label>
+          <input type="number" id="addStockQty" required placeholder="100">
+        </div>
+        <div class="form-group">
+          <label>Minimum Stock *</label>
+          <input type="number" id="addMinStock" required placeholder="15">
+        </div>
+        <div class="form-group">
+          <label>Rack Number *</label>
+          <input type="text" id="addRack" required placeholder="R-101">
+        </div>
+        <div class="form-group">
+          <label>Prescription Required?</label>
+          <select id="addRxReq">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px;">
+        <label>Storage Instructions</label>
+        <input type="text" id="addStorage" placeholder="e.g. Store below 25°C in a dry place">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('addMedForm').reset()">Reset</button>
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addMedModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--pharm-emerald);">Save Medicine 💾</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: EDIT MEDICINE -->
+<div class="pharm-modal" id="editMedModal">
+  <div class="pharm-modal-box" style="max-width:560px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+      <h3 style="font-family:'Sora'; font-size:1.2rem; color:var(--pharm-navy); margin:0;">✏ Edit Medicine Details</h3>
+      <button class="icon-btn" onclick="closeModal('editMedModal')">✕</button>
+    </div>
+
+    <form id="editMedForm" onsubmit="submitEditMedicine(event)">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Medicine ID (Locked)</label>
+        <input type="text" id="editMedId" readonly style="background:#F1F5F9;">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Batch Number (Locked)</label>
+        <input type="text" id="editBatch" readonly style="background:#F1F5F9;">
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Selling Price (₹) *</label>
+          <input type="number" step="0.01" id="editSellingPrice" required>
+        </div>
+        <div class="form-group">
+          <label>Stock Quantity *</label>
+          <input type="number" id="editStockQty" required>
+        </div>
+        <div class="form-group">
+          <label>Expiry Date *</label>
+          <input type="date" id="editExpDate" required>
+        </div>
+        <div class="form-group">
+          <label>Rack Number *</label>
+          <input type="text" id="editRack" required>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:12px;">
+        <label>Storage Instructions</label>
+        <input type="text" id="editStorage">
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label>Description</label>
+        <textarea id="editDesc" rows="2"></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('editMedModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--pharm-blue);">Save Changes 💾</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: UPDATE STOCK -->
+<div class="pharm-modal" id="stockModal">
+  <div class="pharm-modal-box" style="max-width:500px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+      <h3 style="font-family:'Sora'; font-size:1.2rem; color:var(--pharm-navy); margin:0;">📈 Update Stock Level</h3>
+      <button class="icon-btn" onclick="closeModal('stockModal')">✕</button>
+    </div>
+
+    <form onsubmit="submitStockUpdate(event)">
+      <input type="hidden" id="stockMedId">
+      
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Medicine Name</label>
+        <b id="stockMedNameStr" style="font-size:1.05rem; color:var(--pharm-navy);">Paracetamol</b>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Action Type</label>
+        <select id="stockActionType" style="padding:10px; border-radius:8px;">
+          <option value="Increase">Increase Stock (+)</option>
+          <option value="Decrease">Decrease Stock (-)</option>
+          <option value="Adjust">Set Exact Stock</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Quantity *</label>
+        <input type="number" id="stockQtyInput" value="10" required>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Reason *</label>
+        <select id="stockReason">
+          <option value="Purchase">Purchase Arrival</option>
+          <option value="Dispensed">Dispensed to Patient</option>
+          <option value="Expired">Expired Stock Removal</option>
+          <option value="Damaged">Damaged / Broken</option>
+          <option value="Returned">Returned by Patient</option>
+          <option value="Adjustment">Audit Adjustment</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Remarks</label>
+        <input type="text" id="stockRemarks" placeholder="Optional audit notes...">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('stockModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--amber);">Update Stock 📈</button>
+      </div>
+    </form>
+  </div>
+<!-- MODAL: VIEW ORDER ITEMS -->
+<div class="pharm-modal" id="itemsModal">
+  <div class="pharm-modal-box" style="max-width:720px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+      <div>
+        <h3 style="font-family:'Sora'; font-size:1.2rem; color:var(--pharm-navy); margin:0;">📋 Prescription Order Items</h3>
+        <div style="font-size:0.82rem; color:#64748B; margin-top:2px;">Order ID: <b id="itemsModalOrderId">--</b> &nbsp;|&nbsp; Token: <b id="itemsModalToken">--</b></div>
+      </div>
+      <button class="icon-btn" onclick="closeModal('itemsModal')">✕</button>
+    </div>
+
+    <div style="overflow-x:auto; max-height:360px;">
+      <table class="pharm-table">
+        <thead>
+          <tr>
+            <th>Medicine Name</th>
+            <th>Strength</th>
+            <th>Dosage / Schedule</th>
+            <th>Duration</th>
+            <th>Qty</th>
+            <th>Unit Price (₹)</th>
+            <th>Subtotal (₹)</th>
+          </tr>
+        </thead>
+        <tbody id="itemsModalTbody">
+          <!-- Dynamic Order Items -->
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid #E2E8F0; padding-top:14px;">
+      <div>
+        <span style="font-size:0.9rem; color:#64748B;">Order Total Amount:</span>
+        <b style="font-size:1.2rem; color:var(--pharm-emerald); font-family:'Sora'; margin-left:8px;" id="itemsModalTotal">₹0.00</b>
+      </div>
+      <button type="button" class="btn btn-ghost" onclick="closeModal('itemsModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+<script>
+  let allOrders = [];
+  let allMedicines = [];
+
+  window.addEventListener('DOMContentLoaded', () => {
+    loadPharmacyOrders();
+    loadInventoryTable();
+  });
+
+  window.addEventListener('storage', () => {
+    loadPharmacyOrders();
+  });
+
+  function switchMainTab(tabName) {
+    document.getElementById('btnTabOrders')?.classList.remove('active');
+    document.getElementById('btnTabHistory')?.classList.remove('active');
+    document.getElementById('btnTabInventory')?.classList.remove('active');
+    document.getElementById('viewOrders')?.classList.remove('active');
+    document.getElementById('viewHistory')?.classList.remove('active');
+    document.getElementById('viewInventory')?.classList.remove('active');
+
+    if (tabName === 'orders') {
+      document.getElementById('btnTabOrders')?.classList.add('active');
+      document.getElementById('viewOrders')?.classList.add('active');
+    } else if (tabName === 'history') {
+      document.getElementById('btnTabHistory')?.classList.add('active');
+      document.getElementById('viewHistory')?.classList.add('active');
+      loadPharmacyHistory();
+    } else {
+      document.getElementById('btnTabInventory')?.classList.add('active');
+      document.getElementById('viewInventory')?.classList.add('active');
+      loadInventoryTable();
+    }
+  }
+
+  async function loadPharmacyHistory() {
+    const tbody = document.getElementById('historyTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--pharm-emerald);">Fetching server completed history...</td></tr>';
+    try {
+      const res = await fetch('/api/pharmacy/completed-orders');
+      const list = await res.json();
+      if (Array.isArray(list) && list.length > 0) {
+        tbody.innerHTML = list.map(o => `
+          <tr>
+            <td><b>${o.orderId || 'ORD-101'}</b></td>
+            <td><span class="mono" style="font-weight:700; color:var(--pharm-navy);">${o.pharmacyToken || o.token || 'TK-1001'}</span></td>
+            <td>${o.patientId || 'PT100842'}</td>
+            <td><b>₹${(o.totalAmount || 0).toFixed(2)}</b></td>
+            <td><span class="status-pill ok" style="font-size:0.75rem; background:#DCFCE7; color:#15803D; padding:4px 8px; border-radius:10px;">${o.paymentStatus || 'Paid'}</span></td>
+            <td><span class="status-pill ok" style="font-size:0.75rem; background:#E0F2FE; color:#0369A1; padding:4px 8px; border-radius:10px; font-weight:700;">Dispensed ✓</span></td>
+            <td>${o.orderDate || o.createdAt || 'Past'}</td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748B;">No completed pharmacy orders found. All dispensed prescriptions move here automatically.</td></tr>';
+      }
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748B;">No completed orders available.</td></tr>';
+    }
+  }
+
+  async function loadPharmacyOrders() {
+    let apiToday = [];
+    let apiCompleted = [];
+    try {
+      const [resToday, resComp] = await Promise.all([
+        fetch('/api/pharmacy/todays-prescriptions'),
+        fetch('/api/pharmacy/completed-orders')
+      ]);
+      if (resToday.ok) apiToday = await resToday.json();
+      if (resComp.ok) apiCompleted = await resComp.json();
+    } catch (e) {}
+
+    let localOrders = [];
+    try {
+      localOrders = JSON.parse(localStorage.getItem('niramaya_pharmacy_orders') || '[]');
+    } catch (e) {}
+
+    let combinedToday = new Map();
+    apiToday.forEach(o => {
+      if (o && (o.orderId || o.pharmacyToken)) combinedToday.set(o.orderId || o.pharmacyToken, o);
+    });
+    localOrders.forEach(o => {
+      const st = (o.orderStatus || '').toLowerCase();
+      if (o && (o.orderId || o.pharmacyToken) && !combinedToday.has(o.orderId || o.pharmacyToken) && !st.includes('dispensed') && !st.includes('completed')) {
+        combinedToday.set(o.orderId || o.pharmacyToken, o);
+      }
+    });
+
+    allOrders = Array.from(combinedToday.values());
+    renderOrders(allOrders);
+    updateStats(allOrders, apiCompleted);
+  }
+
+  function renderOrders(orders) {
+    const tbody = document.getElementById('ordersTableBody');
+    tbody.innerHTML = '';
+
+    if (orders.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748B;">No pending medicine orders in today's active queue. 🟢</td></tr>`;
+      return;
+    }
+
+    orders.forEach(o => {
+      const tr = document.createElement('tr');
+      const amt = (typeof o.totalAmount === 'number' && !isNaN(o.totalAmount)) ? o.totalAmount : parseFloat(o.totalAmount || 0);
+      const isPaid = (o.paymentStatus || '').toLowerCase() === 'paid';
+      const isDispensed = (o.orderStatus || '').toLowerCase().includes('dispensed') || (o.orderStatus || '').toLowerCase().includes('completed');
+
+      tr.innerHTML = `
+        <td><b style="font-family:'Sora'; color:var(--pharm-navy);">${o.pharmacyToken || '-'}</b></td>
+        <td><code>${o.orderId || '-'}</code></td>
+        <td><b>${o.patientId || '-'}</b></td>
+        <td>${o.doctorId || '-'}</td>
+        <td><b style="color:var(--pharm-emerald);">₹${amt.toFixed(2)}</b></td>
+        <td><span class="status-pill ${isPaid ? 'instock' : 'lowstock'}">${isPaid ? '✓ Paid' : '⏳ Unpaid'}</span></td>
+        <td><span class="status-pill ${isDispensed ? 'instock' : 'lowstock'}">${o.orderStatus || 'Pending'}</span></td>
+        <td>${o.orderDate || 'Today'}</td>
+        <td>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-ghost" style="padding:6px 10px; font-size:0.8rem;" onclick="openItemsModal('${o.orderId}', '${o.pharmacyToken}')">📋 Items</button>
+            ${!isPaid ? `<button class="btn btn-primary" style="padding:6px 10px; font-size:0.8rem; background:var(--pharm-emerald);" onclick="openPayModal('${o.orderId}', '${o.pharmacyToken}', ${amt})">💳 Pay</button>` : ''}
+            ${!isDispensed ? `<button class="btn btn-teal" style="padding:6px 10px; font-size:0.8rem; background:#059669; color:#fff;" onclick="dispensePharmacyOrder('${o.orderId}')">💊 Complete & Dispense</button>` : ''}
+            <button class="btn btn-ghost" style="padding:6px 10px; font-size:0.8rem;" onclick="downloadInvoice('${o.orderId}')">📄 PDF</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function dispensePharmacyOrder(orderId) {
+    try {
+      const res = await fetch('/api/pharmacy/complete-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: orderId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Sync local storage state
+        try {
+          let localOrders = JSON.parse(localStorage.getItem('niramaya_pharmacy_orders') || '[]');
+          localOrders.forEach(o => {
+            if (o.orderId === orderId || o.pharmacyToken === orderId) {
+              o.orderStatus = 'MEDICINE_DISPENSED';
+              o.paymentStatus = 'Paid';
+            }
+          });
+          localStorage.setItem('niramaya_pharmacy_orders', JSON.stringify(localOrders));
+        } catch(e){}
+
+        showToast('✅ Order dispensed and archived to Completed History!');
+        await loadPharmacyOrders();
+        if (typeof loadPharmacyHistory === 'function') loadPharmacyHistory();
+      } else {
+        showToast('⚠️ ' + data.message);
+      }
+    } catch(e) {
+      showToast('❌ Failed to update order status.');
+    }
+  }
+
+  function updateStats(todayOrders, completedOrders = []) {
+    let pending = todayOrders.length;
+    let dispensed = completedOrders.length;
+    let totalRev = [...todayOrders, ...completedOrders].filter(o => (o.paymentStatus || '').toLowerCase() === 'paid').reduce((acc, o) => acc + (parseFloat(o.totalAmount) || 0), 0);
+
+    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statDispensed').textContent = dispensed;
+    document.getElementById('statRevenue').textContent = '₹' + totalRev.toFixed(2);
+    document.getElementById('statMedicines').textContent = allMedicines.length || '10';
+  }
+
+  async function openItemsModal(orderId, pharmacyToken) {
+    document.getElementById('itemsModalOrderId').textContent = orderId || '--';
+    document.getElementById('itemsModalToken').textContent = pharmacyToken || '--';
+    const tbody = document.getElementById('itemsModalTbody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748B;">Loading items...</td></tr>';
+    document.getElementById('itemsModal').classList.add('show');
+
+    let items = [];
+    try {
+      const res = await fetch(`/api/pharmacy/order-items?orderId=${encodeURIComponent(orderId)}`);
+      if (res.ok) {
+        items = await res.json();
+      }
+    } catch(e) {}
+
+    // Fallback to order items stored in local order object if API returns empty
+    if (!items || items.length === 0) {
+      const order = allOrders.find(o => o.orderId === orderId || o.pharmacyToken === pharmacyToken);
+      if (order && order.items) {
+        items = order.items;
+      }
+    }
+
+    if (!items || items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748B;">No prescribed items found for this order.</td></tr>';
+      document.getElementById('itemsModalTotal').textContent = '₹0.00';
+      return;
+    }
+
+    let total = 0;
+    tbody.innerHTML = items.map(it => {
+      const name = it.medicineName || it.name || 'Medicine';
+      const str = it.strength || '-';
+      const schedule = (it.morning || 0) + '-' + (it.afternoon || 0) + '-' + (it.night || 0) + ' (' + (it.dosage || 'After Food') + ')';
+      const dur = it.duration || '5 Days';
+      const qty = it.quantity || 10;
+      const price = parseFloat(it.unitPrice || 0);
+      const subtotal = parseFloat(it.subtotal || (qty * price));
+      total += subtotal;
+
+      return `
+        <tr>
+          <td><b>${name}</b><br><code style="font-size:0.75rem; color:#64748B;">${it.medicineId || ''}</code></td>
+          <td>${str}</td>
+          <td><span style="background:#F1F5F9; font-weight:600; padding:2px 8px; border-radius:6px; font-size:0.78rem;">${schedule}</span></td>
+          <td>${dur}</td>
+          <td><b>${qty}</b></td>
+          <td>₹${price.toFixed(2)}</td>
+          <td><b style="color:var(--pharm-emerald);">₹${subtotal.toFixed(2)}</b></td>
+        </tr>
+      `;
+    }).join('');
+
+    document.getElementById('itemsModalTotal').textContent = '₹' + total.toFixed(2);
+  }
+
+  async function openPayModal(orderId, pharmacyToken, totalAmount) {
+    const amt = parseFloat(totalAmount) || 0;
+    const label = pharmacyToken || orderId;
+    if (!confirm(`Confirm online/cash payment receipt of ₹${amt.toFixed(2)} for Order ${label}?`)) return;
+
+    try {
+      const res = await fetch('/api/pharmacy/pay', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ orderId, paymentMethod: 'UPI' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('✅ Payment recorded as Paid!');
+        try {
+          let localOrders = JSON.parse(localStorage.getItem('niramaya_pharmacy_orders') || '[]');
+          localOrders.forEach(o => {
+            if (o.orderId === orderId || o.pharmacyToken === pharmacyToken || o.orderId === pharmacyToken) {
+              o.paymentStatus = 'Paid';
+              o.orderStatus = 'Payment Completed';
+            }
+          });
+          localStorage.setItem('niramaya_pharmacy_orders', JSON.stringify(localOrders));
+        } catch(e){}
+        await loadPharmacyOrders();
+      } else {
+        showToast('⚠️ Payment update failed.');
+      }
+    } catch(e) {
+      showToast('⚠️ Payment processing error.');
+    }
+  }
+
+  async function dispenseOrder(orderId) {
+    if (!confirm(`Mark Pharmacy Order ${orderId} as DISPENSED?`)) return;
+    try {
+      const res = await fetch('/api/pharmacy/update-status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ orderId, status: 'Dispensed' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('💊 Order status updated to DISPENSED!');
+        await loadPharmacyOrders();
+        await loadInventoryTable();
+      } else {
+        showToast('⚠️ Status update failed.');
+      }
+    } catch(e) {
+      showToast('⚠️ Status update error.');
+    }
+  }
+
+  async function downloadInvoice(orderId) {
+    try {
+      const res = await fetch(`/api/pharmacy/invoice?orderId=${encodeURIComponent(orderId)}`);
+      const data = await res.json();
+      if (data.pdfFile) {
+        window.open('/' + data.pdfFile, '_blank');
+      } else {
+        showToast('📄 Generating Pharmacy Invoice PDF...');
+      }
+    } catch(e) {
+      showToast('⚠️ Invoice download error.');
+    }
+  }
+
+  /* INVENTORY LOGIC */
+  async function loadInventoryTable() {
+    try {
+      const res = await fetch('/api/pharmacy/medicines');
+      allMedicines = await res.json();
+      renderInventoryTable(allMedicines);
+    } catch (e) {
+      showToast('⚠️ Could not load inventory catalog.');
+    }
+  }
+
+  function renderInventoryTable(medicines) {
+    const tbody = document.getElementById('inventoryTableFullBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const query = (document.getElementById('invSearchInput')?.value || '').trim().toLowerCase();
+    const cat = document.getElementById('invCatFilter')?.value || 'All';
+    const statusFilter = document.getElementById('invStatusFilter')?.value || 'All';
+
+    const filtered = (medicines || []).filter(m => {
+      if (!m) return false;
+      const mName = (m.medicineName || '').toLowerCase();
+      const gName = (m.genericName || '').toLowerCase();
+      const bNum = (m.batchNumber || '').toLowerCase();
+      const mfg = (m.manufacturer || '').toLowerCase();
+      const mId = (m.medicineId || '').toLowerCase();
+
+      const matchesQ = !query ||
+        mName.includes(query) ||
+        gName.includes(query) ||
+        bNum.includes(query) ||
+        mfg.includes(query) ||
+        mId.includes(query);
+
+      const matchesCat = (cat === 'All') || (m.category === cat);
+      const matchesStatus = (statusFilter === 'All') || (m.status === statusFilter);
+
+      return matchesQ && matchesCat && matchesStatus;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding:30px; color:#64748B;">No matching medicines found in inventory.</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(m => {
+      const tr = document.createElement('tr');
+
+      let stClass = 'instock';
+      if (m.status === 'Low Stock') stClass = 'lowstock';
+      if (m.status === 'Out of Stock') stClass = 'outofstock';
+      if (m.status === 'Expiring Soon') stClass = 'expiringsoon';
+      if (m.status === 'Expired') stClass = 'expired';
+
+      tr.innerHTML = `
+        <td><input type="radio" name="selectedMedicine" value="${m.medicineId}"></td>
+        <td style="white-space:nowrap;">
+          <button type="button" onclick="openEditMedicineModal('${m.medicineId}')" title="Edit Medicine" style="background:#E0F2FE; color:#0284C7; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.78rem; font-weight:700; margin-right:4px;">✏ Edit</button>
+          <button type="button" onclick="openUpdateStockModal('${m.medicineId}')" title="Update Stock" style="background:#FEF3C7; color:#D97706; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.78rem; font-weight:700; margin-right:4px;">📈 Stock</button>
+          <button type="button" onclick="deleteMedicineAction('${m.medicineId}')" title="Delete Medicine" style="background:#FEE2E2; color:#DC2626; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.78rem; font-weight:700;">🗑 Delete</button>
+        </td>
+        <td><code>${m.medicineId || '-'}</code></td>
+        <td><b>${m.medicineName || '-'}</b></td>
+        <td>${m.genericName || m.medicineName || '-'}</td>
+        <td>${m.category || 'Tablet'}</td>
+        <td>${m.strength || '-'}</td>
+        <td>${m.dosageForm || 'Tablet'}</td>
+        <td>${m.manufacturer || '-'}</td>
+        <td><code>${m.batchNumber || '-'}</code></td>
+        <td>${m.manufacturingDate || '-'}</td>
+        <td>${m.expiryDate || '-'}</td>
+        <td>₹${(m.purchasePrice || 0).toFixed(2)}</td>
+        <td><b style="color:var(--pharm-emerald);">₹${(m.sellingPrice || m.unitPrice || 0).toFixed(2)}</b></td>
+        <td>${m.gstPercentage || 12}%</td>
+        <td><b>${m.stockQuantity != null ? m.stockQuantity : 0}</b></td>
+        <td>${m.minimumStock != null ? m.minimumStock : 15}</td>
+        <td>${m.rackNumber || 'R-101'}</td>
+        <td><span class="status-pill ${stClass}">${m.status || 'In Stock'}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function getSelectedMedicineId() {
+    const radio = document.querySelector('input[name="selectedMedicine"]:checked');
+    if (!radio) {
+      showToast('⚠️ Please select a medicine radio option or click a row button.');
+      return null;
+    }
+    return radio.value;
+  }
+
+  function openAddMedicineModal() {
+    document.getElementById('addMedForm').reset();
+    document.getElementById('addBatch').value = "BN-" + (1000 + Math.floor(Math.random() * 9000));
+    document.getElementById('addMedModal').classList.add('show');
+  }
+
+  async function submitAddMedicine(e) {
+    e.preventDefault();
+    const name = document.getElementById('addName').value.trim();
+    const generic = document.getElementById('addGeneric').value.trim();
+    const category = document.getElementById('addCategory').value;
+    const strength = document.getElementById('addStrength').value.trim();
+    const dosageForm = document.getElementById('addDosage').value;
+    const manufacturer = document.getElementById('addManufacturer').value.trim();
+    const batchNumber = document.getElementById('addBatch').value.trim();
+    const mfgDate = document.getElementById('addMfgDate').value;
+    const expDate = document.getElementById('addExpDate').value;
+    const purchasePrice = parseFloat(document.getElementById('addPurchasePrice').value) || 0;
+    const sellingPrice = parseFloat(document.getElementById('addSellingPrice').value) || 0;
+    const gstPercentage = parseFloat(document.getElementById('addGst').value) || 12.0;
+    const stockQuantity = parseInt(document.getElementById('addStockQty').value) || 0;
+    const minimumStock = parseInt(document.getElementById('addMinStock').value) || 0;
+    const rackNumber = document.getElementById('addRack').value.trim();
+    const prescriptionRequired = document.getElementById('addRxReq').value;
+    const storageInstructions = document.getElementById('addStorage').value.trim();
+
+    // Validations
+    if (!name) { showToast('⚠️ Medicine Name cannot be empty.'); return; }
+    if (mfgDate && expDate && new Date(expDate) <= new Date(mfgDate)) { showToast('⚠️ Expiry Date must be later than Manufacturing Date.'); return; }
+    if (purchasePrice < 0) { showToast('⚠️ Purchase Price cannot be negative.'); return; }
+    if (sellingPrice < purchasePrice) { showToast('⚠️ Selling Price cannot be less than Purchase Price.'); return; }
+    if (stockQuantity < 0) { showToast('⚠️ Stock Quantity cannot be negative.'); return; }
+    if (minimumStock > stockQuantity) { showToast('⚠️ Minimum Stock cannot exceed Stock Quantity.'); return; }
+
+    const payload = {
+      medicineName: name, genericName: generic, category, strength, dosageForm, manufacturer,
+      batchNumber, manufacturingDate: mfgDate, expiryDate: expDate, purchasePrice, sellingPrice,
+      gstPercentage, stockQuantity, minimumStock, rackNumber, prescriptionRequired, storageInstructions
+    };
+
+    try {
+      const res = await fetch('/api/pharmacy/add-medicine', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('✅ Medicine added successfully.');
+        closeModal('addMedModal');
+        const form = document.getElementById('addMedForm');
+        if (form) form.reset();
+        await loadInventoryTable();
+      } else {
+        showToast('⚠️ ' + (data.message || 'Error adding medicine.'));
+      }
+    } catch(err) {
+      showToast('⚠️ Server connection error.');
+    }
+  }
+
+  function openEditMedicineModal(directMedId) {
+    const medId = directMedId || getSelectedMedicineId();
+    if (!medId) return;
+
+    const med = allMedicines.find(m => m.medicineId === medId);
+    if (!med) return;
+
+    document.getElementById('editMedId').value = med.medicineId;
+    document.getElementById('editBatch').value = med.batchNumber || 'BN-1000';
+    document.getElementById('editSellingPrice').value = med.sellingPrice || med.unitPrice || 0;
+    document.getElementById('editStockQty').value = med.stockQuantity != null ? med.stockQuantity : 0;
+    document.getElementById('editExpDate').value = med.expiryDate || '';
+    document.getElementById('editRack').value = med.rackNumber || 'R-101';
+    document.getElementById('editStorage').value = med.storageInstructions || '';
+    document.getElementById('editDesc').value = med.description || '';
+
+    document.getElementById('editMedModal').classList.add('show');
+  }
+
+  async function submitEditMedicine(e) {
+    e.preventDefault();
+    const medicineId = document.getElementById('editMedId').value;
+    const sellingPrice = parseFloat(document.getElementById('editSellingPrice').value) || 0;
+    const stockQuantity = parseInt(document.getElementById('editStockQty').value) || 0;
+    const expiryDate = document.getElementById('editExpDate').value;
+    const rackNumber = document.getElementById('editRack').value.trim();
+    const storageInstructions = document.getElementById('editStorage').value.trim();
+    const description = document.getElementById('editDesc').value.trim();
+
+    try {
+      const res = await fetch('/api/pharmacy/edit-medicine', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ medicineId, sellingPrice, stockQuantity, expiryDate, rackNumber, storageInstructions, description })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('✅ Medicine details updated successfully.');
+        closeModal('editMedModal');
+        await loadInventoryTable();
+      } else {
+        showToast('⚠️ ' + (data.message || 'Error updating medicine.'));
+      }
+    } catch(e) {
+      showToast('⚠️ Error updating medicine.');
+    }
+  }
+
+  function openUpdateStockModal(directMedId) {
+    const medId = directMedId || getSelectedMedicineId();
+    if (!medId) return;
+
+    const med = allMedicines.find(m => m.medicineId === medId);
+    if (!med) return;
+
+    document.getElementById('stockMedId').value = med.medicineId;
+    document.getElementById('stockMedNameStr').textContent = `${med.medicineName} (${med.strength || ''}) — Current Stock: ${med.stockQuantity}`;
+    document.getElementById('stockQtyInput').value = 10;
+    document.getElementById('stockModal').classList.add('show');
+  }
+
+  async function submitStockUpdate(e) {
+    e.preventDefault();
+    const medicineId = document.getElementById('stockMedId').value;
+    const actionType = document.getElementById('stockActionType').value;
+    const quantity = parseInt(document.getElementById('stockQtyInput').value) || 0;
+    const reason = document.getElementById('stockReason').value;
+    const remarks = document.getElementById('stockRemarks').value.trim();
+
+    try {
+      const res = await fetch('/api/pharmacy/update-stock', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ medicineId, actionType, quantity, reason, remarks })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('✅ Stock level updated successfully.');
+        closeModal('stockModal');
+        await loadInventoryTable();
+      } else {
+        showToast('⚠️ ' + (data.message || 'Stock update failed.'));
+      }
+    } catch(e) {
+      showToast('⚠️ Stock update failed.');
+    }
+  }
+
+  async function deleteMedicineAction(directMedId) {
+    const medId = directMedId || getSelectedMedicineId();
+    if (!medId) return;
+
+    const med = allMedicines.find(m => m.medicineId === medId);
+    const label = med ? `'${med.medicineName}' (${med.medicineId})` : medId;
+
+    if (!confirm(`Are you sure you want to delete Medicine ${label} from inventory?`)) return;
+
+    try {
+      const res = await fetch(`/api/pharmacy/delete-medicine?medicineId=${encodeURIComponent(medId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('✅ Medicine deleted from inventory.');
+        await loadInventoryTable();
+      } else {
+        showToast('⚠️ ' + (data.message || 'Delete failed.'));
+      }
+    } catch(e) {
+      showToast('⚠️ Delete failed.');
+    }
+  }
+
+  function viewMedicineDetails() {
+    const medId = getSelectedMedicineId();
+    if (!medId) return;
+
+    const m = allMedicines.find(x => x.medicineId === medId);
+    if (m) {
+      alert(`=== MEDICINE INVENTORY DETAILS ===\nID: ${m.medicineId}\nName: ${m.medicineName}\nGeneric: ${m.genericName}\nCategory: ${m.category}\nStrength: ${m.strength}\nManufacturer: ${m.manufacturer}\nBatch No: ${m.batchNumber}\nMfg Date: ${m.manufacturingDate}\nExpiry Date: ${m.expiryDate}\nPurchase Price: ₹${m.purchasePrice}\nSelling Price: ₹${m.sellingPrice}\nStock Quantity: ${m.stockQuantity}\nMin Stock: ${m.minimumStock}\nRack No: ${m.rackNumber}\nStatus: ${m.status}`);
+    }
+  }
+
+  function exportInventoryCSV() {
+    let csv = "Medicine ID,Medicine Name,Generic Name,Category,Strength,Manufacturer,Batch Number,Expiry Date,Purchase Price,Selling Price,Stock Qty,Status\n";
+    allMedicines.forEach(m => {
+      csv += `"${m.medicineId}","${m.medicineName}","${m.genericName}","${m.category}","${m.strength}","${m.manufacturer}","${m.batchNumber}","${m.expiryDate}",${m.purchasePrice},${m.sellingPrice},${m.stockQuantity},"${m.status}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Niramaya_Medicine_Inventory.csv';
+    a.click();
+    showToast('📥 Inventory CSV exported successfully!');
+  }
+
+  async function viewPharmacistIdCard() {
+    const empCode = sessionStorage.getItem('niramaya_employee_code') || 'EMP-000003';
+    try {
+      const res = await fetch(`/api/staff/profile?code=${empCode}&role=pharmacist`);
+      const data = await res.json();
+      openStaffIdCardModal(data);
+    } catch (e) {
+      openStaffIdCardModal({
+        employeeCode: empCode,
+        fullName: 'Priya Sharma',
+        role: 'Pharmacist',
+        department: 'Pharmacy & Inventory',
+        designation: 'Senior Pharmacist Specialist',
+        joiningDate: '2021-03-15',
+        bloodGroup: 'A+',
+        emergencyContact: '+91 98765 43210',
+        validity: '31-DEC-2028',
+        status: 'Active'
+      });
+    }
+  }
+
+  function showToast(msg) {
+    console.log('[TOAST]', msg);
+    let t = document.getElementById('toastNotification');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toastNotification';
+      t.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#0F172A; color:#FFF; padding:12px 20px; border-radius:10px; font-size:0.9rem; font-weight:600; box-shadow:0 10px 25px rgba(0,0,0,0.3); z-index:99999; display:none; transition:all 0.3s ease;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3500);
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  function logout() {
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+  }
+
+  // Auto Refresh orders queue every 15s
+  setInterval(loadPharmacyOrders, 15000);
+
+  function openPharmacyDailyReportModal() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('phReportRole').value = 'Pharmacy';
+    document.getElementById('phReportName').value = document.getElementById('staffName')?.textContent || sessionStorage.getItem('user_name') || 'Pharmacist';
+    document.getElementById('phReportDept').value = 'Central Hospital Pharmacy';
+    document.getElementById('phReportDate').value = todayStr;
+
+    const totalOrders = allOrders.length;
+    const dispensed = document.getElementById('statDispensed')?.textContent || '0';
+    const pending = document.getElementById('statPending')?.textContent || '0';
+    const revRaw = (document.getElementById('statRevenue')?.textContent || '0').replace(/[^0-9.]/g, '');
+
+    document.getElementById('phReportTotalOrders').value = totalOrders;
+    document.getElementById('phReportDispensed').value = dispensed;
+    document.getElementById('phReportPending').value = pending;
+    document.getElementById('phReportRevenue').value = revRaw || "0.00";
+
+    document.getElementById('pharmacyDailyReportModal').classList.add('show');
+  }
+
+  function closePharmacyDailyReportModal() {
+    document.getElementById('pharmacyDailyReportModal').classList.remove('show');
+  }
+
+  async function submitPharmacyDailyReport(e) {
+    if (e) e.preventDefault();
+    const btn = document.getElementById('btnSubmitPhReport');
+    if (btn) btn.disabled = true;
+
+    const payload = {
+      senderRole: 'Pharmacy',
+      senderName: document.getElementById('phReportName').value,
+      senderId: sessionStorage.getItem('niramaya_employee_code') || document.getElementById('staffId')?.textContent || 'PHA-STAFF',
+
+      department: document.getElementById('phReportDept').value,
+      reportDate: document.getElementById('phReportDate').value,
+      totalPatients: document.getElementById('phReportTotalOrders').value || 0,
+      totalTasksCompleted: document.getElementById('phReportDispensed').value || 0,
+      totalPending: document.getElementById('phReportPending').value || 0,
+      revenueGenerated: document.getElementById('phReportRevenue').value || 0,
+      summaryNotes: document.getElementById('phReportNotes').value
+    };
+
+    try {
+      const res = await fetch('/api/daily-report/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('✅ ' + data.message);
+        closePharmacyDailyReportModal();
+        document.getElementById('formPharmacyDailyReport').reset();
+      } else {
+        showToast('❌ Error: ' + data.message);
+      }
+    } catch(err) {
+      showToast('❌ Failed to submit daily report.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+</script>
+
+<!-- MODAL: Pharmacy Daily Report -->
+<div class="pharm-modal" id="pharmacyDailyReportModal">
+  <div class="pharm-modal-box" style="max-width: 560px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:16px;">
+      <h3 style="margin:0; font-family:'Sora'; font-size:1.15rem; color:var(--pharm-navy);">📩 Send Pharmacy Daily Performance Report</h3>
+      <button class="icon-btn" onclick="closePharmacyDailyReportModal()">✕</button>
+    </div>
+    
+    <form id="formPharmacyDailyReport" onsubmit="submitPharmacyDailyReport(event)">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Role</label>
+          <input type="text" id="phReportRole" value="Pharmacy" readonly style="width:100%; padding:8px; background:#F1F5F9; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Staff Name</label>
+          <input type="text" id="phReportName" readonly style="width:100%; padding:8px; background:#F1F5F9; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Department</label>
+          <input type="text" id="phReportDept" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+        <div>
+          <label style="font-weight:700; font-size:0.8rem;">Report Date</label>
+          <input type="date" id="phReportDate" required style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:12px; background:#F8FAFC; padding:10px; border-radius:8px;">
+        <div>
+          <label style="font-size:0.75rem; font-weight:700;">Total Orders</label>
+          <input type="number" id="phReportTotalOrders" value="0" style="width:100%; padding:6px; font-weight:700; text-align:center;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; font-weight:700;">Dispensed Orders</label>
+          <input type="number" id="phReportDispensed" value="0" style="width:100%; padding:6px; font-weight:700; text-align:center; color:#059669;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; font-weight:700;">Pending Orders</label>
+          <input type="number" id="phReportPending" value="0" style="width:100%; padding:6px; font-weight:700; text-align:center; color:#D97706;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:700; font-size:0.8rem;">Today's Pharmacy Revenue (₹)</label>
+        <input type="number" step="0.01" id="phReportRevenue" value="0.00" style="width:100%; padding:8px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px;">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:700; font-size:0.8rem;">Stock & Dispensing Remarks</label>
+        <textarea id="phReportNotes" rows="3" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:8px;" placeholder="Enter summary of medicines dispensed, stock alerts, low inventory refills, daily sales remarks..." required></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" class="btn btn-ghost" onclick="closePharmacyDailyReportModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitPhReport" style="background:#059669;">🚀 Send Daily Report to Admin</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="assets/js/staff-id-card.js"></script>
+<script src="assets/js/live-clock-logger.js"></script>
+</body>
+</html>
+

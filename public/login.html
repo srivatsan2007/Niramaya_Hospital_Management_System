@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Account Access — Niramaya Smart Hospital</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .auth-mode-tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 6px;
+    border-radius: 100px;
+    margin-bottom: 24px;
+  }
+  .auth-mode-tabs button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px 14px;
+    border-radius: 100px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .auth-mode-tabs button.active {
+    background: var(--blue-700);
+    color: #ffffff;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .role-detector-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 100px;
+    margin-top: 6px;
+    transition: all 0.2s ease;
+  }
+  .role-detector-badge.doctor {
+    background: rgba(10,178,167,0.15);
+    color: #0A7A70;
+    border: 1px solid rgba(10,178,167,0.3);
+  }
+  .role-detector-badge.admin {
+    background: rgba(10,77,166,0.12);
+    color: var(--blue-700);
+    border: 1px solid rgba(10,77,166,0.3);
+  }
+  .role-detector-badge.patient {
+    background: rgba(11,31,51,0.06);
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+  }
+
+  /* OTP Inputs */
+  .otp-grid {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+  }
+  .otp-grid input {
+    width: 46px;
+    height: 52px;
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 800;
+    font-family: 'Sora', sans-serif;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: var(--paper);
+    color: var(--blue-900);
+    transition: all 0.18s ease;
+  }
+  .otp-grid input:focus {
+    border-color: var(--teal-500);
+    box-shadow: 0 0 0 3px rgba(10,178,167,0.2);
+    outline: none;
+  }
+
+  .demo-otp-banner {
+    background: rgba(10,178,167,0.12);
+    border: 1px dashed var(--teal-500);
+    color: #0A7A70;
+    border-radius: 12px;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="auth-shell">
+
+  <!-- LEFT VISUAL BRANDING -->
+  <div class="auth-visual">
+    <a href="index.html" class="auth-brand">
+      <img src="assets/logo.png" alt="Niramaya">
+      <span style="font-family:'Sora'; font-weight:700; font-size:1.1rem;">Niramaya</span>
+    </a>
+
+    <div class="auth-quote">
+      <h2>"Every prescription, report and appointment — waiting for me in one place."</h2>
+      <p>Join thousands of patients, doctors, and hospital admins connected on Niramaya.</p>
+    </div>
+
+    <div style="display:flex; gap:28px;">
+      <div><b style="font-family:'Sora'; font-size:1.4rem; display:block;">240+</b><span style="font-size:0.8rem; opacity:0.75;">Doctors</span></div>
+      <div><b style="font-family:'Sora'; font-size:1.4rem; display:block;">52k+</b><span style="font-size:0.8rem; opacity:0.75;">Patients</span></div>
+      <div><b style="font-family:'Sora'; font-size:1.4rem; display:block;">4.9★</b><span style="font-size:0.8rem; opacity:0.75;">Rating</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT FORM CONTAINER -->
+  <div class="auth-form-side">
+    <div class="auth-box">
+      
+      <!-- LOGO HEADER -->
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <img src="assets/logo.png" alt="Smart Hospital Logo" style="height:44px; width:auto; object-fit:contain;">
+        <div>
+          <b style="font-family:'Sora'; font-size:1.15rem; color:var(--blue-900); display:block;">Niramaya</b>
+          <span style="font-size:0.7rem; color:var(--teal-500); font-weight:700; letter-spacing:0.1em; text-transform:uppercase;">Smart Hospital System</span>
+        </div>
+      </div>
+
+      <!-- MAIN MODE TOGGLE SWITCH (LOG IN vs REGISTER) -->
+      <div class="auth-mode-tabs" id="modeTabs">
+        <button class="active" id="tabModeLogin" onclick="switchAuthMode('login')">🔑 Log In</button>
+        <button id="tabModeRegister" onclick="switchAuthMode('register')">📝 Create Account</button>
+      </div>
+
+      <!-- COMMON ALERTS -->
+      <div class="alert alert-error" id="authError">Invalid credentials. Please try again.</div>
+      <div class="alert alert-success" id="authSuccess">Operation successful — redirecting to dashboard…</div>
+
+      <!-- ================= LOGIN SECTION ================= -->
+      <div id="loginSection">
+        <h1 style="font-size:1.6rem; margin-bottom:6px;">Welcome back</h1>
+        <p class="sub">Log in to reach your patient or staff dashboard.</p>
+
+        <div class="role-tabs" id="roleTabs">
+          <button class="active" data-role="patient">Patient</button>
+          <button data-role="nurse">Nurse</button>
+          <button data-role="doctor">Doctor</button>
+          <button data-role="technician">Technician</button>
+          <button data-role="pharmacy">Pharmacy</button>
+          <button data-role="admin">Admin</button>
+        </div>
+
+        <form id="loginForm">
+          <div class="field">
+            <label for="email">Employee Code / Email Address</label>
+            <input type="text" id="email" placeholder="e.g. NUR10084, nurse@niramaya.health, or priya@nurse.in" required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="••••••••" required>
+          </div>
+          <div class="field-row">
+            <label class="remember"><input type="checkbox" id="remember"> Remember me</label>
+            <a href="#" id="linkForgotPassword" onclick="openForgotPasswordModal(); return false;">Forgot password?</a>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Log in to Dashboard →</button>
+          <div class="demo-hint">Demo credentials: <b id="demoEmail">patient@niramaya.health</b> / <b>demo1234</b></div>
+        </form>
+
+        <div class="auth-divider">or</div>
+        <p class="auth-foot">Don't have an account yet? <a href="#" onclick="switchAuthMode('register'); return false;">Register a new account</a></p>
+      </div>
+
+      <!-- ================= REGISTRATION SECTION ================= -->
+      <div id="registerSection" style="display:none;">
+        <h1 style="font-size:1.6rem; margin-bottom:6px;">Create Your Account</h1>
+        <p class="sub">Select your system role & fill required details to persist your profile.</p>
+
+        <form id="registerForm">
+          <!-- 0. ROLE SELECTION -->
+          <div class="field">
+            <label for="regRole">Select User Role <span style="color:var(--danger)">*</span></label>
+            <select id="regRole" required onchange="onRegistrationRoleChange()">
+              <option value="patient">👤 Patient</option>
+              <option value="nurse">👩‍⚕️ Nurse</option>
+              <option value="doctor">🩺 Doctor</option>
+              <option value="pharmacy">💊 Pharmacy Staff</option>
+              <option value="technician">🧪 Lab Technician</option>
+            </select>
+          </div>
+
+          <!-- 1. FULL NAME -->
+          <div class="field">
+            <label for="regName">Full Name <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="regName" placeholder="e.g. Dr. Ananya Rao or Rekha Prasad" required>
+          </div>
+
+          <!-- 2. PHONE & AGE -->
+          <div class="grid-2col">
+            <div class="field">
+              <label for="regPhone">Phone Number <span style="color:var(--danger)">*</span></label>
+              <input type="tel" id="regPhone" placeholder="+91 98765 43210" required>
+            </div>
+            <div class="field">
+              <label for="regAge">Age <span style="color:var(--danger)">*</span></label>
+              <input type="number" id="regAge" placeholder="e.g. 28" min="1" max="120" required>
+            </div>
+          </div>
+
+          <!-- 3. GENDER & QUALIFICATION -->
+          <div class="grid-2col">
+            <div class="field">
+              <label for="regGender">Gender <span style="color:var(--danger)">*</span></label>
+              <select id="regGender" required>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="regQualification">Qualification <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="regQualification" placeholder="e.g. MBBS, MD, B.Pharm, DMLT" required>
+            </div>
+          </div>
+
+          <!-- 4. EMAIL & PASSWORD -->
+          <div class="grid-2col">
+            <div class="field">
+              <label for="regEmail">Email Address <span style="color:var(--danger)">*</span></label>
+              <input type="email" id="regEmail" placeholder="you@domain.com" required>
+            </div>
+            <div class="field">
+              <label for="regPassword">Password <span style="color:var(--danger)">*</span></label>
+              <input type="password" id="regPassword" placeholder="Minimum 6 characters" minlength="6" required>
+            </div>
+          </div>
+
+          <div id="roleBadge" class="role-detector-badge patient" style="margin-bottom:12px;">
+            👤 Assigned Role: Patient Account
+          </div>
+
+          <!-- 5. DOCTOR-SPECIFIC DYNAMIC FIELDS -->
+          <div id="doctorFieldsContainer" style="display:none; background:rgba(37,99,235,0.04); border:1px solid rgba(37,99,235,0.15); border-radius:10px; padding:14px; margin-bottom:14px;">
+            <div style="font-weight:700; font-size:0.9rem; color:var(--blue-900); margin-bottom:10px;">🩺 Doctor Profile Details</div>
+            
+            <div class="grid-2col">
+              <div class="field">
+                <label for="regCategory">Category / Specialization <span style="color:var(--danger)">*</span></label>
+                <select id="regCategory">
+                  <option value="Cardiology">Cardiology</option>
+                  <option value="Neurology">Neurology</option>
+                  <option value="Pediatrics">Pediatrics</option>
+                  <option value="General Medicine">General Medicine</option>
+                  <option value="Orthopedics">Orthopedics</option>
+                  <option value="Dermatology">Dermatology</option>
+                  <option value="Emergency / Casualty">Emergency / Casualty</option>
+                  <option value="ENT">ENT</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="regFees">Consultation Fees (₹) <span style="color:var(--danger)">*</span></label>
+                <input type="number" id="regFees" placeholder="e.g. 500" min="0" step="50" value="500">
+              </div>
+            </div>
+
+            <div class="grid-2col">
+              <div class="field">
+                <label for="regWorkingDays">Working Days <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="regWorkingDays" placeholder="e.g. Mon - Sat" value="Mon - Sat">
+              </div>
+              <div class="field">
+                <label for="regWorkingHours">Working Hours <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="regWorkingHours" placeholder="e.g. 09:00 AM - 05:00 PM" value="09:00 AM - 05:00 PM">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-teal btn-block" style="margin-top:8px;">
+            📱 Verify Phone via OTP & Register →
+          </button>
+        </form>
+
+        <p class="auth-foot" style="margin-top:20px;">Already have an account? <a href="#" onclick="switchAuthMode('login'); return false;">Log in here</a></p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ================= OTP VERIFICATION MODAL ================= -->
+<div class="modal-overlay" id="otpModalOverlay">
+  <div class="modal-box" style="max-width:440px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="font-size:1.25rem; color:var(--blue-900);">📱 Phone OTP Verification</h3>
+      <button type="button" class="icon-btn" onclick="closeOtpModal()" style="width:32px; height:32px; font-size:0.9rem;">✕</button>
+    </div>
+
+    <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5; margin-bottom:16px;">
+      We sent a 6-digit verification code to <b id="lblOtpPhone" style="color:var(--ink);">+91 98765 43210</b>.
+    </p>
+
+    <!-- DEMO SIMULATED SMS BANNER -->
+    <div class="demo-otp-banner">
+      📬 Simulated SMS Code: <b id="lblSimulatedOtp" style="font-family:'Sora'; font-size:1.1rem; letter-spacing:2px;">584920</b>
+    </div>
+
+    <!-- 6 DIGIT INPUTS -->
+    <div class="otp-grid" id="otpInputs">
+      <input type="text" maxlength="1" class="otp-digit" autofocus>
+      <input type="text" maxlength="1" class="otp-digit">
+      <input type="text" maxlength="1" class="otp-digit">
+      <input type="text" maxlength="1" class="otp-digit">
+      <input type="text" maxlength="1" class="otp-digit">
+      <input type="text" maxlength="1" class="otp-digit">
+    </div>
+
+    <div class="alert alert-error" id="otpError" style="margin-bottom:14px;">Invalid OTP code. Please try again.</div>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button type="button" class="btn btn-primary btn-block" id="btnVerifyOtp">Verify OTP & Complete Registration →</button>
+      <button type="button" class="btn btn-ghost btn-block" onclick="generateNewOtp()">🔄 Resend OTP Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FORGOT PASSWORD MODAL ================= -->
+<div class="modal-overlay" id="forgotModalOverlay">
+  <div class="modal-box" style="max-width:440px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="font-size:1.25rem; color:var(--blue-900);">🔑 Account Password Recovery</h3>
+      <button type="button" class="icon-btn" onclick="closeForgotModal()" style="width:32px; height:32px; font-size:0.9rem;">✕</button>
+    </div>
+
+    <!-- STEP 1: Enter Registered Email -->
+    <div id="forgotStep1">
+      <p style="font-size:0.88rem; color:var(--ink-soft); line-height:1.5; margin-bottom:16px;">
+        Enter your registered email address below. We will send a 6-digit recovery OTP to verify your account.
+      </p>
+      <div class="field">
+        <label for="forgotEmailInput">Registered Email Address</label>
+        <input type="email" id="forgotEmailInput" placeholder="you@domain.com" required>
+      </div>
+      <button type="button" class="btn btn-teal btn-block" id="btnSendForgotOtp" style="margin-top:12px;">Send Recovery OTP →</button>
+    </div>
+
+    <!-- STEP 2: OTP Verification & Password Reset -->
+    <div id="forgotStep2" style="display:none;">
+      <p style="font-size:0.85rem; color:var(--teal-500); font-weight:600; margin-bottom:10px;" id="forgotOtpMessage">
+        ✓ Recovery OTP sent to your account!
+      </p>
+
+      <div class="demo-otp-banner" style="margin-bottom:14px;">
+        📬 Simulated Recovery SMS Code: <b id="lblSimulatedForgotOtp" style="font-family:'Sora'; font-size:1.1rem; letter-spacing:2px;">849201</b>
+      </div>
+
+      <div class="otp-grid" id="forgotOtpInputs">
+        <input type="text" maxlength="1" class="otp-digit forgot-digit" autofocus>
+        <input type="text" maxlength="1" class="otp-digit forgot-digit">
+        <input type="text" maxlength="1" class="otp-digit forgot-digit">
+        <input type="text" maxlength="1" class="otp-digit forgot-digit">
+        <input type="text" maxlength="1" class="otp-digit forgot-digit">
+        <input type="text" maxlength="1" class="otp-digit forgot-digit">
+      </div>
+
+      <div class="field" style="margin-top:14px;">
+        <label for="forgotNewPassword">New Password <span style="color:var(--danger)">*</span></label>
+        <input type="password" id="forgotNewPassword" placeholder="Minimum 6 characters" minlength="6" required>
+      </div>
+
+      <div class="field" style="margin-top:10px;">
+        <label for="forgotConfirmPassword">Confirm New Password <span style="color:var(--danger)">*</span></label>
+        <input type="password" id="forgotConfirmPassword" placeholder="Re-enter new password" required>
+      </div>
+
+      <div class="alert alert-error" id="forgotError" style="margin-top:10px;">Invalid OTP code or password mismatch.</div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+        <button type="button" class="btn btn-primary btn-block" id="btnSubmitPasswordReset">Reset Password & Save →</button>
+        <button type="button" class="btn btn-ghost btn-block" onclick="backToForgotStep1()" style="font-size:0.8rem;">← Change Email Address</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+<script>
+  const roleDemo = {
+    patient: 'patient@niramaya.health',
+    nurse:   'nurse@niramaya.health',
+    doctor:  'doctor@niramaya.health',
+    technician: 'labtech@tech.in',
+    pharmacy: 'pharmacy@niramaya.health',
+    admin:   'admin@niramaya.health'
+  };
+  let currentRole = 'patient';
+  let currentSimulatedOtp = "584920";
+  let pendingRegistrationData = null;
+
+  function resolveTargetDashboard(role, email) {
+    if (role === 'nurse' || (email && email.endsWith('@nurse.in'))) return 'nurse-dashboard.html';
+    if (role === 'doctor' || (email && email.endsWith('@doctor.in'))) return 'doctor-dashboard.html';
+    if (role === 'admin' || (email && email.endsWith('@admin.in'))) return 'admin-dashboard.html';
+    if (role === 'technician' || (email && email.endsWith('@tech.in'))) return 'lab-dashboard.html';
+    if (role === 'pharmacy' || (email && email.endsWith('@pharmacy.in'))) return 'pharmacy-dashboard.html';
+    return 'dashboard.html';
+  }
+
+  // -------------------------------------------------------------
+  // Mode Switch (Login vs Register)
+  // -------------------------------------------------------------
+  function switchAuthMode(mode) {
+    const loginSection = document.getElementById('loginSection');
+    const registerSection = document.getElementById('registerSection');
+    const tabLogin = document.getElementById('tabModeLogin');
+    const tabRegister = document.getElementById('tabModeRegister');
+    const errorBox = document.getElementById('authError');
+    const successBox = document.getElementById('authSuccess');
+
+    errorBox.classList.remove('show');
+    successBox.classList.remove('show');
+
+    if (mode === 'register') {
+      loginSection.style.display = 'none';
+      registerSection.style.display = 'block';
+      tabLogin.classList.remove('active');
+      tabRegister.classList.add('active');
+    } else {
+      loginSection.style.display = 'block';
+      registerSection.style.display = 'none';
+      tabLogin.classList.add('active');
+      tabRegister.classList.remove('active');
+    }
+  }
+
+  // -------------------------------------------------------------
+  // Login Role Tab Switcher
+  // -------------------------------------------------------------
+  document.querySelectorAll('#roleTabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#roleTabs button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentRole = btn.dataset.role;
+      document.getElementById('demoEmail').textContent = roleDemo[currentRole];
+    });
+  });
+
+  // -------------------------------------------------------------
+  // Dynamic Registration Role Change & Dynamic Doctor Fields
+  // -------------------------------------------------------------
+  function onRegistrationRoleChange() {
+    const roleSelect = document.getElementById('regRole');
+    if (!roleSelect) return;
+    const role = roleSelect.value;
+    const docContainer = document.getElementById('doctorFieldsContainer');
+    const roleBadge = document.getElementById('roleBadge');
+    
+    if (role === 'doctor') {
+      docContainer.style.display = 'block';
+      roleBadge.className = 'role-detector-badge doctor';
+      roleBadge.style.background = '';
+      roleBadge.style.color = '';
+      roleBadge.style.border = '';
+      roleBadge.innerHTML = '🩺 Selected Role: <b>Doctor Account</b> (Doctor Portal Access)';
+    } else if (role === 'pharmacy') {
+      docContainer.style.display = 'none';
+      roleBadge.className = 'role-detector-badge doctor';
+      roleBadge.style.background = 'rgba(16,185,129,0.15)';
+      roleBadge.style.color = '#047857';
+      roleBadge.style.border = '1px solid rgba(16,185,129,0.3)';
+      roleBadge.innerHTML = '💊 Selected Role: <b>Pharmacy Staff Account</b> (Pharmacy Console Access)';
+    } else if (role === 'technician') {
+      docContainer.style.display = 'none';
+      roleBadge.className = 'role-detector-badge doctor';
+      roleBadge.style.background = 'rgba(107,33,168,0.15)';
+      roleBadge.style.color = '#6B21A8';
+      roleBadge.style.border = '1px solid rgba(107,33,168,0.3)';
+      roleBadge.innerHTML = '🧪 Selected Role: <b>Lab Technician Account</b> (Lab Tech Console Access)';
+    } else {
+      docContainer.style.display = 'none';
+      roleBadge.className = 'role-detector-badge patient';
+      roleBadge.style.background = '';
+      roleBadge.style.color = '';
+      roleBadge.style.border = '';
+      roleBadge.innerHTML = '👤 Selected Role: <b>Patient Account</b> (Patient Dashboard Access)';
+    }
+  }
+
+  // -------------------------------------------------------------
+  // Live Email Domain Sync with Role Detector
+  // -------------------------------------------------------------
+  const regEmailInput = document.getElementById('regEmail');
+  if (regEmailInput) {
+    regEmailInput.addEventListener('input', () => {
+      const emailVal = regEmailInput.value.trim().toLowerCase();
+      const roleSelect = document.getElementById('regRole');
+      if (emailVal.endsWith('@doctor.in') && roleSelect.value !== 'doctor') {
+        roleSelect.value = 'doctor';
+        onRegistrationRoleChange();
+      } else if (emailVal.endsWith('@tech.in') && roleSelect.value !== 'technician') {
+        roleSelect.value = 'technician';
+        onRegistrationRoleChange();
+      } else if (emailVal.endsWith('@pharmacy.in') && roleSelect.value !== 'pharmacy') {
+        roleSelect.value = 'pharmacy';
+        onRegistrationRoleChange();
+      }
+    });
+  }
+
+  // -------------------------------------------------------------
+  // Registration Form Submission -> Trigger OTP Modal
+  // -------------------------------------------------------------
+  document.getElementById('registerForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const role = document.getElementById('regRole').value;
+    const name = document.getElementById('regName').value.trim();
+    const phone = document.getElementById('regPhone').value.trim();
+    const age = document.getElementById('regAge').value.trim();
+    const gender = document.getElementById('regGender').value;
+    const qualification = document.getElementById('regQualification').value.trim();
+    const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const password = document.getElementById('regPassword').value;
+
+    const data = {
+      role,
+      name,
+      phone,
+      age,
+      gender,
+      qualification,
+      email,
+      password
+    };
+
+    if (role === 'doctor') {
+      data.category = document.getElementById('regCategory').value;
+      data.consultationFees = document.getElementById('regFees').value;
+      data.workingDays = document.getElementById('regWorkingDays').value;
+      data.workingHours = document.getElementById('regWorkingHours').value;
+    }
+
+    pendingRegistrationData = data;
+
+    // Generate random 6-digit OTP
+    generateNewOtp();
+
+    // Show OTP Modal
+    document.getElementById('lblOtpPhone').textContent = phone;
+    document.getElementById('otpModalOverlay').classList.add('show');
+    clearOtpInputs();
+  });
+
+  function generateNewOtp() {
+    currentSimulatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    document.getElementById('lblSimulatedOtp').textContent = currentSimulatedOtp;
+    showToast('New OTP sent to phone: ' + currentSimulatedOtp);
+  }
+
+  function closeOtpModal() {
+    document.getElementById('otpModalOverlay').classList.remove('show');
+  }
+
+  function clearOtpInputs() {
+    const inputs = document.querySelectorAll('.otp-digit');
+    inputs.forEach(i => i.value = '');
+    inputs[0].focus();
+    document.getElementById('otpError').classList.remove('show');
+  }
+
+  // -------------------------------------------------------------
+  // OTP Digits Auto-focus behavior
+  // -------------------------------------------------------------
+  const otpDigits = document.querySelectorAll('.otp-digit');
+  otpDigits.forEach((digitInput, idx) => {
+    digitInput.addEventListener('input', (e) => {
+      if (e.target.value && idx < otpDigits.length - 1) {
+        otpDigits[idx + 1].focus();
+      }
+    });
+    digitInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+        otpDigits[idx - 1].focus();
+      }
+    });
+  });
+
+  function resolveTargetDashboard(role, email) {
+    const e = (email || '').toLowerCase();
+    const r = (role || '').toLowerCase();
+    if (r === 'nurse' || e.endsWith('@nurse.in') || e.includes('nurse')) return 'nurse-dashboard.html';
+    if (r === 'doctor' || e.endsWith('@doctor.in')) return 'doctor-dashboard.html';
+    if (r === 'technician' || r === 'lab_tech' || e.endsWith('@tech.in')) return 'lab-dashboard.html';
+    if (r === 'pharmacy' || e.endsWith('@pharmacy.in') || e.startsWith('pharmacy@')) return 'pharmacy-dashboard.html';
+    if (r === 'admin' || e.endsWith('@admin.in')) return 'admin.html';
+    return 'dashboard.html';
+  }
+
+  // -------------------------------------------------------------
+  // Verify OTP & Finalize Registration
+  // -------------------------------------------------------------
+  document.getElementById('btnVerifyOtp').addEventListener('click', async () => {
+    const enteredOtp = Array.from(otpDigits).map(i => i.value).join('');
+    const otpError = document.getElementById('otpError');
+    const successBox = document.getElementById('authSuccess');
+
+    if (enteredOtp !== currentSimulatedOtp) {
+      otpError.textContent = 'Invalid OTP code! Please enter the code shown above (' + currentSimulatedOtp + ').';
+      otpError.classList.add('show');
+      return;
+    }
+
+    otpError.classList.remove('show');
+    closeOtpModal();
+
+    if (!pendingRegistrationData) return;
+
+    try {
+      // Call Java backend register API
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(pendingRegistrationData)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        saveUserSession(data.role, data.name, {
+          email: data.email || pendingRegistrationData.email,
+          age: data.age || pendingRegistrationData.age,
+          gender: data.gender || pendingRegistrationData.gender,
+          weight: data.weight || pendingRegistrationData.weight,
+          height: data.height || pendingRegistrationData.height,
+          phone: data.phone || pendingRegistrationData.phone,
+          patientId: data.patientId,
+          isNewUser: true
+        });
+        const targetDash = resolveTargetDashboard(data.role, data.email || pendingRegistrationData.email);
+        successBox.textContent = `Registration Successful! Registered as ${data.role.toUpperCase()}. Redirecting…`;
+        successBox.classList.add('show');
+        showToast(`Registration verified! Welcome, ${pendingRegistrationData.name}`);
+        setTimeout(() => window.location.href = targetDash, 900);
+      } else {
+        document.getElementById('authError').textContent = data.message || 'Registration failed.';
+        document.getElementById('authError').classList.add('show');
+      }
+    } catch (err) {
+      // Fallback client-side registration if offline
+      saveUserSession(pendingRegistrationData.role, pendingRegistrationData.name, pendingRegistrationData);
+      
+      // Save locally to allow re-login
+      let registered = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]');
+      registered.push(pendingRegistrationData);
+      localStorage.setItem('niramaya_registered_users', JSON.stringify(registered));
+
+      const targetDash = resolveTargetDashboard(pendingRegistrationData.role, pendingRegistrationData.email);
+      successBox.textContent = `Account created! Logged in as ${pendingRegistrationData.role.toUpperCase()}. Redirecting…`;
+      successBox.classList.add('show');
+      showToast(`Account created! Welcome, ${pendingRegistrationData.name}`);
+      setTimeout(() => window.location.href = targetDash, 900);
+    }
+  });
+
+  // Helper to store user session
+  function saveUserSession(role, name, extra) {
+    const email = (extra && extra.email) ? extra.email.toLowerCase().trim() : 'patient@niramaya.health';
+    
+    // Check existing profile and registered users list to retrieve real name if generic name supplied
+    const userKey = 'niramaya_user_profile_' + email;
+    let existingProfile = {};
+    try { existingProfile = JSON.parse(localStorage.getItem(userKey) || '{}'); } catch(e){}
+
+    let registeredUsers = [];
+    try { registeredUsers = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]'); } catch(e){}
+    let matchedRegUser = registeredUsers.find(u => u.email === email);
+
+    let resolvedName = name;
+    if (!resolvedName || resolvedName === 'Recovered User' || resolvedName === 'New User' || resolvedName === 'User') {
+      if (existingProfile.name && existingProfile.name !== 'Recovered User' && existingProfile.name !== 'User') {
+        resolvedName = existingProfile.name;
+      } else if (matchedRegUser && matchedRegUser.name) {
+        resolvedName = matchedRegUser.name;
+      } else if (email && email.includes('@')) {
+        let prefix = email.split('@')[0];
+        resolvedName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+      } else {
+        resolvedName = 'Patient User';
+      }
+    }
+
+    const resolvedPatientId = (extra && extra.patientId) || existingProfile.patientId || (matchedRegUser && matchedRegUser.patientId) || ('PT' + Math.floor(100000 + Math.random() * 900000));
+
+    sessionStorage.setItem('niramaya_current_user_email', email);
+    sessionStorage.setItem('niramaya_role', role);
+    sessionStorage.setItem('niramaya_name', resolvedName);
+    sessionStorage.setItem('niramaya_patient_id', resolvedPatientId);
+    sessionStorage.setItem('niramaya_current_patient_id', resolvedPatientId);
+    sessionStorage.setItem('userId', resolvedPatientId);
+    if (extra && extra.employeeCode) {
+      sessionStorage.setItem('niramaya_employee_code', extra.employeeCode);
+      sessionStorage.setItem('userId', extra.employeeCode);
+    }
+    localStorage.setItem('niramaya_patient_id_' + email, resolvedPatientId);
+    localStorage.setItem('niramaya_last_active_patient_id', resolvedPatientId);
+    
+    if (extra) {
+      sessionStorage.setItem('niramaya_email', email);
+      sessionStorage.setItem('niramaya_age', extra.age || existingProfile.age || '25');
+      sessionStorage.setItem('niramaya_gender', extra.gender || existingProfile.gender || 'Male');
+      sessionStorage.setItem('niramaya_weight', extra.weight || existingProfile.weight || '65');
+      sessionStorage.setItem('niramaya_height', extra.height || existingProfile.height || '170');
+      sessionStorage.setItem('niramaya_phone', extra.phone || existingProfile.phone || '');
+    }
+
+    // Per-user profile storage in localStorage
+    const updatedProfile = {
+      email: email,
+      name: resolvedName,
+      role: role || existingProfile.role || 'patient',
+      age: (extra && extra.age) || existingProfile.age || '25',
+      gender: (extra && extra.gender) || existingProfile.gender || 'Male',
+      weight: (extra && extra.weight) || existingProfile.weight || '65',
+      height: (extra && extra.height) || existingProfile.height || '170',
+      phone: (extra && extra.phone) || existingProfile.phone || '+91 98765 43210',
+      patientId: resolvedPatientId,
+      isNewUser: (extra && extra.isNewUser !== undefined) ? extra.isNewUser : (existingProfile.isNewUser !== undefined ? existingProfile.isNewUser : true)
+    };
+
+    localStorage.setItem(userKey, JSON.stringify(updatedProfile));
+  }
+
+  // -------------------------------------------------------------
+  // Remember Me Auto-fill on Page Load
+  // -------------------------------------------------------------
+  window.addEventListener('DOMContentLoaded', () => {
+    const savedEmail = localStorage.getItem('niramaya_remember_email');
+    const savedRemember = localStorage.getItem('niramaya_remember_me');
+    if (savedRemember === 'true' && savedEmail) {
+      const emailInput = document.getElementById('email');
+      const rememberChk = document.getElementById('remember');
+      if (emailInput) emailInput.value = savedEmail;
+      if (rememberChk) rememberChk.checked = true;
+    }
+  });
+
+  // -------------------------------------------------------------
+  // Login Form Submission
+  // -------------------------------------------------------------
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Log in to Dashboard →';
+    
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '⚡ Logging in...';
+    }
+
+    const email = document.getElementById('email').value.trim().toLowerCase();
+    const password = document.getElementById('password').value;
+    const errorBox = document.getElementById('authError');
+    const successBox = document.getElementById('authSuccess');
+    errorBox.classList.remove('show');
+    successBox.classList.remove('show');
+
+    // Handle Remember Me persistence
+    const rememberChk = document.getElementById('remember');
+    if (rememberChk && rememberChk.checked) {
+      localStorage.setItem('niramaya_remember_me', 'true');
+      localStorage.setItem('niramaya_remember_email', email);
+    } else {
+      localStorage.removeItem('niramaya_remember_me');
+      localStorage.removeItem('niramaya_remember_email');
+    }
+
+    const restoreBtn = () => {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+    };
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, password, role: currentRole })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        successBox.classList.add('show');
+        saveUserSession(data.role, data.name, {
+          email: email,
+          age: data.age,
+          gender: data.gender,
+          weight: data.weight,
+          height: data.height,
+          phone: data.phone,
+          patientId: data.patientId,
+          isNewUser: data.isNewUser
+        });
+        const targetDash = resolveTargetDashboard(data.role, email);
+        showToast('Welcome back, ' + data.name);
+        setTimeout(() => window.location.href = targetDash, 150);
+      } else {
+        // Check if user was registered locally
+        let registered = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]');
+        let match = registered.find(u => u.email === email && u.password === password);
+        if (match) {
+          successBox.classList.add('show');
+          saveUserSession(match.role, match.name, match);
+          const targetDash = resolveTargetDashboard(match.role, email);
+          showToast('Welcome back, ' + match.name);
+          setTimeout(() => window.location.href = targetDash, 150);
+        } else {
+          restoreBtn();
+          errorBox.textContent = data.message || 'Invalid email or password. Try demo credentials or create an account.';
+          errorBox.classList.add('show');
+        }
+      }
+    } catch (err) {
+      let registered = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]');
+      let match = registered.find(u => u.email === email && u.password === password);
+      if (match) {
+        successBox.classList.add('show');
+        saveUserSession(match.role, match.name, match);
+        const targetDash = resolveTargetDashboard(match.role, email);
+        showToast('Welcome back, ' + match.name);
+        setTimeout(() => window.location.href = targetDash, 150);
+      } else if (email === roleDemo[currentRole] && password === 'demo1234') {
+        successBox.classList.add('show');
+        saveUserSession(currentRole, currentRole.charAt(0).toUpperCase() + currentRole.slice(1) + ' Demo', { email, isNewUser: false });
+        const targetDash = resolveTargetDashboard(currentRole, email);
+        setTimeout(() => window.location.href = targetDash, 150);
+      } else {
+        restoreBtn();
+        errorBox.textContent = 'Invalid credentials. Create an account or use demo credentials.';
+        errorBox.classList.add('show');
+      }
+    }
+  });
+
+  // -------------------------------------------------------------
+  // Forgot Password Recovery Modal Logic
+  // -------------------------------------------------------------
+  let currentForgotOtp = '849201';
+  let targetForgotEmail = '';
+
+  function openForgotPasswordModal() {
+    const loginEmail = document.getElementById('email').value.trim();
+    if (loginEmail) {
+      document.getElementById('forgotEmailInput').value = loginEmail;
+    }
+    document.getElementById('forgotStep1').style.display = 'block';
+    document.getElementById('forgotStep2').style.display = 'none';
+    document.getElementById('forgotError').classList.remove('show');
+    document.getElementById('forgotModalOverlay').classList.add('show');
+  }
+
+  function closeForgotModal() {
+    document.getElementById('forgotModalOverlay').classList.remove('show');
+  }
+
+  function backToForgotStep1() {
+    document.getElementById('forgotStep1').style.display = 'block';
+    document.getElementById('forgotStep2').style.display = 'none';
+    document.getElementById('forgotError').classList.remove('show');
+  }
+
+  document.getElementById('btnSendForgotOtp')?.addEventListener('click', async () => {
+    const email = document.getElementById('forgotEmailInput').value.trim().toLowerCase();
+    const forgotError = document.getElementById('forgotError');
+    if (!email || !email.includes('@')) {
+      showToast('⚠️ Please enter a valid registered email address!');
+      return;
+    }
+
+    targetForgotEmail = email;
+
+    try {
+      const res = await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        currentForgotOtp = data.otp || String(Math.floor(100000 + Math.random() * 900000));
+        document.getElementById('lblSimulatedForgotOtp').textContent = currentForgotOtp;
+        document.getElementById('forgotOtpMessage').textContent = `✓ Recovery OTP sent to ${email}!`;
+        document.getElementById('forgotStep1').style.display = 'none';
+        document.getElementById('forgotStep2').style.display = 'block';
+        showToast(`📬 OTP code sent to ${email}: ${currentForgotOtp}`);
+      } else {
+        showToast('⚠️ ' + (data.message || 'Email not found.'));
+      }
+    } catch(err) {
+      currentForgotOtp = String(Math.floor(100000 + Math.random() * 900000));
+      document.getElementById('lblSimulatedForgotOtp').textContent = currentForgotOtp;
+      document.getElementById('forgotOtpMessage').textContent = `✓ Recovery OTP generated for ${email}!`;
+      document.getElementById('forgotStep1').style.display = 'none';
+      document.getElementById('forgotStep2').style.display = 'block';
+      showToast(`📬 OTP code: ${currentForgotOtp}`);
+    }
+  });
+
+  // Forgot OTP Digits Auto-focus behavior
+  const forgotOtpDigits = document.querySelectorAll('.forgot-digit');
+  forgotOtpDigits.forEach((digitInput, idx) => {
+    digitInput.addEventListener('input', (e) => {
+      if (e.target.value && idx < forgotOtpDigits.length - 1) {
+        forgotOtpDigits[idx + 1].focus();
+      }
+    });
+    digitInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+        forgotOtpDigits[idx - 1].focus();
+      }
+    });
+  });
+
+  document.getElementById('btnSubmitPasswordReset')?.addEventListener('click', async () => {
+    const enteredOtp = Array.from(forgotOtpDigits).map(i => i.value).join('');
+    const newPass = document.getElementById('forgotNewPassword').value;
+    const confirmPass = document.getElementById('forgotConfirmPassword').value;
+    const forgotError = document.getElementById('forgotError');
+
+    if (enteredOtp !== currentForgotOtp) {
+      forgotError.textContent = `Invalid OTP code! Please enter the code shown above (${currentForgotOtp}).`;
+      forgotError.classList.add('show');
+      return;
+    }
+
+    if (!newPass || newPass.length < 6) {
+      forgotError.textContent = 'Password must be at least 6 characters long.';
+      forgotError.classList.add('show');
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      forgotError.textContent = 'Passwords do not match. Please check and re-enter.';
+      forgotError.classList.add('show');
+      return;
+    }
+
+    forgotError.classList.remove('show');
+
+    try {
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email: targetForgotEmail, password: newPass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Update local storage users if present
+        let registered = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]');
+        let userIdx = registered.findIndex(u => u.email === targetForgotEmail);
+        if (userIdx !== -1) {
+          registered[userIdx].password = newPass;
+          localStorage.setItem('niramaya_registered_users', JSON.stringify(registered));
+        }
+
+        closeForgotModal();
+        showToast('✓ Password reset successfully! You can now log in.');
+        document.getElementById('email').value = targetForgotEmail;
+        document.getElementById('password').value = newPass;
+        document.getElementById('authSuccess').textContent = 'Password recovered! Click "Log in to Dashboard" below to continue.';
+        document.getElementById('authSuccess').classList.add('show');
+      } else {
+        forgotError.textContent = data.message || 'Failed to reset password.';
+        forgotError.classList.add('show');
+      }
+    } catch(err) {
+      // Local fallback reset
+      let registered = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]');
+      let userIdx = registered.findIndex(u => u.email === targetForgotEmail);
+      if (userIdx !== -1) {
+        registered[userIdx].password = newPass;
+        localStorage.setItem('niramaya_registered_users', JSON.stringify(registered));
+      }
+
+      closeForgotModal();
+      showToast('✓ Password reset successfully! Log in with your new password.');
+      document.getElementById('email').value = targetForgotEmail;
+      document.getElementById('password').value = newPass;
+      document.getElementById('authSuccess').textContent = 'Password reset! Log in with your new password.';
+      document.getElementById('authSuccess').classList.add('show');
+    }
+  });
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+<script src="assets/js/live-clock-logger.js"></script>
+</body>
+</html>

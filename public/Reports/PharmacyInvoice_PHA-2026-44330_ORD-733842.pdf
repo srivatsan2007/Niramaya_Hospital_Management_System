@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pharmacy Tax Invoice — PHA-2026-44330</title>
+  <style>
+    @media print { body { padding: 0; background: #fff; } .no-print { display: none !important; } .invoice-box { border: none !important; box-shadow: none !important; padding: 0 !important; } }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #0F2A4A; background: #F8FAFC; margin: 0; padding: 20px; }
+    .invoice-box { max-width: 800px; margin: 0 auto; background: #ffffff; border: 1.5px solid #CBD5E1; border-radius: 16px; padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+    .header-table { width: 100%; border-bottom: 2px solid #0D6EFD; padding-bottom: 16px; margin-bottom: 24px; }
+    .brand-title { font-size: 26px; font-weight: 800; color: #06306B; margin: 0; letter-spacing: -0.5px; }
+    .brand-sub { font-size: 13px; color: #00C853; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+    .patient-card { background: #F1F5F9; border-radius: 12px; padding: 18px; margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px; }
+    .token-badge { background: #0D6EFD; color: #ffffff; display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; margin-bottom: 18px; }
+    table.inv-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px; }
+    table.inv-table th { background: #06306B; color: #ffffff; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+    table.inv-table td { padding: 12px 14px; border-bottom: 1px solid #E2E8F0; }
+    table.inv-table tr:nth-child(even) td { background: #F8FAFC; }
+    .totals-table { width: 320px; margin-left: auto; font-size: 14px; border-collapse: collapse; margin-bottom: 24px; }
+    .totals-table td { padding: 8px 12px; }
+    .grand-total-row { font-size: 18px; font-weight: 800; color: #0D6EFD; border-top: 2px solid #0D6EFD; border-bottom: 2px solid #0D6EFD; }
+    .pay-card { background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 14px; font-size: 13px; color: #1E40AF; margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .footer-note { text-align: center; font-size: 13px; font-weight: 700; color: #06306B; margin-top: 28px; border-top: 1px dashed #CBD5E1; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="max-width:800px; margin:0 auto 16px auto; display:flex; justify-content:space-between; align-items:center; background:#ffffff; padding:12px 20px; border-radius:12px; border:1px solid #CBD5E1;">
+    <div style="font-weight:700; color:#06306B;">💊 Niramaya Hospitals — Official Pharmacy Tax Invoice</div>
+    <div style="display:flex; gap:10px;">
+      <button onclick="window.print()" style="background:#0D6EFD; color:#ffffff; border:none; padding:8px 18px; border-radius:8px; font-weight:700; cursor:pointer; font-size:13px;">🖨️ Print Invoice / Save PDF</button>
+    </div>
+  </div>
+  <div class="invoice-box">
+    <table class="header-table">
+      <tr>
+        <td>
+          <div class="brand-title">🏥 NIRAMAYA HOSPITALS</div>
+          <div class="brand-sub">Compassion. Care. Cure.</div>
+          <div style="font-size: 12px; color: #64748B; margin-top: 6px;">Department of Pharmacy & Pharmaceutical Services</div>
+        </td>
+        <td style="text-align: right;">
+          <div style="font-size: 16px; font-weight: 800; color: #06306B;">PHARMACY TAX INVOICE</div>
+          <div style="font-size: 12px; color: #475569;">Invoice No: <b>INV-ORD-733842</b></div>
+          <div style="font-size: 12px; color: #475569;">Pharmacy Token: <b>PHA-2026-44330</b></div>
+          <div style="font-size: 12px; color: #475569;">Invoice Date: <b>2026-08-03 15:03</b></div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="patient-card">
+      <div><b>Patient Unique ID:</b> PT100842</div>
+      <div><b>Attending Doctor:</b> Dr. Ananya Rao</div>
+      <div><b>Patient Name:</b> Rekha Prasad</div>
+      <div><b>Prescription ID:</b> RX-1775</div>
+    </div>
+
+    <div class="token-badge">💊 Pharmacy Token: PHA-2026-44330</div>
+
+    <table class="inv-table">
+      <thead>
+        <tr>
+          <th>Medicine Name</th>
+          <th>Strength</th>
+          <th style="text-align:center;">Quantity</th>
+          <th style="text-align:right;">Unit Price</th>
+          <th style="text-align:right;">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" style="text-align:center; padding:16px; color:#64748B;">No prescribed medicines listed for this invoice.</td></tr>
+      </tbody>
+    </table>
+
+    <table class="totals-table">
+      <tr>
+        <td>Subtotal:</td>
+        <td style="text-align:right;"><b>₹1800.00</b></td>
+      </tr>
+      <tr>
+        <td>GST (5%):</td>
+        <td style="text-align:right;"><b>₹90.00</b></td>
+      </tr>
+      <tr class="grand-total-row">
+        <td>Grand Total:</td>
+        <td style="text-align:right;">₹1890.00</td>
+      </tr>
+    </table>
+
+    <div class="pay-card">
+      <div><b>Payment Method:</b> UPI</div>
+      <div><b>Transaction ID:</b> TXN1785921423528</div>
+      <div><b>Payment Status:</b> <span style="color:#00C853; font-weight:700;">Paid ✓</span></div>
+    </div>
+
+    <div class="footer-note">
+      Thank you for choosing Niramaya Hospitals.<br>
+      <span style="font-size:11px; color:#64748B; font-weight:normal;">For Pharmacy Inquiries: +91 44 2834 9005 &nbsp;|&nbsp; GSTIN: 33AAAAA0000A1Z5</span>
+    </div>
+  </div>
+</body>
+</html>
