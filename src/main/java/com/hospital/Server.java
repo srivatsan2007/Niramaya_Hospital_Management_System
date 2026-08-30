@@ -169,6 +169,8 @@ public class Server {
         addRoute(server, "/api/admin/departments", new AdminDepartmentsHandler());
         addRoute(server, "/api/admin/settings", new AdminSettingsHandler());
         addRoute(server, "/api/admin/notifications", new AdminNotificationsHandler());
+        addRoute(server, "/api/admin/counter-payments", new AdminCounterPaymentsHandler());
+        addRoute(server, "/api/admin/mark-appointment-paid", new AdminMarkAppointmentPaidHandler());
         addRoute(server, "/api/patient/notifications", new PatientNotificationsHandler());
 
         // Telemedicine & Online Consultation APIs
@@ -748,7 +750,7 @@ public class Server {
                 } else if (!doctorId.isEmpty()) {
                     list = appointmentDAO.getAppointmentsByDoctor(doctorId);
                 } else {
-                    list = new ArrayList<>();
+                    list = appointmentDAO.getAllAppointments();
                 }
 
                 StringBuilder sb = new StringBuilder("[");
@@ -777,8 +779,18 @@ public class Server {
                 String date = fields.getOrDefault("appointmentDate", fields.getOrDefault("date", "Today"));
                 String time = fields.getOrDefault("appointmentTime", fields.getOrDefault("time", "10:00 AM"));
                 String consultationType = fields.getOrDefault("consultationType", "Online Consultation");
+                String reqStatus = fields.getOrDefault("status", "Confirmed");
+                String reqPaymentStatus = fields.getOrDefault("paymentStatus", "Paid");
 
-                Appointment appt = new Appointment(apptId, pId, docId, dName, dept, date, time, "Confirmed", "Paid");
+                String lowerPay = reqPaymentStatus.toLowerCase();
+                if (lowerPay.contains("offline") || lowerPay.contains("pending") || lowerPay.contains("unpaid") || lowerPay.contains("desk")) {
+                    reqPaymentStatus = "Unpaid";
+                    if (!reqStatus.toLowerCase().contains("pending")) {
+                        reqStatus = "Pending Approval";
+                    }
+                }
+
+                Appointment appt = new Appointment(apptId, pId, docId, dName, dept, date, time, reqStatus, reqPaymentStatus);
                 boolean ok = appointmentDAO.createAppointment(appt);
 
                 Map<String, String> nurseAssign = nurseDAO.assignNurseToAppointment(apptId, pId, docId, dName, dept, date, time);
@@ -806,11 +818,58 @@ public class Server {
                 onlineConsultationDAO.createConsultation(c);
 
                 send(exchange, 200, "application/json", String.format(
-                        "{\"success\":%b,\"appointmentId\":\"%s\",\"meetingId\":\"%s\",\"meetingRoom\":\"%s\",\"meetingLink\":\"%s\",\"appointmentToken\":\"%s\",\"meetingPassword\":\"%s\",\"consultationType\":\"%s\",\"meetingStatus\":\"Scheduled\",\"scheduledStart\":\"%s\",\"scheduledEnd\":\"%s\",\"assignedNurseId\":\"%s\",\"assignedNurseName\":\"%s\"}",
-                        ok, escape(apptId), escape(meetingId), escape(meetingRoom), escape(meetingLink), escape(token),
+                        "{\"success\":%b,\"appointmentId\":\"%s\",\"paymentStatus\":\"%s\",\"status\":\"%s\",\"meetingId\":\"%s\",\"meetingRoom\":\"%s\",\"meetingLink\":\"%s\",\"appointmentToken\":\"%s\",\"meetingPassword\":\"%s\",\"consultationType\":\"%s\",\"meetingStatus\":\"Scheduled\",\"scheduledStart\":\"%s\",\"scheduledEnd\":\"%s\",\"assignedNurseId\":\"%s\",\"assignedNurseName\":\"%s\"}",
+                        ok, escape(apptId), escape(reqPaymentStatus), escape(reqStatus), escape(meetingId), escape(meetingRoom), escape(meetingLink), escape(token),
                         escape(pwd), escape(consultationType), escape(schedStart), escape(schedEnd),
                         escape(assignedNurseId), escape(assignedNurseName)));
             }
+        }
+    }
+
+    // GET /api/admin/counter-payments
+    static class AdminCounterPaymentsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            List<Appointment> list = appointmentDAO.getUnpaidAppointments();
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                Appointment a = list.get(i);
+                sb.append(String.format(
+                        "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"fee\":\"₹800.00\"}",
+                        escape(a.getAppointmentId()), escape(a.getPatientId()), escape(a.getDoctorId()),
+                        escape(a.getDoctorName()), escape(a.getDepartment()), escape(a.getAppointmentDate()),
+                        escape(a.getAppointmentTime()), escape(a.getStatus()), escape(a.getPaymentStatus())));
+                if (i < list.size() - 1) sb.append(",");
+            }
+            sb.append("]");
+            send(exchange, 200, "application/json", sb.toString());
+        }
+    }
+
+    // POST /api/admin/mark-appointment-paid
+    static class AdminMarkAppointmentPaidHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            Map<String, String> fields = parseJsonFlat(body);
+            String apptId = fields.getOrDefault("appointmentId", fields.getOrDefault("token", ""));
+            String paymentMode = fields.getOrDefault("paymentMode", "Counter Cash/UPI");
+
+            if (apptId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"Missing appointmentId\"}");
+                return;
+            }
+
+            boolean ok = appointmentDAO.markAppointmentPaidAtCounter(apptId, paymentMode);
+            send(exchange, 200, "application/json", String.format("{\"success\":%b,\"appointmentId\":\"%s\",\"paymentStatus\":\"Paid\",\"status\":\"Confirmed\"}", ok, escape(apptId)));
         }
     }
 

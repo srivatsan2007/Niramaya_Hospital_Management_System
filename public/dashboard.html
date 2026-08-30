@@ -3882,23 +3882,30 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     return str.trim() || 'Zero';
   }
 
-  // Open Instant Patient Bill / Tax Invoice Modal
+  // Open Invoice / Tax Receipt Modal
   function openInvoiceModal(b) {
-    const today = new Date();
-    const dStr = today.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const tStr = today.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    if (!b) return;
 
-    const invSeq = Math.floor(1000 + Math.random() * 9000);
-    const invoiceNo = `ZH-${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}-${invSeq}`;
+    const isPaid = (b.paymentStatus || '').toLowerCase().includes('paid') 
+      && !b.paymentStatus?.toLowerCase().includes('unpaid') 
+      && !b.paymentStatus?.toLowerCase().includes('pending')
+      && !b.paymentStatus?.toLowerCase().includes('offline')
+      && !b.status?.toLowerCase().includes('pending');
 
-    document.getElementById('invNo').textContent = b.invoiceNo || invoiceNo;
-    document.getElementById('invDate').textContent = dStr;
-    document.getElementById('invTime').textContent = tStr;
+    if (!isPaid) {
+      showToast('⚠️ Official Receipt is LOCKED. Please pay at the hospital counter. Once verified by reception, your official printable tax invoice will unlock.');
+      return;
+    }
+
+    document.getElementById('invNo').textContent = 'INV-2026' + String(Math.abs(hashCode(b.token || 'TK101'))).substring(0, 4);
+    document.getElementById('invDate').textContent = b.date || 'Today';
+    document.getElementById('invTime').textContent = b.time || '10:00 AM';
     document.getElementById('invToken').textContent = b.token || 'TOKEN #TK-101';
-    
-    let rawPayMode = (b.paymentStatus || 'UPI').replace('Paid via ', '').replace(' ✓', '');
-    if (rawPayMode.includes('Offline')) rawPayMode = 'Offline Pay';
-    document.getElementById('invPayMode').textContent = rawPayMode;
+
+    let rawPayMode = b.paymentStatus || 'UPI';
+    if (rawPayMode.includes('Paid via')) rawPayMode = rawPayMode.replace('Paid via', '').replace('✓', '').trim();
+    if (rawPayMode.includes('Offline')) rawPayMode = 'Counter Cash/UPI';
+    document.getElementById('invPayMode').textContent = rawPayMode || 'Counter Verified';
 
     // DYNAMIC BINDING: Patient Name, Age/Gender, Doctor Name & Department from user booking!
     document.getElementById('invPatient').textContent = b.patient || savedName || 'Guest Patient';
@@ -3907,7 +3914,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     document.getElementById('invDept').textContent = b.dept || 'General Medicine';
 
     document.getElementById('invPhone').textContent = savedPhone || '+91 98765 43210';
-    document.getElementById('invPatientId').textContent = savedPatientId || ('PT' + Math.floor(100000 + Math.random() * 900000));
+    document.getElementById('invPatientId').textContent = b.patientId || savedPatientId || ('PT' + Math.floor(100000 + Math.random() * 900000));
 
     // GOOGLE MEET LINK DISPLAY FOR ONLINE CONSULTATIONS
     const meetBox = document.getElementById('invMeetBox');
@@ -3922,7 +3929,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       if (meetBox) meetBox.style.display = 'none';
     }
 
-    const docFeeNum = parseFloat((b.fee || '500').replace(/[^0-9.]/g, '')) || 500;
+    const docFeeNum = parseFloat((b.fee || '800').replace(/[^0-9.]/g, '')) || 800;
     const subTotal = docFeeNum;
     const grandTotal = docFeeNum;
 
@@ -3957,8 +3964,6 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     const lblCount = document.getElementById('lblBookedCount');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--teal-500); padding:20px;">Fetching server-side appointments...</td></tr>';
-
     let userBookings = [];
     try {
       const endpoint = activePatientApptsTab === 'today' 
@@ -3968,19 +3973,28 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       const serverList = await res.json();
 
       if (Array.isArray(serverList) && serverList.length > 0) {
-        userBookings = serverList.map(a => ({
-          token: a.appointmentId,
-          patient: savedName,
-          patientId: a.patientId,
-          docName: a.doctorName || 'Doctor',
-          dept: a.department || 'General Medicine',
-          date: a.date || 'Today',
-          time: a.time || '10:00 AM',
-          fee: '₹800',
-          status: a.status,
-          paymentStatus: a.paymentStatus,
-          isPaid: (a.paymentStatus || '').toLowerCase().includes('paid')
-        }));
+        userBookings = serverList.map(a => {
+          const paySt = a.paymentStatus || '';
+          const isPaid = paySt.toLowerCase().includes('paid') 
+            && !paySt.toLowerCase().includes('unpaid') 
+            && !paySt.toLowerCase().includes('pending')
+            && !paySt.toLowerCase().includes('offline')
+            && !a.status?.toLowerCase().includes('pending');
+
+          return {
+            token: a.appointmentId,
+            patient: savedName,
+            patientId: a.patientId,
+            docName: a.doctorName || 'Doctor',
+            dept: a.department || 'General Medicine',
+            date: a.date || a.appointmentDate || 'Today',
+            time: a.time || a.appointmentTime || '10:00 AM',
+            fee: '₹800',
+            status: isPaid ? 'Confirmed & Paid ✓' : (a.status || 'Payment Pending ⏳'),
+            paymentStatus: a.paymentStatus,
+            isPaid: isPaid
+          };
+        });
       }
     } catch(e) {
       console.warn("Could not fetch server appointments, using local fallback", e);
@@ -3988,7 +4002,6 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
 
     if (userBookings.length === 0) {
       let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
-      const todayStr = new Date().toISOString().split('T')[0];
       if (activePatientApptsTab === 'today') {
         userBookings = localBookings.filter(b => !b.status?.toLowerCase().includes('completed') && !b.status?.toLowerCase().includes('cancelled'));
       } else {
@@ -3996,7 +4009,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       }
     }
 
-    lblCount.textContent = `${userBookings.length} ${activePatientApptsTab === 'today' ? 'Active Today' : 'Completed/Past'} Booking${userBookings.length === 1 ? '' : 's'}`;
+    if (lblCount) lblCount.textContent = `${userBookings.length} ${activePatientApptsTab === 'today' ? 'Active Today' : 'Completed/Past'} Booking${userBookings.length === 1 ? '' : 's'}`;
 
     if (userBookings.length === 0) {
       tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--ink-soft); padding:20px;">No ${activePatientApptsTab === 'today' ? "today's active" : 'completed history'} appointments found.</td></tr>`;
@@ -4004,10 +4017,17 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     }
 
     tbody.innerHTML = userBookings.map((b, idx) => {
-      const isPending = b.status?.includes('Pending') || b.isPaid === false;
-      const statusBadge = isPending
-        ? `<span class="status-pill wait" style="background:rgba(232,169,76,0.18); color:#95661C; font-weight:700;">Payment Pending ⏳</span>`
-        : `<span class="status-pill ok" style="font-weight:700;">${b.status || 'Confirmed & Paid ✓'}</span>`;
+      const isPaid = b.isPaid === true || (
+        (b.paymentStatus || '').toLowerCase().includes('paid') 
+        && !b.paymentStatus?.toLowerCase().includes('unpaid') 
+        && !b.paymentStatus?.toLowerCase().includes('pending')
+        && !b.paymentStatus?.toLowerCase().includes('offline')
+        && !b.status?.toLowerCase().includes('pending')
+      );
+
+      const statusBadge = isPaid
+        ? `<span class="status-pill ok" style="font-weight:700; background:#D1FAE5; color:#065F46;">Confirmed & Paid ✓</span>`
+        : `<span class="status-pill wait" style="background:rgba(232,169,76,0.18); color:#95661C; font-weight:700; border:1px solid rgba(232,169,76,0.4);">Payment Pending ⏳</span>`;
 
       const meetBtn = (b.consultMode === 'online' && b.meetLink)
         ? `<a href="${b.meetLink}" target="_blank" class="btn btn-teal btn-sm" style="font-size:0.75rem; padding:4px 8px; text-decoration:none; margin-right:4px;">📹 Join Meet</a>`
@@ -4021,9 +4041,9 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         ? `<button type="button" class="btn btn-ghost btn-sm btn-view-patient-rx" data-pid="${pid}" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:#059669; border:1px solid #059669; margin-right:4px;">📜 View Rx</button>`
         : `<button type="button" class="btn btn-ghost btn-sm btn-view-patient-rx" data-pid="${pid}" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:#0D6EFD; border:1px solid #0D6EFD; margin-right:4px;">📜 View Rx</button>`;
 
-      const billAction = !isPending
-        ? `${meetBtn}${rxBtn}<button type="button" class="btn btn-ghost btn-sm btn-view-bill" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:var(--teal-500); border:1px solid var(--teal-500); margin-right:4px;">📄 Bill</button>`
-        : `${rxBtn}<span style="font-size:0.75rem; color:var(--amber); font-weight:600; margin-right:4px;">Desk Payment</span>`;
+      const billAction = isPaid
+        ? `${meetBtn}${rxBtn}<button type="button" class="btn btn-ghost btn-sm btn-view-bill" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:var(--teal-500); border:1px solid var(--teal-500); font-weight:700; margin-right:4px;">📄 Print Receipt ✓</button>`
+        : `${rxBtn}<button type="button" class="btn btn-ghost btn-sm" onclick="showToast('⚠️ Receipt is LOCKED. Please pay at the hospital counter to unlock and print your official tax invoice.')" style="font-size:0.75rem; padding:4px 8px; color:#D97706; background:#FEF3C7; border:1px solid #FCD34D; font-weight:700; cursor:pointer;">🔒 Locked (Pay at Desk)</button>`;
 
       const typeBadge = b.consultMode === 'online' ? ' 💻 (Online)' : ' 🏥 (In-Person)';
 
@@ -4035,7 +4055,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
           <td>${b.dept}</td>
           <td>${b.date}</td>
           <td class="mono">${b.time}</td>
-          <td style="font-weight:700; color:var(--teal-500);">${b.fee}</td>
+          <td style="font-weight:700; color:var(--teal-500);">${b.fee || '₹800'}</td>
           <td>${statusBadge}</td>
           <td>${billAction}</td>
         </tr>
@@ -5998,7 +6018,10 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       } catch (e) {
         alert('Invoice download unavailable.');
       }
-    };
+    // Auto-poll every 6 seconds for live Admin payment confirmations & receipt unlocking
+    setInterval(() => {
+      if (typeof renderUserBookings === 'function') renderUserBookings();
+    }, 6000);
   });
 </script>
 <script src="assets/js/live-clock-logger.js"></script>

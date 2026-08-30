@@ -258,6 +258,109 @@ public class AppointmentDAO {
         return list;
     }
 
+    public List<Appointment> getUnpaidAppointments() {
+        List<Appointment> list = new ArrayList<>();
+        String sql = "SELECT * FROM appointments WHERE LOWER(payment_status) NOT LIKE '%paid%' OR LOWER(payment_status) LIKE '%pending%' OR LOWER(payment_status) LIKE '%unpaid%' OR LOWER(payment_status) LIKE '%offline%' OR LOWER(status) LIKE '%pending%' ORDER BY created_at DESC, appointment_date DESC";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapResultSetToAppointment(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching unpaid appointments: " + e.getMessage());
+        }
+        return list;
+    }
+
+    public List<Appointment> getAllAppointments() {
+        List<Appointment> list = new ArrayList<>();
+        String sql = "SELECT * FROM appointments ORDER BY created_at DESC, appointment_date DESC";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapResultSetToAppointment(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching all appointments: " + e.getMessage());
+        }
+        return list;
+    }
+
+    public boolean markAppointmentPaidAtCounter(String appointmentId, String paymentMode) {
+        if (appointmentId == null || appointmentId.trim().isEmpty()) return false;
+        String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String updateSql = "UPDATE appointments SET payment_status = 'Paid', status = 'Confirmed', confirmed_at = ?, updated_at = ? WHERE appointment_id = ?";
+        
+        try (Connection conn = DBConnection.getConnection()) {
+            String patientId = "PT100842";
+            String doctorName = "Dr. Ananya Rao";
+            double fee = 800.0;
+
+            // 1. Fetch appointment details
+            try (PreparedStatement psSelect = conn.prepareStatement("SELECT * FROM appointments WHERE appointment_id = ?")) {
+                psSelect.setString(1, appointmentId);
+                try (ResultSet rs = psSelect.executeQuery()) {
+                    if (rs.next()) {
+                        patientId = rs.getString("patient_id");
+                        doctorName = rs.getString("doctor_name");
+                    }
+                }
+            }
+
+            // 2. Update Appointment to Paid
+            try (PreparedStatement psUpdate = conn.prepareStatement(updateSql)) {
+                psUpdate.setString(1, nowStr);
+                psUpdate.setString(2, nowStr);
+                psUpdate.setString(3, appointmentId);
+                int rows = psUpdate.executeUpdate();
+                if (rows == 0) {
+                    return false;
+                }
+            }
+
+            // 3. Insert into Billing table
+            try {
+                String billId = "INV-" + (100000 + new java.util.Random().nextInt(900000));
+                String payModeStr = (paymentMode != null && !paymentMode.trim().isEmpty()) ? paymentMode : "Counter Cash/UPI";
+                String insertBill = "INSERT INTO billing (bill_id, patient_id, bill_type, total_amount, paid_amount, payment_status, payment_method, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'Paid', ?, ?, ?)";
+                try (PreparedStatement psBill = conn.prepareStatement(insertBill)) {
+                    psBill.setString(1, billId);
+                    psBill.setString(2, patientId);
+                    psBill.setString(3, "OPD Consultation - " + doctorName);
+                    psBill.setDouble(4, fee);
+                    psBill.setDouble(5, fee);
+                    psBill.setString(6, payModeStr);
+                    psBill.setString(7, nowStr);
+                    psBill.setString(8, nowStr);
+                    psBill.executeUpdate();
+                }
+            } catch (Exception billEx) {
+                System.err.println("Notice: Billing entry creation: " + billEx.getMessage());
+            }
+
+            // 4. Log to activity logs
+            try {
+                String logId = "LOG-" + (100000 + new java.util.Random().nextInt(900000));
+                String logSql = "INSERT INTO activity_logs (log_id, user_id, user_name, role, module, action, status, ip_address, created_at) VALUES (?, 'admin@niramaya.health', 'Hospital Admin', 'Administrator', 'BILLING_COUNTER', ?, 'Success', '127.0.0.1', ?)";
+                try (PreparedStatement psLog = conn.prepareStatement(logSql)) {
+                    psLog.setString(1, logId);
+                    psLog.setString(2, "Counter Payment Collected & Verified for " + patientId + " (" + appointmentId + ")");
+                    psLog.setString(3, nowStr);
+                    psLog.executeUpdate();
+                }
+            } catch (Exception logEx) {
+                System.err.println("Notice: Log creation: " + logEx.getMessage());
+            }
+
+            return true;
+        } catch (SQLException e) {
+            System.err.println("Error marking appointment as paid: " + e.getMessage());
+            return false;
+        }
+    }
+
     private Appointment mapResultSetToAppointment(ResultSet rs) throws SQLException {
         return new Appointment(
             rs.getString("appointment_id"),
