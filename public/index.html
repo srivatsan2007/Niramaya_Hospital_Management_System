@@ -412,7 +412,7 @@
 
 <!-- ============ NAVIGATION BAR ============ -->
 <nav class="navbar navbar-scroll-bg" id="mainNavbar">
-  <div class="container">
+  <div class="container" style="display:flex; justify-content:space-between; align-items:center;">
     <a href="index.html" class="brand">
       <img src="assets/logo.png" alt="Niramaya Hospital Logo">
       <span>
@@ -428,16 +428,37 @@
       <a href="#emergency">Emergency</a>
       <a href="#contact">Contact</a>
     </div>
-    <div style="display:flex; gap:12px; align-items:center;">
-      <a href="login.html" class="btn btn-ghost btn-sm">
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="login.html" class="btn btn-ghost btn-sm nav-auth-desktop">
         <i class="fa-solid fa-right-to-bracket"></i> Login
       </a>
-      <a href="login.html" class="btn btn-primary btn-sm">
+      <a href="login.html" class="btn btn-primary btn-sm nav-auth-desktop">
         <i class="fa-solid fa-user-plus"></i> Register
       </a>
+      <button type="button" class="btn btn-ghost btn-sm landing-nav-toggle" id="btnToggleMobileNav" aria-label="Open Menu" style="display:none; padding:8px 12px; font-size:1.2rem;">
+        ☰
+      </button>
     </div>
   </div>
 </nav>
+
+<!-- Mobile Navigation Drawer for Landing Page -->
+<div class="landing-mobile-nav" id="landingMobileNav">
+  <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px;">
+    <div style="font-weight:700; font-family:'Sora',sans-serif; color:var(--blue-900);">Niramaya Menu</div>
+    <button type="button" class="landing-nav-toggle" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--ink-soft);">✕</button>
+  </div>
+  <a href="#hero" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">🏠 Home</a>
+  <a href="#about" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">🏥 About Hospital</a>
+  <a href="#services" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">🩺 Clinical Services</a>
+  <a href="#doctors" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">👨‍⚕️ Doctors & Faculty</a>
+  <a href="#emergency" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">🚨 Emergency 24/7</a>
+  <a href="#contact" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">📞 Contact & Map</a>
+  <div style="border-top:1px solid var(--border-color); padding-top:16px; display:flex; flex-direction:column; gap:10px; margin-top:auto;">
+    <a href="login.html" class="btn btn-ghost btn-block">Portal Login</a>
+    <a href="login.html" class="btn btn-primary btn-block">Book Appointment</a>
+  </div>
+</div>
 
 <!-- ============ 1. HERO SECTION ============ -->
 <section class="hero-wrapper" id="hero">
@@ -1116,6 +1137,6 @@ window.addEventListener('scroll', () => {
   }
 });
 </script>
-
+<script src="assets/js/mobile-responsive.js"></script>
 </body>
 </html>

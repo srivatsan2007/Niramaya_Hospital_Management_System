@@ -115,6 +115,44 @@
             }
         }
 
+        @media (max-width: 768px) {
+            .tele-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 8px !important;
+                height: auto !important;
+                padding: 12px 14px !important;
+            }
+            .tele-header-left, .tele-header-right {
+                width: 100% !important;
+                justify-content: space-between !important;
+            }
+            .video-stage {
+                padding: 10px !important;
+            }
+            .video-grid {
+                grid-template-columns: 1fr !important;
+                min-height: 280px !important;
+                gap: 10px !important;
+            }
+            .controls-bar {
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 8px !important;
+                padding: 10px !important;
+            }
+            .ctrl-btn {
+                width: 38px !important;
+                height: 38px !important;
+                font-size: 1rem !important;
+            }
+            .clinical-panel {
+                border-left: none !important;
+                border-top: 1px solid var(--glass-border) !important;
+                width: 100% !important;
+            }
+        }
+
         /* Left Video Stage */
         .video-stage {
             padding: 20px;
@@ -1046,6 +1084,7 @@
 
         window.onload = initConsultation;
     </script>
+<script src="assets/js/mobile-responsive.js"></script>
 <script src="assets/js/live-clock-logger.js"></script>
 </body>
 </html>

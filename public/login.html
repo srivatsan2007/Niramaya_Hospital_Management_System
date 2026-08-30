@@ -107,6 +107,25 @@
     font-weight: 600;
     margin-bottom: 16px;
   }
+
+  @media (max-width: 600px) {
+    .grid-2col {
+      grid-template-columns: 1fr !important;
+      gap: 8px !important;
+    }
+    .auth-box {
+      padding: 20px 16px !important;
+      width: 100% !important;
+    }
+    .auth-form-side {
+      padding: 20px 12px !important;
+    }
+    .otp-grid input {
+      width: 40px !important;
+      height: 46px !important;
+      font-size: 1.2rem !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1017,6 +1036,7 @@
     setTimeout(() => t.classList.remove('show'), 2800);
   }
 </script>
+<script src="assets/js/mobile-responsive.js"></script>
 <script src="assets/js/live-clock-logger.js"></script>
 </body>
 </html>

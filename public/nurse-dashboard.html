@@ -217,6 +217,56 @@
       max-width: 520px;
       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
     }
+
+    @media (max-width: 992px) {
+      .nurse-layout {
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .nurse-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: -290px !important;
+        width: 280px !important;
+        height: 100vh !important;
+        z-index: 9999 !important;
+        transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.35) !important;
+      }
+      .nurse-sidebar.mobile-open {
+        left: 0 !important;
+      }
+      .nurse-content {
+        padding: 16px !important;
+        width: 100% !important;
+      }
+      .nurse-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nurse-stats-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .nurse-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 14px !important;
+        padding: 16px !important;
+      }
+      .nurse-header > div:last-child {
+        width: 100% !important;
+        flex-direction: column !important;
+      }
+      .nurse-header button {
+        width: 100% !important;
+      }
+      .modal-content {
+        width: 96% !important;
+        padding: 16px !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1176,6 +1226,7 @@
   </div>
 </div>
 <script src="assets/js/staff-id-card.js"></script>
+<script src="assets/js/mobile-responsive.js"></script>
 <script src="assets/js/live-clock-logger.js"></script>
 </body>
 
