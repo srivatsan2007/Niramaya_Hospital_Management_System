@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
  */
 public class Server {
 
-    private static final int PORT = 8080;
+    private static final int PORT = System.getenv("PORT") != null ? Integer.parseInt(System.getenv("PORT")) : 8080;
     private static final Path PUBLIC_DIR = Paths.get("public").toAbsolutePath().normalize();
 
     private static final PharmacyStaffDAO pharmacyStaffDAO = new PharmacyStaffDAO();

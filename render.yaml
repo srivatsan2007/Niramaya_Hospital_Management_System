@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: niramaya-hospital-system
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: NEON_DB_URL
+        value: jdbc:postgresql://ep-old-boat-axlruvbe-pooler.c-4.us-east-2.aws.neon.tech:5432/neondb?sslmode=require&connectTimeout=5&socketTimeout=5
+      - key: NEON_DB_USER
+        value: neondb_owner
+      - key: NEON_DB_PASS
+        value: npg_u1LNWJ5fVmvs
