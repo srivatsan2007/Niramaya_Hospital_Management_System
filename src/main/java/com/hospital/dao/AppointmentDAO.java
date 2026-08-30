@@ -14,8 +14,7 @@ import java.util.List;
 public class AppointmentDAO {
 
     public boolean createAppointment(Appointment appt) {
-        String sql = "INSERT INTO appointments (appointment_id, patient_id, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status, created_at, confirmed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String sql = "INSERT INTO appointments (appointment_id, patient_id, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, appt.getAppointmentId());
@@ -27,8 +26,6 @@ public class AppointmentDAO {
             ps.setString(7, appt.getAppointmentTime());
             ps.setString(8, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
             ps.setString(9, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
-            ps.setString(10, nowStr);
-            ps.setString(11, nowStr);
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -38,13 +35,11 @@ public class AppointmentDAO {
     }
 
     public boolean updateAppointmentStatus(String appointmentId, String status) {
-        String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String sql = "UPDATE appointments SET status = ?, updated_at = ? WHERE appointment_id = ?";
+        String sql = "UPDATE appointments SET status = ? WHERE appointment_id = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status);
-            ps.setString(2, nowStr);
-            ps.setString(3, appointmentId);
+            ps.setString(2, appointmentId);
 
             int rows = ps.executeUpdate();
             if (rows == 0 && appointmentId != null && !appointmentId.trim().isEmpty()) {
@@ -260,7 +255,7 @@ public class AppointmentDAO {
 
     public List<Appointment> getUnpaidAppointments() {
         List<Appointment> list = new ArrayList<>();
-        String sql = "SELECT * FROM appointments WHERE LOWER(payment_status) NOT LIKE '%paid%' OR LOWER(payment_status) LIKE '%pending%' OR LOWER(payment_status) LIKE '%unpaid%' OR LOWER(payment_status) LIKE '%offline%' OR LOWER(status) LIKE '%pending%' ORDER BY created_at DESC, appointment_date DESC";
+        String sql = "SELECT * FROM appointments WHERE LOWER(payment_status) NOT LIKE '%paid%' OR LOWER(payment_status) LIKE '%pending%' OR LOWER(payment_status) LIKE '%unpaid%' OR LOWER(payment_status) LIKE '%offline%' OR LOWER(status) LIKE '%pending%' ORDER BY appointment_date DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -275,7 +270,7 @@ public class AppointmentDAO {
 
     public List<Appointment> getAllAppointments() {
         List<Appointment> list = new ArrayList<>();
-        String sql = "SELECT * FROM appointments ORDER BY created_at DESC, appointment_date DESC";
+        String sql = "SELECT * FROM appointments ORDER BY appointment_date DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -291,7 +286,7 @@ public class AppointmentDAO {
     public boolean markAppointmentPaidAtCounter(String appointmentId, String paymentMode) {
         if (appointmentId == null || appointmentId.trim().isEmpty()) return false;
         String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String updateSql = "UPDATE appointments SET payment_status = 'Paid', status = 'Confirmed', confirmed_at = ?, updated_at = ? WHERE appointment_id = ?";
+        String updateSql = "UPDATE appointments SET payment_status = 'Paid', status = 'Confirmed' WHERE appointment_id = ?";
         
         try (Connection conn = DBConnection.getConnection()) {
             String patientId = "PT100842";
@@ -310,14 +305,16 @@ public class AppointmentDAO {
             }
 
             // 2. Update Appointment to Paid
+            int rows = 0;
             try (PreparedStatement psUpdate = conn.prepareStatement(updateSql)) {
-                psUpdate.setString(1, nowStr);
-                psUpdate.setString(2, nowStr);
-                psUpdate.setString(3, appointmentId);
-                int rows = psUpdate.executeUpdate();
-                if (rows == 0) {
-                    return false;
-                }
+                psUpdate.setString(1, appointmentId);
+                rows = psUpdate.executeUpdate();
+            }
+
+            if (rows == 0) {
+                String todayStr = java.time.LocalDate.now().toString();
+                Appointment newAppt = new Appointment(appointmentId, patientId, "DOC1001", doctorName, "Cardiology", todayStr, "10:00 AM", "Confirmed", "Paid");
+                createAppointment(newAppt);
             }
 
             // 3. Insert into Billing table
