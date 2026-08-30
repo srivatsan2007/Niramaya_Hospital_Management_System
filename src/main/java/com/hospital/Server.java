@@ -270,10 +270,18 @@ public class Server {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String requestPath = exchange.getRequestURI().getPath();
-            if (requestPath.equals("/"))
+            if (requestPath == null || requestPath.equals("/") || requestPath.trim().isEmpty()) {
                 requestPath = "/index.html";
+            }
 
-            Path filePath = PUBLIC_DIR.resolve("." + requestPath).normalize();
+            // Remove leading slash for safe cross-platform resolution
+            String cleanPath = requestPath.startsWith("/") ? requestPath.substring(1) : requestPath;
+            Path filePath = PUBLIC_DIR.resolve(cleanPath).normalize();
+
+            // Fallback check directly in public/ folder
+            if (!Files.exists(filePath)) {
+                filePath = Paths.get("public", cleanPath).toAbsolutePath().normalize();
+            }
 
             // Check if requesting from root Reports directory
             if (!Files.exists(filePath)
@@ -289,6 +297,7 @@ public class Server {
 
             byte[] bytes = Files.readAllBytes(filePath);
             exchange.getResponseHeaders().set("Content-Type", contentType(filePath.toString()));
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
             exchange.sendResponseHeaders(200, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(bytes);
@@ -296,20 +305,25 @@ public class Server {
         }
 
         private String contentType(String path) {
-            if (path.endsWith(".html"))
+            String lower = path.toLowerCase();
+            if (lower.endsWith(".html") || lower.endsWith(".htm"))
                 return "text/html; charset=utf-8";
-            if (path.endsWith(".css"))
+            if (lower.endsWith(".css"))
                 return "text/css; charset=utf-8";
-            if (path.endsWith(".js"))
+            if (lower.endsWith(".js") || lower.endsWith(".mjs"))
                 return "application/javascript; charset=utf-8";
-            if (path.endsWith(".png"))
+            if (lower.endsWith(".png"))
                 return "image/png";
-            if (path.endsWith(".jpg") || path.endsWith(".jpeg"))
+            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg"))
                 return "image/jpeg";
-            if (path.endsWith(".svg"))
+            if (lower.endsWith(".webp"))
+                return "image/webp";
+            if (lower.endsWith(".svg"))
                 return "image/svg+xml";
-            if (path.endsWith(".pdf"))
-                return "text/html; charset=utf-8";
+            if (lower.endsWith(".ico"))
+                return "image/x-icon";
+            if (lower.endsWith(".pdf"))
+                return "application/pdf";
             return "application/octet-stream";
         }
     }
