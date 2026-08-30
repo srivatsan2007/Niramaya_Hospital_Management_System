@@ -6018,6 +6018,8 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       } catch (e) {
         alert('Invoice download unavailable.');
       }
+    };
+
     // Auto-poll every 6 seconds for live Admin payment confirmations & receipt unlocking
     setInterval(() => {
       if (typeof renderUserBookings === 'function') renderUserBookings();
