@@ -1502,6 +1502,16 @@
   <!-- APPLICATION JAVASCRIPT LOGIC -->
   <script>
     // -------------------------------------------------------------
+    // GLOBAL STATE & COLLECTIONS (Prevent Temporal Dead Zone issues)
+    // -------------------------------------------------------------
+    window.doctorSurgeriesData = [];
+    window.doctorBirthsData = [];
+    window.doctorIpdAdmissions = [];
+    var doctorSurgeriesData = window.doctorSurgeriesData;
+    var doctorBirthsData = window.doctorBirthsData;
+    var doctorIpdAdmissions = window.doctorIpdAdmissions;
+
+    // -------------------------------------------------------------
     // LOGGED-IN DOCTOR SESSION & STATE MANAGEMENT
     // -------------------------------------------------------------
     const currentUserEmail = (
@@ -1535,21 +1545,34 @@
       localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
     }
 
-    // Initialize UI Text
-    document.getElementById('sideDocName').textContent = docProfile.name;
-    document.getElementById('sideDocEmail').textContent = currentUserEmail;
-    document.getElementById('topGreeting').textContent = `Welcome, ${docProfile.name}`;
-    document.getElementById('topDeptDate').innerHTML = `Department of ${docProfile.dept || 'General Medicine'} &nbsp;|&nbsp; <span>${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</span>`;
-    document.getElementById('currentDateStr').textContent = new Date().toLocaleDateString();
+    // Initialize UI Text with Defensive Null Checks
+    const sideDocNameEl = document.getElementById('sideDocName');
+    if (sideDocNameEl) sideDocNameEl.textContent = docProfile.name || 'Dr. Medical Officer';
+    const sideDocEmailEl = document.getElementById('sideDocEmail');
+    if (sideDocEmailEl) sideDocEmailEl.textContent = currentUserEmail;
+    const topGreetingEl = document.getElementById('topGreeting');
+    if (topGreetingEl) topGreetingEl.textContent = `Welcome, ${docProfile.name || 'Doctor'}`;
+    const topDeptDateEl = document.getElementById('topDeptDate');
+    const formattedDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+    if (topDeptDateEl) {
+      topDeptDateEl.innerHTML = `Department of ${docProfile.dept || 'General Medicine'} &nbsp;|&nbsp; <span id="currentDateStr">${formattedDate}</span>`;
+    }
+    const currentDateStrEl = document.getElementById('currentDateStr');
+    if (currentDateStrEl) currentDateStrEl.textContent = formattedDate;
     
-    const initials = docProfile.name.replace(/^dr\.\s*/i, '').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'DR';
-    document.getElementById('sideDocAvatar').textContent = initials;
-    document.getElementById('profileAvatarBig').textContent = initials;
-    document.getElementById('profName').textContent = docProfile.name;
+    const initials = (docProfile.name || 'Doctor').replace(/^dr\.\s*/i, '').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'DR';
+    const sideDocAvatarEl = document.getElementById('sideDocAvatar');
+    if (sideDocAvatarEl) sideDocAvatarEl.textContent = initials;
+    const profileAvatarBigEl = document.getElementById('profileAvatarBig');
+    if (profileAvatarBigEl) profileAvatarBigEl.textContent = initials;
+    const profNameEl = document.getElementById('profName');
+    if (profNameEl) profNameEl.textContent = docProfile.name || 'Doctor';
 
     // Load Profile Inputs
-    document.getElementById('profFeeInput').value = docProfile.fee || '800';
-    document.getElementById('profPhoneInput').value = docProfile.phone || '+91 98765 43211';
+    const profFeeInputEl = document.getElementById('profFeeInput');
+    if (profFeeInputEl) profFeeInputEl.value = docProfile.fee || '800';
+    const profPhoneInputEl = document.getElementById('profPhoneInput');
+    if (profPhoneInputEl) profPhoneInputEl.value = docProfile.phone || '+91 98765 43211';
 
     // Global Sync to Central Registry
     function syncRegistry() {
@@ -2005,6 +2028,7 @@
     // -------------------------------------------------------------
     function addMedicineRow(name = '', morning = 1, afternoon = 0, night = 1, timing = 'After Food', days = 5) {
       const tbody = document.getElementById('tbodyPrescMeds');
+      if (!tbody) return;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><input type="text" class="form-control med-name" value="${name}" placeholder="Medicine Name" required></td>
@@ -2434,9 +2458,9 @@
     }
 
     // Initialize on load & auto-refresh daily/every 15s
-    loadDashboardData();
+    try { loadDashboardData(); } catch(e){ console.error('Dashboard load error:', e); }
     setInterval(loadDashboardData, 15000);
-    addMedicineRow('Paracetamol 650mg', 1, 0, 1, 'After Food', 5);
+    try { addMedicineRow('Paracetamol 650mg', 1, 0, 1, 'After Food', 5); } catch(e){ console.error(e); }
 
     // DAILY REPORT MODAL HANDLERS
     function openDailyReportModal(roleName = 'Doctor') {
@@ -2512,15 +2536,14 @@
     // =============================================================
     // DOCTOR: OT SURGERIES CONTROLLER (OPTION A)
     // =============================================================
-    let doctorSurgeriesData = [];
-
     async function loadDoctorSurgeries() {
       const tbody = document.getElementById('tbodyDocSurgeries');
       if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Loading surgical schedule...</td></tr>';
       try {
         const res = await fetch('/api/operation-reports');
         const list = await res.json();
-        doctorSurgeriesData = Array.isArray(list) ? list : [];
+        window.doctorSurgeriesData = Array.isArray(list) ? list : [];
+        var doctorSurgeriesData = window.doctorSurgeriesData;
 
         if (doctorSurgeriesData.length === 0) {
           tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--ink-soft);">No surgical procedures recorded.</td></tr>';
@@ -2647,15 +2670,14 @@
     // =============================================================
     // DOCTOR: MATERNITY & BIRTH REGISTRY CONTROLLER (OPTION A)
     // =============================================================
-    let doctorBirthsData = [];
-
     async function loadDoctorBirths() {
       const tbody = document.getElementById('tbodyDocBirths');
       if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Loading delivery records...</td></tr>';
       try {
         const res = await fetch('/api/birth-reports');
         const list = await res.json();
-        doctorBirthsData = Array.isArray(list) ? list : [];
+        window.doctorBirthsData = Array.isArray(list) ? list : [];
+        var doctorBirthsData = window.doctorBirthsData;
 
         if (doctorBirthsData.length === 0) {
           tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--ink-soft);">No childbirth delivery records registered.</td></tr>';
@@ -2741,12 +2763,12 @@
     }
 
     function viewBirthCertificate(certNo) {
-      const list = doctorBirthsData.length > 0 ? doctorBirthsData : [];
+      const list = (window.doctorBirthsData && window.doctorBirthsData.length > 0) ? window.doctorBirthsData : [];
       let record = list.find(b => b.certificateNo === certNo);
       if (!record) {
         fetch('/api/birth-reports').then(r => r.json()).then(all => {
-          doctorBirthsData = Array.isArray(all) ? all : [];
-          record = doctorBirthsData.find(b => b.certificateNo === certNo);
+          window.doctorBirthsData = Array.isArray(all) ? all : [];
+          record = window.doctorBirthsData.find(b => b.certificateNo === certNo);
           if (record) populateBirthCert(record);
           else alert('Birth record not found.');
         });
@@ -2774,15 +2796,14 @@
     // =============================================================
     // DOCTOR: IPD INPATIENT WARD ROUNDS (OPTION B)
     // =============================================================
-    let doctorIpdAdmissions = [];
-
     async function loadDoctorIpdWard() {
       const tbody = document.getElementById('tbodyDocIpd');
       if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">Loading admitted patients...</td></tr>';
       try {
         const res = await fetch('/api/ipd/admissions?status=all');
         const list = await res.json();
-        doctorIpdAdmissions = Array.isArray(list) ? list : [];
+        window.doctorIpdAdmissions = Array.isArray(list) ? list : [];
+        var doctorIpdAdmissions = window.doctorIpdAdmissions;
 
         if (doctorIpdAdmissions.length === 0) {
           tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--ink-soft);">No patients currently admitted in IPD wards.</td></tr>';

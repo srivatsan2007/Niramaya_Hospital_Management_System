@@ -2424,6 +2424,16 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
+    // Global state collections attached to window
+    window.allSurgeriesData = [];
+    window.allBirthsData = [];
+    window.allIpdBeds = [];
+    window.allIpdAdmissions = [];
+    var allSurgeriesData = window.allSurgeriesData;
+    var allBirthsData = window.allBirthsData;
+    var allIpdBeds = window.allIpdBeds;
+    var allIpdAdmissions = window.allIpdAdmissions;
+
     // --- 1. RBAC & ROLE CHECK ---
     document.addEventListener("DOMContentLoaded", () => {
       const role = localStorage.getItem("userRole") || "admin";
@@ -3063,13 +3073,12 @@
     // =========================================================================
     // OPTION A: OPERATION THEATER & SURGERY REGISTRY CONTROLLER
     // =========================================================================
-    let allSurgeriesData = [];
-
     async function loadSurgeriesTable() {
       try {
         const res = await fetch("/api/operation-reports");
         const list = await res.json();
-        allSurgeriesData = Array.isArray(list) ? list : [];
+        window.allSurgeriesData = Array.isArray(list) ? list : [];
+        var allSurgeriesData = window.allSurgeriesData;
         
         let scheduled = 0, completed = 0;
         allSurgeriesData.forEach(s => {
@@ -3229,13 +3238,12 @@
     // =========================================================================
     // OPTION A: MATERNITY & BIRTH REGISTRY CONTROLLER
     // =========================================================================
-    let allBirthsData = [];
-
     async function loadBirthsTable() {
       try {
         const res = await fetch("/api/birth-reports");
         const list = await res.json();
-        allBirthsData = Array.isArray(list) ? list : [];
+        window.allBirthsData = Array.isArray(list) ? list : [];
+        var allBirthsData = window.allBirthsData;
 
         let boys = 0, girls = 0, normal = 0;
         allBirthsData.forEach(b => {
@@ -3381,8 +3389,6 @@
     // =========================================================================
     // OPTION B: IPD BED & ADMISSION MANAGEMENT CONTROLLER
     // =========================================================================
-    let allIpdBeds = [];
-    let allIpdAdmissions = [];
     let currentIpdBlockFilter = 'ALL';
 
     async function loadIpdBedsData() {
@@ -3391,8 +3397,10 @@
           fetch("/api/ipd/beds"),
           fetch("/api/ipd/admissions?status=all")
         ]);
-        allIpdBeds = await bedsRes.json();
-        allIpdAdmissions = await admsRes.json();
+        window.allIpdBeds = await bedsRes.json();
+        window.allIpdAdmissions = await admsRes.json();
+        var allIpdBeds = window.allIpdBeds;
+        var allIpdAdmissions = window.allIpdAdmissions;
 
         let occ = 0, avail = 0;
         allIpdBeds.forEach(b => {
