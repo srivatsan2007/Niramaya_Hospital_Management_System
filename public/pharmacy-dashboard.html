@@ -293,6 +293,12 @@
   </div>
 
   <div style="display:flex; align-items:center; gap:16px;">
+    <!-- LIVE DOCTOR PRESENCE INDICATOR -->
+    <div id="pharmOnlineDocsBadge" style="display:flex; align-items:center; gap:8px; background:#DCFCE7; padding:6px 14px; border-radius:30px; font-size:0.8rem; font-weight:700; color:#166534; border:1px solid #BBF7D0;">
+      <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#22C55E; box-shadow:0 0 8px #22C55E;"></span>
+      <span id="pharmOnlineDocsCountText">Loading online doctors...</span>
+    </div>
+    <button class="btn btn-primary" onclick="openPharmacyInvoiceModal()" style="font-size:0.8rem; padding:6px 14px; background:#2563EB; border:none; font-weight:700; box-shadow:0 4px 12px rgba(37,99,235,0.3);">🧾 + Generate Pharmacy Bill</button>
     <div style="text-align:right;">
       <b id="staffName" style="display:block; font-size:0.95rem;">Priya Sharma</b>
       <span style="font-size:0.75rem; color:#5FD6CC; font-weight:800; font-family:monospace;" id="staffEmpCode">EMP-000003</span>
@@ -307,6 +313,7 @@
 <!-- SUB NAVIGATION TABS -->
 <div class="nav-tabs-bar">
   <button class="tab-btn active" id="btnTabOrders" onclick="switchMainTab('orders')">⚡ Today's Active Prescriptions Queue</button>
+  <button class="tab-btn" id="btnTabInvoices" onclick="switchMainTab('invoices')">🧾 Invoices & Billing</button>
   <button class="tab-btn" id="btnTabHistory" onclick="switchMainTab('history')">📜 Completed Orders History</button>
   <button class="tab-btn" id="btnTabInventory" onclick="switchMainTab('inventory')">📦 Medicine Inventory</button>
 </div>
@@ -382,7 +389,41 @@
     </div>
   </div>
 
-  <!-- TAB 2: COMPLETED ORDERS HISTORY -->
+  <!-- TAB 2: PHARMACY INVOICES & BILLING -->
+  <div id="viewInvoices" class="view-tab">
+    <div class="table-card">
+      <div class="table-header-bar">
+        <div>
+          <h2 style="font-family:'Sora'; font-size:1.25rem; color:var(--pharm-navy); margin:0;">🧾 Central Pharmacy Invoices & Billing Records</h2>
+          <p style="font-size:0.85rem; color:#64748B; margin:4px 0 0 0;">Create, edit, itemize medicine bills, and print tax receipts with active on-duty physician verification.</p>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn btn-primary" onclick="openPharmacyInvoiceModal()" style="background:var(--pharm-blue);">➕ New Bill / Invoice</button>
+          <button class="btn btn-ghost" onclick="renderPharmacyInvoicesTable()">🔄 Refresh Bills</button>
+        </div>
+      </div>
+
+      <table class="pharm-table">
+        <thead>
+          <tr>
+            <th>Invoice No</th>
+            <th>Order / Token Ref</th>
+            <th>Patient Details</th>
+            <th>Attending Doctor</th>
+            <th>Medicines / Items</th>
+            <th>Total Amount</th>
+            <th>Payment Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pharmacyInvoicesTableBody">
+          <!-- Dynamic Invoices -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 3: COMPLETED ORDERS HISTORY -->
   <div id="viewHistory" class="view-tab">
     <div class="table-card">
       <div class="table-header-bar">
@@ -760,6 +801,165 @@
   </div>
 </div>
 
+<!-- MODAL: PHARMACY INVOICE & EDITABLE BILL -->
+<div class="pharm-modal" id="pharmacyInvoiceModal">
+  <div class="pharm-modal-box" style="max-width:880px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+      <div>
+        <h3 id="pharmInvoiceModalTitle" style="font-family:'Sora'; font-size:1.25rem; color:var(--pharm-navy); margin:0;">🧾 Generate / Edit Pharmacy Invoice</h3>
+        <p style="font-size:0.82rem; color:#64748B; margin:2px 0 0 0;">Itemized medicine billing, tax breakdown, and prescribing doctor validation</p>
+      </div>
+      <button class="icon-btn" type="button" onclick="closePharmacyInvoiceModal()" style="font-size:1.3rem; border:none; background:none; cursor:pointer;">✕</button>
+    </div>
+
+    <form id="formPharmacyInvoice" onsubmit="savePharmacyInvoice(event)">
+      <!-- INVOICE INFO GRID -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; background:#F8FAFC; padding:14px; border-radius:12px; margin-bottom:16px; border:1px solid #E2E8F0;">
+        <div class="form-group">
+          <label>Invoice Number</label>
+          <input type="text" id="pharmInvNumber" readonly style="background:#EEF2F6; font-family:monospace; font-weight:700;">
+        </div>
+        <div class="form-group">
+          <label>Order / Token Ref</label>
+          <input type="text" id="pharmInvOrderRef" placeholder="e.g. ORD-100842 / TK-101">
+        </div>
+        <div class="form-group">
+          <label>Invoice Date</label>
+          <input type="date" id="pharmInvDate" required>
+        </div>
+        <div class="form-group">
+          <label>Patient ID</label>
+          <input type="text" id="pharmInvPatientId" placeholder="e.g. PT100842" required>
+        </div>
+        <div class="form-group">
+          <label>Patient Name *</label>
+          <input type="text" id="pharmInvPatientName" placeholder="Full name of patient" required>
+        </div>
+        <div class="form-group">
+          <label>Age / Gender</label>
+          <input type="text" id="pharmInvAgeGender" placeholder="e.g. 34 Yrs / Female">
+        </div>
+        <div class="form-group">
+          <label>Contact Phone</label>
+          <input type="text" id="pharmInvPhone" placeholder="+91 98765 43210">
+        </div>
+        <div class="form-group">
+          <label>Payment Status</label>
+          <select id="pharmInvPayStatus">
+            <option value="Paid">✓ Paid</option>
+            <option value="Pending">⏳ Pending / Unpaid</option>
+            <option value="Partially Paid">⚡ Partially Paid</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Payment Mode</label>
+          <select id="pharmInvPayMode">
+            <option value="UPI">UPI / QR Code</option>
+            <option value="Cash">Cash at Pharmacy Counter</option>
+            <option value="Credit/Debit Card">Credit / Debit Card</option>
+            <option value="Insurance / TPA">Insurance / TPA Cashless</option>
+            <option value="Net Banking">Net Banking</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Txn / Reference ID</label>
+          <input type="text" id="pharmInvTxnId" placeholder="TXN-902148">
+        </div>
+      </div>
+
+      <!-- DOCTOR SELECTION DROPDOWN (STRICTLY AVAILABLE DOCTORS ONLY) -->
+      <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:14px; margin-bottom:16px;">
+        <label style="font-weight:700; font-size:0.85rem; color:#1E3A8A; display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <span>🩺</span> Prescribing / Recommending Doctor * <span style="font-size:0.75rem; background:#DCFCE7; color:#15803D; padding:2px 8px; border-radius:10px; font-weight:700;">Strictly Available & Online Doctors Only</span>
+        </label>
+        <select id="pharmInvDoctorSelect" required style="width:100%; padding:10px 12px; border:1.5px solid #3B82F6; border-radius:8px; font-weight:600; font-size:0.9rem; background:#FFFFFF;">
+          <option value="">-- Choose Available Online Doctor --</option>
+        </select>
+        <div style="font-size:0.75rem; color:#64748B; margin-top:4px;">
+          ℹ️ Real-time safety filter: Only physicians currently logged in and marked as Online & Accepting Appointments appear in this prescription dropdown.
+        </div>
+      </div>
+
+      <!-- MEDICINE LINE ITEMS TABLE -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-weight:700; font-size:0.9rem; color:var(--pharm-navy);">💊 Prescribed Medicines & Consumables</span>
+          <button type="button" class="btn btn-teal" onclick="addPharmInvoiceLineItem()" style="padding:6px 12px; font-size:0.8rem; background:var(--pharm-emerald); color:#fff; border:none; border-radius:8px; cursor:pointer;">
+            ➕ Add Medicine Line Item
+          </button>
+        </div>
+
+        <div style="overflow-x:auto; border:1px solid #E2E8F0; border-radius:10px;">
+          <table class="pharm-table" style="margin:0;">
+            <thead>
+              <tr style="background:#F1F5F9;">
+                <th style="min-width:180px;">Medicine Name</th>
+                <th style="min-width:110px;">Dosage/Category</th>
+                <th style="min-width:90px;">Unit Price (₹)</th>
+                <th style="min-width:70px;">Qty</th>
+                <th style="min-width:70px;">Disc (%)</th>
+                <th style="min-width:70px;">GST (%)</th>
+                <th style="min-width:100px;">Net Subtotal (₹)</th>
+                <th style="width:50px;">Remove</th>
+              </tr>
+            </thead>
+            <tbody id="pharmInvoiceItemsBody">
+              <!-- Dynamic line items -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- INVOICE TOTALS CALCULATION BAR -->
+      <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:16px; width:340px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.88rem; color:#64748B;">
+            <span>Items Gross Total:</span>
+            <span id="lblPharmInvGross" style="font-weight:600; color:var(--pharm-navy);">₹0.00</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.88rem; color:#D97706;">
+            <span>Total Discount:</span>
+            <span id="lblPharmInvDiscount" style="font-weight:600;">-₹0.00</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.88rem; color:#64748B;">
+            <span>GST / Taxes:</span>
+            <span id="lblPharmInvGst" style="font-weight:600; color:var(--pharm-navy);">+₹0.00</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; border-top:2px solid #CBD5E1; padding-top:8px; font-size:1.15rem; font-weight:800; color:var(--pharm-emerald); font-family:'Sora';">
+            <span>Net Payable:</span>
+            <span id="lblPharmInvTotal">₹0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIONS -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #E2E8F0; padding-top:16px;">
+        <button type="button" class="btn btn-ghost" onclick="closePharmacyInvoiceModal()">Cancel</button>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="printPharmacyInvoiceReceipt(document.getElementById('pharmInvNumber').value)" style="background:#E2E8F0; color:#1E293B; border:none; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">🖨️ Preview & Print Receipt</button>
+          <button type="submit" class="btn btn-primary" style="background:var(--pharm-emerald); border:none; padding:8px 20px; border-radius:8px; font-weight:700; color:#fff; box-shadow:0 4px 12px rgba(5,150,105,0.3); cursor:pointer;">💾 Save & Update Bill</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: PRINTABLE PHARMACY TAX RECEIPT -->
+<div class="pharm-modal" id="pharmReceiptPrintModal">
+  <div class="pharm-modal-box" style="max-width:720px; background:white; padding:24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:16px;">
+      <h3 style="margin:0; font-family:'Sora'; color:var(--pharm-navy); font-size:1.15rem;">🖨️ Official Hospital Pharmacy Receipt</h3>
+      <div>
+        <button class="btn btn-primary" onclick="window.print()" style="padding:6px 14px; font-size:0.8rem; background:#0F172A; margin-right:8px;">Print 🖨️</button>
+        <button class="btn btn-ghost" onclick="closeModal('pharmReceiptPrintModal')" style="padding:6px 12px; font-size:0.8rem;">✕ Close</button>
+      </div>
+    </div>
+    <div id="pharmReceiptContent" style="padding:10px; background:white;">
+      <!-- Dynamic Receipt -->
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="js/app.js"></script>
@@ -770,23 +970,34 @@
   window.addEventListener('DOMContentLoaded', () => {
     loadPharmacyOrders();
     loadInventoryTable();
+    loadPharmOnlineDoctors();
+    renderPharmacyInvoicesTable();
+    setInterval(loadPharmOnlineDoctors, 5000);
   });
 
   window.addEventListener('storage', () => {
     loadPharmacyOrders();
+    loadPharmOnlineDoctors();
+    renderPharmacyInvoicesTable();
   });
 
   function switchMainTab(tabName) {
     document.getElementById('btnTabOrders')?.classList.remove('active');
+    document.getElementById('btnTabInvoices')?.classList.remove('active');
     document.getElementById('btnTabHistory')?.classList.remove('active');
     document.getElementById('btnTabInventory')?.classList.remove('active');
     document.getElementById('viewOrders')?.classList.remove('active');
+    document.getElementById('viewInvoices')?.classList.remove('active');
     document.getElementById('viewHistory')?.classList.remove('active');
     document.getElementById('viewInventory')?.classList.remove('active');
 
     if (tabName === 'orders') {
       document.getElementById('btnTabOrders')?.classList.add('active');
       document.getElementById('viewOrders')?.classList.add('active');
+    } else if (tabName === 'invoices') {
+      document.getElementById('btnTabInvoices')?.classList.add('active');
+      document.getElementById('viewInvoices')?.classList.add('active');
+      renderPharmacyInvoicesTable();
     } else if (tabName === 'history') {
       document.getElementById('btnTabHistory')?.classList.add('active');
       document.getElementById('viewHistory')?.classList.add('active');
@@ -885,9 +1096,10 @@
         <td>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-ghost" style="padding:6px 10px; font-size:0.8rem;" onclick="openItemsModal('${o.orderId}', '${o.pharmacyToken}')">📋 Items</button>
+            <button class="btn btn-ghost" style="padding:6px 10px; font-size:0.8rem; color:var(--pharm-blue); font-weight:700;" onclick="openPharmacyInvoiceModal('${o.orderId || o.pharmacyToken}')">✏️ Edit Bill</button>
             ${!isPaid ? `<button class="btn btn-primary" style="padding:6px 10px; font-size:0.8rem; background:var(--pharm-emerald);" onclick="openPayModal('${o.orderId}', '${o.pharmacyToken}', ${amt})">💳 Pay</button>` : ''}
             ${!isDispensed ? `<button class="btn btn-teal" style="padding:6px 10px; font-size:0.8rem; background:#059669; color:#fff;" onclick="dispensePharmacyOrder('${o.orderId}')">💊 Complete & Dispense</button>` : ''}
-            <button class="btn btn-ghost" style="padding:6px 10px; font-size:0.8rem;" onclick="downloadInvoice('${o.orderId}')">📄 PDF</button>
+            <button class="btn btn-ghost" style="padding:6px 10px; font-size:0.8rem;" onclick="printPharmacyInvoiceReceipt('${o.orderId || o.pharmacyToken}')">🖨️ Receipt</button>
           </div>
         </td>
       `;
@@ -1463,6 +1675,557 @@
       if (btn) btn.disabled = false;
     }
   }
+
+  // =============================================================
+  // PHARMACY INVOICES, BILLING & AVAILABLE DOCTOR SELECTION ENGINE
+  // =============================================================
+  async function loadPharmOnlineDoctors() {
+    try {
+      let dbDocs = [];
+      try {
+        const res = await fetch('/api/doctors?availableOnly=true');
+        if (res.ok) dbDocs = await res.json();
+      } catch(e) {}
+
+      let localReg = [];
+      try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+
+      const merged = new Map();
+      if (Array.isArray(dbDocs)) {
+        dbDocs.forEach(d => {
+          const k = (d.doctorId || d.email || d.name || '').toLowerCase();
+          merged.set(k, d);
+        });
+      }
+
+      localReg.forEach(lr => {
+        const k = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+        if (merged.has(k)) {
+          const ex = merged.get(k);
+          merged.set(k, {
+            ...ex,
+            ...lr,
+            status: lr.status || ex.status,
+            availableStatus: lr.status || ex.availableStatus,
+            isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
+            acceptAppointments: lr.acceptAppointments || ex.acceptAppointments
+          });
+        } else {
+          merged.set(k, lr);
+        }
+      });
+
+      // STRICT REQUIREMENT: Doctor must be online AND accepting appointments
+      const availableDocs = Array.from(merged.values()).filter(d => {
+        const st = (d.status || d.availableStatus || '').toLowerCase();
+        return (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+      });
+
+      const countText = document.getElementById('pharmOnlineDocsCountText');
+      const badge = document.getElementById('pharmOnlineDocsBadge');
+      if (countText) countText.textContent = `${availableDocs.length} Available Doctors`;
+      if (badge) badge.style.background = availableDocs.length > 0 ? '#DCFCE7' : '#F1F5F9';
+
+      // Keep dropdown synchronized if invoice modal is currently open
+      const modal = document.getElementById('pharmacyInvoiceModal');
+      if (modal && modal.classList.contains('show')) {
+        const curVal = document.getElementById('pharmInvDoctorSelect')?.value;
+        populatePharmInvoiceDoctorSelect(curVal);
+      }
+    } catch(e) {
+      console.error('Error loading online doctors in pharmacy:', e);
+    }
+  }
+
+  async function populatePharmInvoiceDoctorSelect(selectedDocName = '') {
+    const sel = document.getElementById('pharmInvDoctorSelect');
+    if (!sel) return;
+
+    sel.innerHTML = '<option value="">⏳ Checking available online doctors...</option>';
+
+    let dbDocs = [];
+    try {
+      const res = await fetch('/api/doctors?availableOnly=true');
+      if (res.ok) dbDocs = await res.json();
+    } catch(e) {}
+
+    let localReg = [];
+    try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+
+    const merged = new Map();
+    if (Array.isArray(dbDocs)) {
+      dbDocs.forEach(d => {
+        const k = (d.doctorId || d.email || d.name || '').toLowerCase();
+        merged.set(k, d);
+      });
+    }
+
+    localReg.forEach(lr => {
+      const k = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+      if (merged.has(k)) {
+        const ex = merged.get(k);
+        merged.set(k, {
+          ...ex,
+          ...lr,
+          status: lr.status || ex.status,
+          availableStatus: lr.status || ex.availableStatus,
+          isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
+          acceptAppointments: lr.acceptAppointments || ex.acceptAppointments
+        });
+      } else {
+        merged.set(k, lr);
+      }
+    });
+
+    // STRICT REQUIREMENT: Only currently available/online doctors should be shown in that dropdown menu!
+    const availableDocs = Array.from(merged.values()).filter(d => {
+      const st = (d.status || d.availableStatus || '').toLowerCase();
+      return (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+    });
+
+    if (availableDocs.length === 0) {
+      sel.innerHTML = '<option value="" disabled selected>⚠️ No doctors currently online & accepting appointments</option>';
+      return;
+    }
+
+    sel.innerHTML = '<option value="">-- Choose Available Online Doctor --</option>' + availableDocs.map(d => {
+      const name = d.doctorName || d.name || 'Doctor';
+      const dept = d.department || d.dept || d.category || 'General Medicine';
+      const isMatch = selectedDocName && name.toLowerCase().includes(selectedDocName.toLowerCase()) ? 'selected' : '';
+      return `<option value="${name}" data-dept="${dept}" ${isMatch}>${name} (${dept}) — 🟢 Online & Accepting</option>`;
+    }).join('');
+  }
+
+  async function openPharmacyInvoiceModal(orderIdOrInvoiceNo) {
+    const modal = document.getElementById('pharmacyInvoiceModal');
+    if (!modal) return;
+
+    let existingInvoice = null;
+    let invoices = [];
+    try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
+
+    if (orderIdOrInvoiceNo) {
+      existingInvoice = invoices.find(inv => inv.invoiceNo === orderIdOrInvoiceNo || inv.orderRef === orderIdOrInvoiceNo || inv.orderId === orderIdOrInvoiceNo || inv.pharmacyToken === orderIdOrInvoiceNo);
+    }
+
+    let order = null;
+    if (orderIdOrInvoiceNo && allOrders) {
+      order = allOrders.find(o => o.orderId === orderIdOrInvoiceNo || o.pharmacyToken === orderIdOrInvoiceNo);
+    }
+
+    const invNo = existingInvoice ? existingInvoice.invoiceNo : ('PHARM-INV-' + Math.floor(100000 + Math.random() * 900000));
+    const ordRef = existingInvoice ? (existingInvoice.orderRef || existingInvoice.orderId || '') : (order ? (order.pharmacyToken || order.orderId || '') : ('ORD-' + Math.floor(100000 + Math.random() * 900000)));
+    const pId = existingInvoice ? existingInvoice.patientId : (order ? (order.patientId || 'PT100842') : 'PT100842');
+    const pName = existingInvoice ? existingInvoice.patientName : (order ? (order.patientName || 'Rajesh Sharma') : 'Rajesh Sharma');
+    const ageGen = existingInvoice ? existingInvoice.ageGender : '35 Yrs / Male';
+    const phone = existingInvoice ? existingInvoice.phone : '+91 98765 43210';
+    const docName = existingInvoice ? existingInvoice.doctorName : (order ? (order.doctorName || order.doctorId || '') : '');
+    const payStatus = existingInvoice ? existingInvoice.paymentStatus : (order ? (order.paymentStatus || 'Paid') : 'Paid');
+    const payMode = existingInvoice ? (existingInvoice.paymentMode || 'UPI') : 'UPI';
+    const txnId = existingInvoice ? (existingInvoice.txnId || 'TXN-' + Date.now().toString().slice(-6)) : ('TXN-' + Date.now().toString().slice(-6));
+    const invDate = existingInvoice ? (existingInvoice.date?.split('T')[0] || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+
+    document.getElementById('pharmInvoiceModalTitle').textContent = existingInvoice ? `✏️ Edit Pharmacy Invoice — ${invNo}` : `🧾 Generate New Pharmacy Bill`;
+    document.getElementById('pharmInvNumber').value = invNo;
+    document.getElementById('pharmInvOrderRef').value = ordRef;
+    document.getElementById('pharmInvDate').value = invDate;
+    document.getElementById('pharmInvPatientId').value = pId;
+    document.getElementById('pharmInvPatientName').value = pName;
+    document.getElementById('pharmInvAgeGender').value = ageGen;
+    document.getElementById('pharmInvPhone').value = phone;
+    document.getElementById('pharmInvPayStatus').value = payStatus;
+    document.getElementById('pharmInvPayMode').value = payMode;
+    document.getElementById('pharmInvTxnId').value = txnId;
+
+    populatePharmInvoiceDoctorSelect(docName);
+
+    const itemsBody = document.getElementById('pharmInvoiceItemsBody');
+    itemsBody.innerHTML = '';
+
+    if (existingInvoice && Array.isArray(existingInvoice.items) && existingInvoice.items.length > 0) {
+      existingInvoice.items.forEach(it => {
+        addPharmInvoiceLineItem(it.name, it.category || it.dosage, it.price, it.qty, it.disc, it.tax);
+      });
+    } else if (order && order.orderId) {
+      let fetchedItems = [];
+      try {
+        const res = await fetch(`/api/pharmacy/order-items?orderId=${encodeURIComponent(order.orderId)}`);
+        if (res.ok) fetchedItems = await res.json();
+      } catch(e){}
+
+      if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
+        fetchedItems.forEach(it => {
+          addPharmInvoiceLineItem(it.medicineName || it.name, it.dosageForm || 'Tablet', it.unitPrice || 45, it.quantity || 10, 0, 12);
+        });
+      } else {
+        addPharmInvoiceLineItem('Paracetamol 650mg', 'Tablet', 45.00, 10, 0, 12);
+        addPharmInvoiceLineItem('Amoxicillin 500mg', 'Capsule', 120.00, 6, 5, 12);
+      }
+    } else {
+      addPharmInvoiceLineItem('Paracetamol 650mg', 'Tablet', 45.00, 10, 0, 12);
+      addPharmInvoiceLineItem('Pantoprazole 40mg', 'Tablet', 85.00, 10, 0, 12);
+      addPharmInvoiceLineItem('Cetirizine 10mg', 'Tablet', 35.00, 10, 0, 12);
+    }
+
+    calcPharmInvoiceTotals();
+    modal.classList.add('show');
+  }
+
+  function closePharmacyInvoiceModal() {
+    const modal = document.getElementById('pharmacyInvoiceModal');
+    if (modal) modal.classList.remove('show');
+  }
+
+  function addPharmInvoiceLineItem(name = '', cat = 'Tablet', price = 50.00, qty = 1, disc = 0, tax = 12) {
+    const tbody = document.getElementById('pharmInvoiceItemsBody');
+    if (!tbody) return;
+
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid #F1F5F9';
+    tr.innerHTML = `
+      <td>
+        <input type="text" class="inv-item-name" value="${name || 'Medicine'}" placeholder="e.g. Paracetamol 650mg" style="width:100%; padding:6px 10px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem;" required>
+      </td>
+      <td>
+        <select class="inv-item-cat" style="width:100%; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.82rem;">
+          <option value="Tablet" ${cat === 'Tablet' ? 'selected' : ''}>Tablet</option>
+          <option value="Capsule" ${cat === 'Capsule' ? 'selected' : ''}>Capsule</option>
+          <option value="Syrup" ${cat === 'Syrup' ? 'selected' : ''}>Syrup</option>
+          <option value="Injection" ${cat === 'Injection' ? 'selected' : ''}>Injection</option>
+          <option value="Ointment" ${cat === 'Ointment' ? 'selected' : ''}>Ointment</option>
+          <option value="Drops" ${cat === 'Drops' ? 'selected' : ''}>Drops</option>
+          <option value="Consumable" ${cat === 'Consumable' ? 'selected' : ''}>Consumable</option>
+        </select>
+      </td>
+      <td>
+        <input type="number" step="0.01" class="inv-item-price" value="${price}" oninput="calcPharmInvoiceTotals()" style="width:85px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:right;" required>
+      </td>
+      <td>
+        <input type="number" min="1" step="1" class="inv-item-qty" value="${qty}" oninput="calcPharmInvoiceTotals()" style="width:65px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:center;" required>
+      </td>
+      <td>
+        <input type="number" min="0" max="100" step="0.1" class="inv-item-disc" value="${disc}" oninput="calcPharmInvoiceTotals()" style="width:65px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:center;">
+      </td>
+      <td>
+        <input type="number" min="0" max="28" step="0.1" class="inv-item-tax" value="${tax}" oninput="calcPharmInvoiceTotals()" style="width:65px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:center;">
+      </td>
+      <td style="text-align:right; font-weight:700; color:var(--pharm-navy); font-size:0.9rem;">
+        <span class="inv-item-subtotal">₹0.00</span>
+      </td>
+      <td style="text-align:center;">
+        <button type="button" onclick="this.closest('tr').remove(); calcPharmInvoiceTotals();" style="background:none; border:none; color:#EF4444; font-size:1.1rem; cursor:pointer;" title="Remove Line">🗑️</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+    calcPharmInvoiceTotals();
+  }
+
+  function calcPharmInvoiceTotals() {
+    const rows = document.querySelectorAll('#pharmInvoiceItemsBody tr');
+    let grossTotal = 0;
+    let totalDiscount = 0;
+    let totalTax = 0;
+
+    rows.forEach(tr => {
+      const price = parseFloat(tr.querySelector('.inv-item-price')?.value || 0);
+      const qty = parseFloat(tr.querySelector('.inv-item-qty')?.value || 1);
+      const disc = parseFloat(tr.querySelector('.inv-item-disc')?.value || 0);
+      const tax = parseFloat(tr.querySelector('.inv-item-tax')?.value || 0);
+
+      const base = price * qty;
+      const dAmt = base * (disc / 100);
+      const afterDisc = base - dAmt;
+      const tAmt = afterDisc * (tax / 100);
+      const net = afterDisc + tAmt;
+
+      grossTotal += base;
+      totalDiscount += dAmt;
+      totalTax += tAmt;
+
+      const subLbl = tr.querySelector('.inv-item-subtotal');
+      if (subLbl) subLbl.textContent = '₹' + net.toFixed(2);
+    });
+
+    const grandTotal = grossTotal - totalDiscount + totalTax;
+
+    document.getElementById('lblPharmInvGross').textContent = '₹' + grossTotal.toFixed(2);
+    document.getElementById('lblPharmInvDiscount').textContent = '-₹' + totalDiscount.toFixed(2);
+    document.getElementById('lblPharmInvGst').textContent = '+₹' + totalTax.toFixed(2);
+    document.getElementById('lblPharmInvTotal').textContent = '₹' + grandTotal.toFixed(2);
+  }
+
+  function savePharmacyInvoice(e) {
+    if (e) e.preventDefault();
+
+    const invNo = document.getElementById('pharmInvNumber').value.trim();
+    const orderRef = document.getElementById('pharmInvOrderRef').value.trim();
+    const docSelect = document.getElementById('pharmInvDoctorSelect');
+    const doctorName = docSelect.value;
+
+    if (!doctorName) {
+      alert('⚠️ Please select a verified on-duty attending physician. Only available online doctors are valid!');
+      return;
+    }
+
+    const items = [];
+    document.querySelectorAll('#pharmInvoiceItemsBody tr').forEach(tr => {
+      const name = tr.querySelector('.inv-item-name')?.value.trim();
+      const cat = tr.querySelector('.inv-item-cat')?.value;
+      const price = parseFloat(tr.querySelector('.inv-item-price')?.value || 0);
+      const qty = parseFloat(tr.querySelector('.inv-item-qty')?.value || 1);
+      const disc = parseFloat(tr.querySelector('.inv-item-disc')?.value || 0);
+      const tax = parseFloat(tr.querySelector('.inv-item-tax')?.value || 0);
+      const subtotalStr = tr.querySelector('.inv-item-subtotal')?.textContent.replace('₹', '') || '0';
+      const subtotal = parseFloat(subtotalStr);
+
+      if (name) {
+        items.push({ name, category: cat, price, qty, disc, tax, subtotal });
+      }
+    });
+
+    if (items.length === 0) {
+      alert('⚠️ Please add at least one medicine or consumable line item.');
+      return;
+    }
+
+    const netTotalStr = document.getElementById('lblPharmInvTotal')?.textContent.replace('₹', '') || '0';
+    const totalAmount = parseFloat(netTotalStr);
+
+    const invoiceObj = {
+      invoiceNo: invNo,
+      orderRef: orderRef,
+      date: document.getElementById('pharmInvDate').value,
+      patientId: document.getElementById('pharmInvPatientId').value.trim(),
+      patientName: document.getElementById('pharmInvPatientName').value.trim(),
+      ageGender: document.getElementById('pharmInvAgeGender').value.trim(),
+      phone: document.getElementById('pharmInvPhone').value.trim(),
+      doctorName: doctorName,
+      paymentStatus: document.getElementById('pharmInvPayStatus').value,
+      paymentMode: document.getElementById('pharmInvPayMode').value,
+      txnId: document.getElementById('pharmInvTxnId').value.trim(),
+      items: items,
+      totalAmount: totalAmount,
+      updatedAt: new Date().toISOString()
+    };
+
+    let invoices = [];
+    try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
+
+    const idx = invoices.findIndex(i => i.invoiceNo === invNo);
+    if (idx >= 0) {
+      invoices[idx] = invoiceObj;
+    } else {
+      invoices.unshift(invoiceObj);
+    }
+    localStorage.setItem('niramaya_pharmacy_invoices', JSON.stringify(invoices));
+
+    // Also synchronize corresponding order if matched
+    try {
+      let localOrders = JSON.parse(localStorage.getItem('niramaya_pharmacy_orders') || '[]');
+      let ord = localOrders.find(o => o.orderId === orderRef || o.pharmacyToken === orderRef);
+      if (ord) {
+        ord.totalAmount = totalAmount;
+        ord.paymentStatus = invoiceObj.paymentStatus;
+        ord.doctorName = doctorName;
+      } else if (orderRef) {
+        localOrders.unshift({
+          orderId: orderRef.startsWith('ORD') ? orderRef : ('ORD-' + orderRef),
+          pharmacyToken: orderRef,
+          patientId: invoiceObj.patientId,
+          patientName: invoiceObj.patientName,
+          doctorId: doctorName,
+          doctorName: doctorName,
+          totalAmount: totalAmount,
+          paymentStatus: invoiceObj.paymentStatus,
+          orderStatus: invoiceObj.paymentStatus === 'Paid' ? 'PAID & READY' : 'PENDING BILLING',
+          orderDate: 'Today'
+        });
+      }
+      localStorage.setItem('niramaya_pharmacy_orders', JSON.stringify(localOrders));
+    } catch(e){}
+
+    showToast(`✓ Pharmacy Bill ${invNo} saved and synchronized successfully!`);
+    closePharmacyInvoiceModal();
+    renderPharmacyInvoicesTable();
+    loadPharmacyOrders();
+  }
+
+  function renderPharmacyInvoicesTable() {
+    const tbody = document.getElementById('pharmacyInvoicesTableBody');
+    if (!tbody) return;
+
+    let invoices = [];
+    try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
+
+    if (invoices.length === 0) {
+      invoices = [
+        {
+          invoiceNo: 'PHARM-INV-781042',
+          orderRef: 'TK-1001',
+          patientId: 'PT100842',
+          patientName: 'Rekha Prasad',
+          doctorName: 'Dr. Ananya Rao',
+          items: [{ name: 'Paracetamol 650mg', qty: 10 }, { name: 'Pantoprazole 40mg', qty: 10 }],
+          totalAmount: 185.00,
+          paymentStatus: 'Paid',
+          date: '2026-07-30'
+        },
+        {
+          invoiceNo: 'PHARM-INV-692185',
+          orderRef: 'TK-1002',
+          patientId: 'PT100843',
+          patientName: 'Vikram Malhotra',
+          doctorName: 'Dr. Srivatsan R',
+          items: [{ name: 'Amoxicillin 500mg', qty: 6 }, { name: 'Cetirizine 10mg', qty: 10 }],
+          totalAmount: 245.50,
+          paymentStatus: 'Paid',
+          date: '2026-07-30'
+        }
+      ];
+      localStorage.setItem('niramaya_pharmacy_invoices', JSON.stringify(invoices));
+    }
+
+    tbody.innerHTML = invoices.map(inv => {
+      const isPaid = (inv.paymentStatus || '').toLowerCase() === 'paid';
+      const itemsCount = Array.isArray(inv.items) ? inv.items.length : 1;
+      const itemsPreview = Array.isArray(inv.items) ? inv.items.map(it => it.name).slice(0, 2).join(', ') + (inv.items.length > 2 ? '...' : '') : 'Medicines';
+
+      const statusBadge = isPaid 
+        ? `<span style="background:#DCFCE7; color:#15803D; font-weight:700; padding:4px 10px; border-radius:12px; font-size:0.75rem;">✓ Paid</span>`
+        : `<span style="background:#FEF3C7; color:#B45309; font-weight:700; padding:4px 10px; border-radius:12px; font-size:0.75rem;">⏳ ${inv.paymentStatus || 'Pending'}</span>`;
+
+      return `
+        <tr style="border-bottom:1px solid #E2E8F0;">
+          <td><strong style="color:var(--pharm-blue); font-family:monospace;">${inv.invoiceNo}</strong></td>
+          <td><code>${inv.orderRef || '-'}</code></td>
+          <td><b>${inv.patientName}</b><br><small style="color:#64748B;">${inv.patientId}</small></td>
+          <td><strong style="color:var(--pharm-navy);">🩺 ${inv.doctorName}</strong></td>
+          <td><span style="color:#334155; font-size:0.85rem;">${itemsPreview} (${itemsCount} items)</span></td>
+          <td><strong style="color:var(--pharm-emerald); font-family:'Sora';">₹${(inv.totalAmount || 0).toFixed(2)}</strong></td>
+          <td>${statusBadge}</td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-ghost" onclick="openPharmacyInvoiceModal('${inv.invoiceNo}')" style="padding:4px 8px; font-size:0.78rem; color:var(--pharm-blue); font-weight:700;">
+                ✏️ Edit Bill
+              </button>
+              <button class="btn btn-teal" onclick="printPharmacyInvoiceReceipt('${inv.invoiceNo}')" style="padding:4px 8px; font-size:0.78rem; background:var(--pharm-emerald); color:#fff; border:none; border-radius:6px; cursor:pointer;">
+                🖨️ Receipt
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function printPharmacyInvoiceReceipt(invNo) {
+    let invoices = [];
+    try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
+
+    let inv = invoices.find(i => i.invoiceNo === invNo || i.orderRef === invNo || i.orderId === invNo || i.pharmacyToken === invNo);
+    if (!inv && invoices.length > 0) inv = invoices[0];
+    if (!inv) {
+      inv = {
+        invoiceNo: document.getElementById('pharmInvNumber')?.value || 'PHARM-INV-781042',
+        orderRef: document.getElementById('pharmInvOrderRef')?.value || 'TK-1001',
+        patientId: document.getElementById('pharmInvPatientId')?.value || 'PT100842',
+        patientName: document.getElementById('pharmInvPatientName')?.value || 'Rekha Prasad',
+        doctorName: document.getElementById('pharmInvDoctorSelect')?.value || 'Dr. Ananya Rao',
+        totalAmount: parseFloat(document.getElementById('lblPharmInvTotal')?.textContent?.replace('₹','') || '185.00'),
+        paymentStatus: document.getElementById('pharmInvPayStatus')?.value || 'Paid',
+        paymentMode: document.getElementById('pharmInvPayMode')?.value || 'UPI',
+        date: document.getElementById('pharmInvDate')?.value || '2026-07-30',
+        items: [{ name: 'Paracetamol 650mg', category: 'Tablet', qty: 10, price: 4.5, subtotal: 45.00 }]
+      };
+    }
+
+    const receiptHtml = `
+      <div style="font-family:'Segoe UI',sans-serif; color:#0F172A; max-width:650px; margin:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--pharm-emerald); padding-bottom:12px; margin-bottom:16px;">
+          <div>
+            <h2 style="margin:0; color:var(--pharm-navy); font-family:'Sora';">Niramaya Hospitals</h2>
+            <p style="margin:2px 0 0 0; font-size:0.8rem; color:#64748B;">Central Automated Inpatient & Outpatient Pharmacy</p>
+            <p style="margin:2px 0 0 0; font-size:0.75rem; color:#64748B;">DL No: KA-BLR-PH-2024-9812 · GSTIN: 29AAAAA0000A1Z5</p>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:1.1rem; font-weight:800; color:var(--pharm-emerald);">PHARMACY RETAIL BILL</div>
+            <div style="font-family:monospace; font-weight:700; font-size:0.9rem;">${inv.invoiceNo}</div>
+            <div style="font-size:0.8rem; color:#64748B;">Date: ${inv.date?.split('T')[0] || '2026-07-30'}</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; background:#F8FAFC; padding:12px; border-radius:8px; margin-bottom:16px; font-size:0.85rem;">
+          <div>
+            <div><b>Patient ID:</b> ${inv.patientId}</div>
+            <div><b>Patient Name:</b> ${inv.patientName}</div>
+            <div><b>Order / Token Ref:</b> ${inv.orderRef || '-'}</div>
+          </div>
+          <div>
+            <div><b>Prescribing Doctor:</b> <span style="color:var(--pharm-blue); font-weight:700;">${inv.doctorName}</span></div>
+            <div><b>Payment Mode:</b> ${inv.paymentMode || 'UPI'} (${inv.paymentStatus || 'Paid'})</div>
+            <div><b>Billing Status:</b> <span style="color:#059669; font-weight:700;">DISPENSED & PAID ✓</span></div>
+          </div>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:0.85rem;">
+          <thead>
+            <tr style="background:#E2E8F0; text-align:left;">
+              <th style="padding:8px;">#</th>
+              <th style="padding:8px;">Medicine / Description</th>
+              <th style="padding:8px;">Form</th>
+              <th style="padding:8px; text-align:center;">Qty</th>
+              <th style="padding:8px; text-align:right;">Net Subtotal (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(inv.items || [{name:'Prescribed Medicines', category:'Pharma', qty:1, subtotal:inv.totalAmount}]).map((it, idx) => `
+              <tr style="border-bottom:1px solid #E2E8F0;">
+                <td style="padding:8px;">${idx+1}</td>
+                <td style="padding:8px;"><b>${it.name}</b></td>
+                <td style="padding:8px;">${it.category || 'Tablet'}</td>
+                <td style="padding:8px; text-align:center;">${it.qty || 1}</td>
+                <td style="padding:8px; text-align:right; font-weight:700;">₹${(it.subtotal || it.total || it.price || 0).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="border-top:2px solid #0F172A; font-weight:800; font-size:1.05rem;">
+              <td colspan="4" style="padding:10px 8px; text-align:right;">Total Bill Amount:</td>
+              <td style="padding:10px 8px; text-align:right; color:var(--pharm-emerald);">₹${(inv.totalAmount || 0).toFixed(2)}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:24px; padding-top:14px; border-top:1px dashed #CBD5E1; font-size:0.75rem; color:#64748B;">
+          <div>
+            ✓ Computerized prescription bill under Drugs & Cosmetics Act.<br>
+            Validated by Registered Pharmacist. Keep medicines out of reach of children.
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:700; color:#0F172A;">Registered Pharmacist</div>
+            <div>Central Pharmacy Department</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const contentDiv = document.getElementById('pharmReceiptContent');
+    if (contentDiv) contentDiv.innerHTML = receiptHtml;
+    const modal = document.getElementById('pharmReceiptPrintModal');
+    if (modal) modal.classList.add('show');
+  }
+
+  // Real-time synchronization listeners for Pharmacy Portal
+  try {
+    const pharmDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
+    pharmDocChannel.onmessage = (msg) => {
+      console.log('⚡ [Pharmacy Console] Live doctor status update:', msg.data);
+      loadPharmOnlineDoctors();
+      if (msg.data && msg.data.isAvailable) {
+        showToast(`🩺 ${msg.data.name || 'A Doctor'} is now Online & Accepting Appointments!`);
+      }
+    };
+  } catch(e){}
 </script>
 
 <!-- MODAL: Pharmacy Daily Report -->

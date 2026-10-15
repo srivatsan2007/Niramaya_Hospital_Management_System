@@ -340,6 +340,24 @@
 
     <!-- TAB 1: OVERVIEW -->
     <div id="tab-dashboard" class="tab-pane">
+
+      <!-- On-Duty & Available Doctors Live Monitor for Nursing Station -->
+      <div class="nurse-card" style="border: 2px solid #0D9488; background: #F0FDFA; margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+          <div>
+            <h3 style="margin:0; font-size:1.1rem; color:#0F766E; display:flex; align-items:center; gap:8px;">
+              <span>🩺 On-Duty & Available Physicians Live Monitor</span>
+              <span id="badgeNurseOnlineDoctors" style="background:#0D9488; color:#fff; font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:700;">0 Online</span>
+            </h3>
+            <p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748B;">Physicians currently logged in and actively accepting emergency consults, shift orders, and admissions.</p>
+          </div>
+          <button class="btn-nurse" onclick="loadNurseAvailableDoctors()" style="background:#0F766E; font-size:0.8rem; padding:6px 14px;">🔄 Refresh Status</button>
+        </div>
+        <div id="nurseLiveDoctorsPills" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
+          <!-- Dynamically populated live doctor cards -->
+        </div>
+      </div>
+
       <div class="nurse-card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h3 style="margin: 0; font-size: 1.1rem; color: #0F172A;">👥 Currently Assigned ICU Patients</h3>
@@ -848,8 +866,11 @@
       </div>
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
         <div>
-          <label style="font-size:0.8rem; font-weight:700;">Attending Doctor *</label>
-          <input type="text" id="nAdmitDoctor" value="Dr. Rajesh Kumar" style="width:100%; padding:8px; margin-top:4px;" required>
+          <label style="font-size:0.8rem; font-weight:700;">Attending Doctor * <span style="color:#059669; font-size:0.75rem;">(🟢 Available Doctors)</span></label>
+          <select id="nAdmitDoctorSelect" style="width:100%; padding:8px; margin-top:4px;" required onchange="document.getElementById('nAdmitDoctor').value = this.value">
+            <option value="">-- Choose Available Online Doctor --</option>
+          </select>
+          <input type="hidden" id="nAdmitDoctor" value="Dr. Rajesh Kumar">
         </div>
         <div>
           <label style="font-size:0.8rem; font-weight:700;">Admission Date *</label>
@@ -874,7 +895,138 @@
   document.addEventListener('DOMContentLoaded', () => {
     refreshNurseData();
     loadNurseIpdBeds();
+    loadNurseAvailableDoctors();
   });
+
+  // -------------------------------------------------------------
+  // LIVE AVAILABLE DOCTORS MONITOR FOR NURSING STATION
+  // -------------------------------------------------------------
+  async function loadNurseAvailableDoctors() {
+    try {
+      let dbDocs = [];
+      try {
+        const res = await fetch('/api/doctors');
+        if (res.ok) dbDocs = await res.json();
+      } catch(e){}
+
+      let localReg = [];
+      try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+
+      const merged = new Map();
+      if (Array.isArray(dbDocs)) {
+        dbDocs.forEach(d => {
+          const k = (d.doctorId || d.email || d.name || '').toLowerCase();
+          merged.set(k, d);
+        });
+      }
+
+      localReg.forEach(lr => {
+        const k = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+        if (merged.has(k)) {
+          const ex = merged.get(k);
+          merged.set(k, {
+            ...ex,
+            ...lr,
+            status: lr.status || ex.status,
+            availableStatus: lr.status || ex.availableStatus,
+            isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
+            acceptAppointments: lr.acceptAppointments || ex.acceptAppointments
+          });
+        } else {
+          merged.set(k, lr);
+        }
+      });
+
+      const docs = Array.from(merged.values());
+      const pillsContainer = document.getElementById('nurseLiveDoctorsPills');
+      const badge = document.getElementById('badgeNurseOnlineDoctors');
+      const admitDocSel = document.getElementById('nAdmitDoctorSelect');
+
+      const onlineDocs = docs.filter(d => {
+        const st = (d.status || d.availableStatus || '').toLowerCase();
+        return (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+      });
+
+      if (badge) {
+        badge.textContent = `${onlineDocs.length} Online & Accepting`;
+        badge.style.background = onlineDocs.length > 0 ? '#0D9488' : '#64748B';
+      }
+
+      if (pillsContainer) {
+        if (onlineDocs.length === 0) {
+          pillsContainer.innerHTML = '<div style="grid-column:1/-1; padding:14px; background:#fff; border-radius:8px; border:1px solid #E2E8F0; color:#64748B; font-size:0.85rem; text-align:center;">⚠️ No physicians currently logged in as Online. Emergency officers will be notified via SOS broadcast.</div>';
+        } else {
+          pillsContainer.innerHTML = onlineDocs.map(d => {
+            const name = d.doctorName || d.name || 'Doctor';
+            const dept = d.department || d.dept || d.category || 'General Medicine';
+            const phone = d.phoneNumber || d.phone || '+91 98765 43210';
+            return `
+              <div style="background:#fff; border:1px solid #A7F3D0; border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="width:36px; height:36px; border-radius:50%; background:#DCFCE7; color:#15803D; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem;">🩺</div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-weight:700; color:#0F172A; font-size:0.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div>
+                  <div style="font-size:0.75rem; color:#0D9488; font-weight:600;">${dept}</div>
+                  <div style="font-size:0.72rem; color:#64748B;">📞 ${phone}</div>
+                </div>
+                <span style="font-size:0.68rem; background:#DCFCE7; color:#15803D; font-weight:700; padding:2px 6px; border-radius:10px; white-space:nowrap;">🟢 Available</span>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      if (admitDocSel) {
+        if (onlineDocs.length === 0) {
+          admitDocSel.innerHTML = '<option value="">⚠️ No doctors online — emergency on-call fallback</option>';
+        } else {
+          admitDocSel.innerHTML = '<option value="">-- Choose Available Online Doctor --</option>' + onlineDocs.map(d => {
+            const name = d.doctorName || d.name || 'Doctor';
+            const dept = d.department || d.dept || 'General';
+            return `<option value="${name}">${name} (${dept}) — 🟢 Online</option>`;
+          }).join('');
+
+          // Auto-select first online doctor if hidden input matches
+          const curVal = document.getElementById('nAdmitDoctor')?.value;
+          if (curVal) {
+            const match = onlineDocs.find(d => (d.name||'').toLowerCase().includes(curVal.toLowerCase()));
+            if (match) admitDocSel.value = match.name;
+          }
+        }
+      }
+    } catch(e) {
+      console.error('Error loading nurse available doctors:', e);
+    }
+  }
+
+  // Real-time synchronization listeners for Nurse Portal
+  window.addEventListener('storage', (e) => {
+    if (!e.key || e.key === 'niramaya_doctors_registry' || e.key === 'niramaya_doctor_availability_broadcast') {
+      loadNurseAvailableDoctors();
+    }
+  });
+
+  try {
+    const nurseDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
+    nurseDocChannel.onmessage = (msg) => {
+      console.log('⚡ [Nurse Station] Live doctor status update:', msg.data);
+      loadNurseAvailableDoctors();
+      if (msg.data && msg.data.isAvailable) {
+        alertToast(`🩺 ${msg.data.name || 'A Doctor'} is now Online & Accepting in ${msg.data.dept || 'Ward'}!`);
+      }
+    };
+  } catch(e){}
+
+  function alertToast(msg) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#0F172A; color:#fff; padding:12px 20px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.25); z-index:99999; font-weight:600; font-size:0.85rem; border-left:4px solid #10B981; animation:fadeIn 0.3s;';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 4000);
+  }
+
+  setInterval(() => {
+    loadNurseAvailableDoctors();
+  }, 5000);
 
   function showTab(tabId, el) {
     document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');

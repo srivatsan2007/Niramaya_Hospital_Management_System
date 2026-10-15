@@ -1578,26 +1578,53 @@
     function syncRegistry() {
       let registry = [];
       try { registry = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
-      registry = registry.filter(d => d.email !== currentUserEmail);
+      registry = registry.filter(d => d.email !== currentUserEmail && d.name !== docProfile.name);
 
       const isOnline = docProfile.status ? docProfile.status.includes('Online') : true;
-      registry.push({
-        id: 'doc_' + currentUserEmail.replace(/[^a-zA-Z0-9]/g, '_'),
+      const cleanDocId = docProfile.doctorId || 'DOC10084';
+      registry.unshift({
+        id: cleanDocId,
+        doctorId: cleanDocId,
         email: currentUserEmail,
         name: docProfile.name,
+        doctorName: docProfile.name,
         role: `${docProfile.dept || 'General Medicine'} Specialist · MD`,
         dept: docProfile.dept || 'General Medicine',
+        department: docProfile.dept || 'General Medicine',
+        category: docProfile.dept || 'General Medicine',
         experience: docProfile.age || '12 yrs exp',
         fee: parseInt(docProfile.fee) || 800,
+        consultationFees: parseInt(docProfile.fee) || 800,
         phone: docProfile.phone,
         status: docProfile.status || 'Online & Accepting Appointments',
+        availableStatus: docProfile.status || 'Online & Accepting Appointments',
         isAvailable: isOnline,
+        acceptAppointments: isOnline ? 'Yes' : 'No',
+        appointmentAvailable: isOnline,
+        updatedAt: Date.now(),
         todaySlots: ['09:00 AM', '09:20 AM', '09:40 AM', '10:00 AM', '10:20 AM', '10:40 AM', '11:00 AM', '11:20 AM', '02:00 PM', '02:20 PM', '02:40 PM', '03:00 PM'],
         tomorrowSlots: ['09:20 AM', '09:40 AM', '10:00 AM', '10:20 AM', '10:40 AM', '11:00 AM', '11:20 AM', '11:40 AM', '02:20 PM', '02:40 PM']
       });
       localStorage.setItem('niramaya_doctors_registry', JSON.stringify(registry));
     }
     syncRegistry();
+
+    function updateStatusUI() {
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('statusText');
+      if (!dot || !txt) return;
+      const isOnline = docProfile.status ? docProfile.status.includes('Online') : true;
+      if (!isOnline) {
+        dot.classList.add('offline');
+        txt.textContent = 'OFFLINE [ OFF ]';
+        txt.style.color = '#EF4444';
+      } else {
+        dot.classList.remove('offline');
+        txt.textContent = 'ONLINE [ ON ]';
+        txt.style.color = '#065F46';
+      }
+    }
+    updateStatusUI();
 
     // -------------------------------------------------------------
     // NAVIGATION SWITCHING
@@ -1625,9 +1652,6 @@
     // ONLINE / OFFLINE TOGGLE
     // -------------------------------------------------------------
     function toggleOnlineStatus() {
-      const dot = document.getElementById('statusDot');
-      const txt = document.getElementById('statusText');
-
       let newStatus = '';
       let acceptAppointments = 'No';
 
@@ -1636,33 +1660,59 @@
         docProfile.acceptAppointments = 'No';
         newStatus = 'Offline';
         acceptAppointments = 'No';
-        dot.classList.add('offline');
-        txt.textContent = 'OFFLINE [ OFF ]';
-        txt.style.color = '#EF4444';
       } else {
         docProfile.status = 'Online & Accepting Appointments';
         docProfile.acceptAppointments = 'Yes';
         newStatus = 'Online';
         acceptAppointments = 'Yes';
-        dot.classList.remove('offline');
-        txt.textContent = 'ONLINE [ ON ]';
-        txt.style.color = '#065F46';
       }
       localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
       syncRegistry();
+      updateStatusUI();
 
-      // Broadcast to JDBC Java Backend
+      const isOnlineNow = newStatus === 'Online';
+      const cleanDocId = docProfile.doctorId || 'DOC10084';
+
+      // 1. Post to Neon Database API
       fetch('/api/doctor/toggle-availability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          doctorId: docProfile.doctorId || currentUserEmail,
+          doctorId: cleanDocId,
+          email: currentUserEmail,
           status: newStatus,
           acceptAppointments: acceptAppointments
         })
       }).catch(e => {});
 
+      // 2. Cross-tab Broadcast Channel
+      try {
+        const ch = new BroadcastChannel('niramaya_doctor_availability_channel');
+        ch.postMessage({
+          doctorId: cleanDocId,
+          email: currentUserEmail,
+          name: docProfile.name,
+          dept: docProfile.dept || 'General Medicine',
+          status: docProfile.status,
+          isAvailable: isOnlineNow,
+          acceptAppointments: acceptAppointments,
+          timestamp: Date.now()
+        });
+        setTimeout(() => ch.close(), 500);
+      } catch(e) {}
+
+      // 3. Trigger localStorage storage event
+      localStorage.setItem('niramaya_doctor_availability_broadcast', JSON.stringify({
+        doctorId: cleanDocId,
+        email: currentUserEmail,
+        name: docProfile.name,
+        dept: docProfile.dept || 'General Medicine',
+        status: docProfile.status,
+        isAvailable: isOnlineNow,
+        timestamp: Date.now()
+      }));
       window.dispatchEvent(new Event('storage'));
+
       showToast(`Status updated: ${docProfile.status}`);
     }
 

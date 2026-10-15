@@ -303,6 +303,7 @@
     <ul class="nav-list">
       <li class="nav-item active" id="navDashboard"><a href="#" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge"></i> ⚡ Today's Active Work</a></li>
       <li class="nav-item" id="navPending"><a href="#" onclick="switchTab('pending')"><i class="fa-solid fa-clock"></i> Pending Queue</a></li>
+      <li class="nav-item" id="navBilling"><a href="#" onclick="switchTab('billing')"><i class="fa-solid fa-file-invoice-dollar"></i> 🧾 Invoices & Billing</a></li>
       <li class="nav-item" id="navGenerate"><a href="#" onclick="openGenerateModal()"><i class="fa-solid fa-file-signature"></i> Generate Report</a></li>
       <li class="nav-item" id="navCompleted"><a href="#" onclick="switchTab('completed')"><i class="fa-solid fa-circle-check"></i> 📜 Completed History</a></li>
       <li class="nav-item" id="navSearch"><a href="#" onclick="switchTab('search')"><i class="fa-solid fa-magnifying-glass"></i> Patient Search</a></li>
@@ -315,7 +316,14 @@
   <main class="main-content">
     <header class="header">
       <h1 id="pageTitle">Laboratory Diagnostics Console</h1>
-      <div style="display:flex; align-items:center; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="user-pill" id="labOnlineDocsBadge" style="background:#DCFCE7; color:#15803D; font-weight:700; border:1px solid #86EFAC;">
+          <i class="fa-solid fa-stethoscope"></i>
+          <span id="labOnlineDocsCountText">0 Available Doctors</span>
+        </div>
+        <button class="btn btn-primary" onclick="openLabInvoiceModal()" style="font-weight:700; background:var(--primary); box-shadow:0 4px 12px rgba(11,79,154,0.25);">
+          <i class="fa-solid fa-receipt"></i> + Generate Lab Invoice
+        </button>
         <button class="btn btn-success" onclick="openLabDailyReportModal()" style="font-weight:700; box-shadow: 0 4px 12px rgba(0,200,83,0.3);">📩 Send Daily Report</button>
         <div class="user-pill">
           <i class="fa-solid fa-user-gear"></i>
@@ -425,6 +433,38 @@
         </table>
       </div>
 
+      <!-- Tab: Lab Invoices & Billing Management -->
+      <div id="viewBilling" class="table-card" style="display:none; padding:24px;">
+        <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+          <div>
+            <h3 style="margin:0;"><i class="fa-solid fa-file-invoice-dollar" style="color:var(--primary);"></i> Laboratory Diagnostic Invoices & Bills</h3>
+            <p style="margin:4px 0 0 0; color:var(--ink-soft); font-size:0.85rem;">Create, edit, itemize test fees, and generate tax invoices with real-time on-duty doctor assignment.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" onclick="renderLabInvoicesTable()"><i class="fa-solid fa-rotate"></i> Refresh Invoices</button>
+            <button class="btn btn-primary" onclick="openLabInvoiceModal()" style="font-weight:700;"><i class="fa-solid fa-plus"></i> + Create New Lab Invoice</button>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Booking Ref</th>
+              <th>Patient ID & Name</th>
+              <th>Referring Doctor</th>
+              <th>Tests / Investigation</th>
+              <th>Total Bill (₹)</th>
+              <th>Payment Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="labInvoicesTableBody">
+            <!-- Dynamically populated invoices -->
+          </tbody>
+        </table>
+      </div>
+
       <!-- Tab: Profile -->
       <div id="viewProfile" class="table-card" style="display:none; padding:32px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
@@ -505,6 +545,174 @@
         <button class="btn btn-secondary" onclick="closePreviewModal()"><i class="fa-solid fa-xmark"></i> Close</button>
       </div>
       <div id="previewContainer" style="border:1px solid var(--border); padding:24px; border-radius:12px; background:#fff;"></div>
+    </div>
+  </div>
+
+  <!-- Modal for Lab Invoice & Bill Generation / Editing -->
+  <div class="modal-overlay" id="labInvoiceModal">
+    <div class="modal-box" style="width: 860px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:12px;">
+        <h3 style="font-family:'Sora',sans-serif; color:var(--ink); margin:0; display:flex; align-items:center; gap:8px;">
+          <span>🧾</span>
+          <span id="labInvoiceModalTitle">Generate / Edit Laboratory Diagnostic Invoice</span>
+        </h3>
+        <button class="btn btn-secondary" onclick="closeLabInvoiceModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="labInvoiceForm" onsubmit="saveLabInvoice(event)">
+        <!-- Top Metadata Row -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px;">
+          <div>
+            <label style="font-weight:700; font-size:0.8rem; color:#0F2A4A;">Invoice Number</label>
+            <input type="text" id="labInvNumber" class="form-control" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border); font-family:monospace; font-weight:700;" required>
+          </div>
+          <div>
+            <label style="font-weight:700; font-size:0.8rem; color:#0F2A4A;">Booking / Order Ref ID</label>
+            <input type="text" id="labInvBookingId" class="form-control" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border);" placeholder="LAB-100842">
+          </div>
+          <div>
+            <label style="font-weight:700; font-size:0.8rem; color:#0F2A4A;">Invoice Date</label>
+            <input type="date" id="labInvDate" class="form-control" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border);" required>
+          </div>
+        </div>
+
+        <!-- Patient & Doctor Row -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div style="background:#F8FAFC; padding:12px; border-radius:10px; border:1px solid #E2E8F0;">
+            <div style="font-weight:700; font-size:0.85rem; color:#0F2A4A; margin-bottom:8px;">Patient Information</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <div>
+                <label style="font-size:0.75rem; font-weight:600;">Patient ID</label>
+                <input type="text" id="labInvPatientId" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #CBD5E1;" placeholder="PT100842" required>
+              </div>
+              <div>
+                <label style="font-size:0.75rem; font-weight:600;">Patient Name</label>
+                <input type="text" id="labInvPatientName" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #CBD5E1;" placeholder="Patient Full Name" required>
+              </div>
+              <div>
+                <label style="font-size:0.75rem; font-weight:600;">Age / Gender</label>
+                <input type="text" id="labInvAgeGender" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #CBD5E1;" placeholder="28 Yrs / Female">
+              </div>
+              <div>
+                <label style="font-size:0.75rem; font-weight:600;">Phone / Contact</label>
+                <input type="text" id="labInvPhone" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #CBD5E1;" placeholder="+91 98765 43210">
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#F0FDFA; padding:12px; border-radius:10px; border:1px solid #CCFBF1;">
+            <div style="font-weight:700; font-size:0.85rem; color:#0F766E; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+              <span>Referring / Prescribing Doctor *</span>
+              <span style="font-size:0.72rem; color:#059669; font-weight:700;">🟢 Available Only</span>
+            </div>
+            <div>
+              <label style="font-size:0.75rem; font-weight:600; color:#134E4A;">Select On-Duty Available Doctor</label>
+              <select id="labInvDoctorSelect" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #5EEAD4; font-weight:600; color:#0F172A; background:#fff;" required>
+                <!-- Populated strictly with currently available online doctors -->
+              </select>
+              <div id="labInvDocNotice" style="font-size:0.75rem; color:#0D9488; margin-top:6px; font-weight:600;">
+                ✓ Showing only doctors currently logged in and accepting appointments.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Editable Line Items Table -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-weight:700; font-size:0.9rem; color:#0F2A4A;">Diagnostic Tests & Investigation Line Items (Editable)</div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addLabInvoiceLineItem()" style="font-size:0.75rem; font-weight:700;">
+              + Add Diagnostic Test
+            </button>
+          </div>
+          <table style="width:100%; font-size:0.82rem; border-collapse:collapse; background:#fff; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+            <thead>
+              <tr style="background:#F8FAFC; text-align:left;">
+                <th style="padding:8px 10px;">Test / Service Name</th>
+                <th style="padding:8px 10px; width:130px;">Department</th>
+                <th style="padding:8px 10px; width:100px;">Price (₹)</th>
+                <th style="padding:8px 10px; width:90px;">Disc (%)</th>
+                <th style="padding:8px 10px; width:90px;">GST (%)</th>
+                <th style="padding:8px 10px; width:110px;">Line Total (₹)</th>
+                <th style="padding:8px 10px; width:50px;"></th>
+              </tr>
+            </thead>
+            <tbody id="labInvoiceItemsBody">
+              <!-- Dynamically added rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Billing Calculation & Payment Summary Row -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:20px; background:#F8FAFC; padding:16px; border-radius:10px; border:1px solid var(--border);">
+          <div>
+            <div style="font-weight:700; font-size:0.85rem; color:#0F2A4A; margin-bottom:10px;">Payment & Settlement</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div>
+                <label style="font-size:0.75rem; font-weight:600;">Payment Status</label>
+                <select id="labInvPayStatus" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #CBD5E1; font-weight:700;">
+                  <option value="Paid">Paid ✓</option>
+                  <option value="Pending">Pending ⏳</option>
+                  <option value="Partial">Partial</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:0.75rem; font-weight:600;">Payment Mode</label>
+                <select id="labInvPayMode" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #CBD5E1;">
+                  <option value="UPI">UPI / QR</option>
+                  <option value="Cash">Cash at Counter</option>
+                  <option value="Card">Debit / Credit Card</option>
+                  <option value="Net Banking">Net Banking</option>
+                  <option value="Insurance">Insurance / TPA</option>
+                </select>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <label style="font-size:0.75rem; font-weight:600;">Transaction / Reference ID</label>
+                <input type="text" id="labInvTxnId" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #CBD5E1;" placeholder="TXN-981245">
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align:right; display:flex; flex-direction:column; justify-content:center; gap:6px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748B;">
+              <span>Gross Subtotal:</span>
+              <span id="lblLabInvSubtotal" style="font-weight:700; color:#0F2A4A;">₹0.00</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748B;">
+              <span>Discount:</span>
+              <span id="lblLabInvDiscount" style="font-weight:700; color:#059669;">- ₹0.00</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748B;">
+              <span>GST Tax:</span>
+              <span id="lblLabInvTax" style="font-weight:700; color:#0F2A4A;">+ ₹0.00</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:1.15rem; font-weight:800; color:var(--primary); padding-top:6px; border-top:1px dashed #CBD5E1;">
+              <span>Net Grand Total:</span>
+              <span id="lblLabInvTotal">₹0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeLabInvoiceModal()">Cancel</button>
+          <button type="button" class="btn btn-teal" onclick="printLabInvoiceReceipt()"><i class="fa-solid fa-print"></i> Print Official Receipt</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save & Confirm Invoice</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for Lab Invoice Receipt Print View -->
+  <div class="modal-overlay" id="labReceiptPrintModal">
+    <div class="modal-box" style="width:720px; max-width:95vw; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-family:'Sora',sans-serif; margin:0;">📄 Tax Invoice & Laboratory Bill Receipt</h3>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Receipt</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('labReceiptPrintModal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div id="labReceiptContent" style="background:#fff; border:1px solid var(--border); border-radius:10px; padding:24px;"></div>
     </div>
   </div>
 
@@ -616,7 +824,10 @@
           <td><strong style="color:var(--primary);">${b.testName}</strong></td>
           <td>${b.bookingDate || 'Today'}</td>
           <td><span style="color:#059669; font-weight:600;"><i class="fa-solid fa-circle-check"></i> ${pay}</span></td>
-          <td style="display:flex; gap:8px;">
+          <td style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" style="padding:6px 10px; font-size:0.8rem; background:#F1F5F9; color:#0F2A4A; font-weight:700;" onclick="openLabInvoiceModal('${b.bookingId}')">
+              <i class="fa-solid fa-file-invoice-dollar"></i> 🧾 Edit Bill
+            </button>
             <button class="btn btn-primary" onclick="openGenerateModalFor('${b.bookingId}')">
               <i class="fa-solid fa-file-signature"></i> Generate Report
             </button>
@@ -722,11 +933,17 @@
       document.getElementById('viewCompleted').style.display = 'none';
       document.getElementById('viewSearch').style.display = 'none';
       document.getElementById('viewProfile').style.display = 'none';
+      if (document.getElementById('viewBilling')) document.getElementById('viewBilling').style.display = 'none';
 
       if (tab === 'dashboard' || tab === 'pending') {
         document.getElementById('navDashboard').classList.add('active');
         document.getElementById('viewQueue').style.display = 'block';
         document.getElementById('pageTitle').textContent = 'Laboratory Diagnostics Console — Queue';
+      } else if (tab === 'billing') {
+        if (document.getElementById('navBilling')) document.getElementById('navBilling').classList.add('active');
+        if (document.getElementById('viewBilling')) document.getElementById('viewBilling').style.display = 'block';
+        document.getElementById('pageTitle').textContent = 'Laboratory Diagnostic Invoices & Billing';
+        renderLabInvoicesTable();
       } else if (tab === 'completed') {
         document.getElementById('navCompleted').classList.add('active');
         document.getElementById('viewCompleted').style.display = 'block';
@@ -1029,13 +1246,556 @@
       }
     }
 
+    // =============================================================
+    // LAB INVOICES, BILLING & AVAILABLE DOCTOR SELECTION ENGINE
+    // =============================================================
+    async function loadLabOnlineDoctors() {
+      try {
+        let dbDocs = [];
+        try {
+          const res = await fetch('/api/doctors?availableOnly=true');
+          if (res.ok) dbDocs = await res.json();
+        } catch(e) {}
+
+        let localReg = [];
+        try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+
+        const merged = new Map();
+        if (Array.isArray(dbDocs)) {
+          dbDocs.forEach(d => {
+            const k = (d.doctorId || d.email || d.name || '').toLowerCase();
+            merged.set(k, d);
+          });
+        }
+
+        localReg.forEach(lr => {
+          const k = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+          if (merged.has(k)) {
+            const ex = merged.get(k);
+            merged.set(k, {
+              ...ex,
+              ...lr,
+              status: lr.status || ex.status,
+              availableStatus: lr.status || ex.availableStatus,
+              isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
+              acceptAppointments: lr.acceptAppointments || ex.acceptAppointments
+            });
+          } else {
+            merged.set(k, lr);
+          }
+        });
+
+        const availableDocs = Array.from(merged.values()).filter(d => {
+          const st = (d.status || d.availableStatus || '').toLowerCase();
+          return (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+        });
+
+        const countText = document.getElementById('labOnlineDocsCountText');
+        const badge = document.getElementById('labOnlineDocsBadge');
+        if (countText) countText.textContent = `${availableDocs.length} Available Doctors`;
+        if (badge) badge.style.background = availableDocs.length > 0 ? '#DCFCE7' : '#F1F5F9';
+
+        // Keep dropdown updated if modal is currently open
+        const modal = document.getElementById('labInvoiceModal');
+        if (modal && modal.classList.contains('show')) {
+          const curVal = document.getElementById('labInvDoctorSelect')?.value;
+          populateLabInvoiceDoctorSelect(curVal);
+        }
+      } catch(e) {
+        console.error('Error loading online doctors in lab:', e);
+      }
+    }
+
+    async function populateLabInvoiceDoctorSelect(selectedDocName = '') {
+      const sel = document.getElementById('labInvDoctorSelect');
+      if (!sel) return;
+
+      sel.innerHTML = '<option value="">⏳ Checking available online doctors...</option>';
+
+      let dbDocs = [];
+      try {
+        const res = await fetch('/api/doctors?availableOnly=true');
+        if (res.ok) dbDocs = await res.json();
+      } catch(e) {}
+
+      let localReg = [];
+      try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+
+      const merged = new Map();
+      if (Array.isArray(dbDocs)) {
+        dbDocs.forEach(d => {
+          const k = (d.doctorId || d.email || d.name || '').toLowerCase();
+          merged.set(k, d);
+        });
+      }
+
+      localReg.forEach(lr => {
+        const k = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+        if (merged.has(k)) {
+          const ex = merged.get(k);
+          merged.set(k, {
+            ...ex,
+            ...lr,
+            status: lr.status || ex.status,
+            availableStatus: lr.status || ex.availableStatus,
+            isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
+            acceptAppointments: lr.acceptAppointments || ex.acceptAppointments
+          });
+        } else {
+          merged.set(k, lr);
+        }
+      });
+
+      // STRICT REQUIREMENT: Only currently available/online doctors should be shown in that dropdown menu!
+      const availableDocs = Array.from(merged.values()).filter(d => {
+        const st = (d.status || d.availableStatus || '').toLowerCase();
+        return (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+      });
+
+      if (availableDocs.length === 0) {
+        sel.innerHTML = '<option value="" disabled selected>⚠️ No doctors currently online & accepting appointments</option>';
+        return;
+      }
+
+      sel.innerHTML = '<option value="">-- Choose Available Online Doctor --</option>' + availableDocs.map(d => {
+        const name = d.doctorName || d.name || 'Doctor';
+        const dept = d.department || d.dept || d.category || 'General Medicine';
+        const isMatch = selectedDocName && name.toLowerCase().includes(selectedDocName.toLowerCase()) ? 'selected' : '';
+        return `<option value="${name}" data-dept="${dept}" ${isMatch}>${name} (${dept}) — 🟢 Online & Accepting</option>`;
+      }).join('');
+    }
+
+    function openLabInvoiceModal(bookingIdOrInvoiceNo) {
+      const modal = document.getElementById('labInvoiceModal');
+      if (!modal) return;
+
+      let existingInvoice = null;
+      let invoices = [];
+      try { invoices = JSON.parse(localStorage.getItem('niramaya_lab_invoices') || '[]'); } catch(e){}
+
+      if (bookingIdOrInvoiceNo) {
+        existingInvoice = invoices.find(inv => inv.invoiceNo === bookingIdOrInvoiceNo || inv.bookingId === bookingIdOrInvoiceNo);
+      }
+
+      let booking = null;
+      if (bookingIdOrInvoiceNo && allBookings) {
+        booking = allBookings.find(b => b.bookingId === bookingIdOrInvoiceNo);
+      }
+
+      const invNo = existingInvoice ? existingInvoice.invoiceNo : ('LAB-INV-' + Math.floor(100000 + Math.random() * 900000));
+      const bId = existingInvoice ? existingInvoice.bookingId : (booking ? booking.bookingId : ('LAB-' + Math.floor(100000 + Math.random() * 900000)));
+      const pId = existingInvoice ? existingInvoice.patientId : (booking ? (booking.patientId || 'PT100842') : 'PT100842');
+      const pName = existingInvoice ? existingInvoice.patientName : (booking ? (booking.patientName || 'Rekha Prasad') : 'Rekha Prasad');
+      const ageGen = existingInvoice ? existingInvoice.ageGender : (booking ? `${booking.patientAge || '28 Yrs'} / ${booking.patientGender || 'Female'}` : '28 Yrs / Female');
+      const phone = existingInvoice ? existingInvoice.phone : '+91 98765 43210';
+      const docName = existingInvoice ? existingInvoice.doctorName : (booking ? (booking.doctorName || '') : '');
+      const payStatus = existingInvoice ? existingInvoice.paymentStatus : (booking ? (booking.paymentStatus || 'Paid') : 'Paid');
+      const payMode = existingInvoice ? (existingInvoice.paymentMode || 'UPI') : 'UPI';
+      const txnId = existingInvoice ? (existingInvoice.txnId || 'TXN-' + Date.now().toString().slice(-6)) : ('TXN-' + Date.now().toString().slice(-6));
+      const invDate = existingInvoice ? (existingInvoice.date?.split('T')[0] || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+
+      document.getElementById('labInvoiceModalTitle').textContent = existingInvoice ? `✏️ Edit Laboratory Invoice — ${invNo}` : `🧾 Generate New Laboratory Diagnostic Invoice`;
+      document.getElementById('labInvNumber').value = invNo;
+      document.getElementById('labInvBookingId').value = bId;
+      document.getElementById('labInvDate').value = invDate;
+      document.getElementById('labInvPatientId').value = pId;
+      document.getElementById('labInvPatientName').value = pName;
+      document.getElementById('labInvAgeGender').value = ageGen;
+      document.getElementById('labInvPhone').value = phone;
+      document.getElementById('labInvPayStatus').value = payStatus;
+      document.getElementById('labInvPayMode').value = payMode;
+      document.getElementById('labInvTxnId').value = txnId;
+
+      populateLabInvoiceDoctorSelect(docName);
+
+      const itemsBody = document.getElementById('labInvoiceItemsBody');
+      itemsBody.innerHTML = '';
+
+      if (existingInvoice && Array.isArray(existingInvoice.items) && existingInvoice.items.length > 0) {
+        existingInvoice.items.forEach(it => {
+          addLabInvoiceLineItem(it.name, it.dept, it.fee, it.disc, it.tax);
+        });
+      } else if (booking) {
+        addLabInvoiceLineItem(booking.testName || 'Complete Blood Count (CBC)', booking.department || 'Hematology', 650, 0, 5);
+      } else {
+        addLabInvoiceLineItem('Complete Blood Count (CBC)', 'Hematology', 650, 0, 5);
+        addLabInvoiceLineItem('Lipid Profile Panel', 'Biochemistry', 950, 5, 5);
+      }
+
+      calcLabInvoiceTotals();
+      modal.classList.add('show');
+    }
+
+    function closeLabInvoiceModal() {
+      const modal = document.getElementById('labInvoiceModal');
+      if (modal) modal.classList.remove('show');
+    }
+
+    function addLabInvoiceLineItem(name = '', dept = 'Pathology', fee = 650, disc = 0, tax = 5) {
+      const tbody = document.getElementById('labInvoiceItemsBody');
+      if (!tbody) return;
+      const row = document.createElement('tr');
+      row.style.borderBottom = '1px solid #E2E8F0';
+      row.innerHTML = `
+        <td style="padding:6px 8px;">
+          <input type="text" class="item-name" value="${name}" placeholder="e.g. Complete Blood Count (CBC)" style="width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px;" required>
+        </td>
+        <td style="padding:6px 8px;">
+          <input type="text" class="item-dept" value="${dept}" placeholder="Hematology" style="width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px;">
+        </td>
+        <td style="padding:6px 8px;">
+          <input type="number" step="0.01" class="item-fee" value="${fee}" oninput="calcLabInvoiceTotals()" style="width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px; font-weight:700;" required>
+        </td>
+        <td style="padding:6px 8px;">
+          <input type="number" step="0.01" class="item-disc" value="${disc}" oninput="calcLabInvoiceTotals()" style="width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px;">
+        </td>
+        <td style="padding:6px 8px;">
+          <input type="number" step="0.01" class="item-tax" value="${tax}" oninput="calcLabInvoiceTotals()" style="width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px;">
+        </td>
+        <td style="padding:6px 8px; font-weight:700; color:#0F2A4A;">
+          ₹<span class="item-total">0.00</span>
+        </td>
+        <td style="padding:6px 8px; text-align:center;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="removeLabInvoiceLineItem(this)" style="padding:4px 8px; color:#EF4444;" title="Delete item">✕</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+      calcLabInvoiceTotals();
+    }
+
+    function removeLabInvoiceLineItem(btn) {
+      const row = btn.closest('tr');
+      if (row) row.remove();
+      calcLabInvoiceTotals();
+    }
+
+    function calcLabInvoiceTotals() {
+      const rows = document.querySelectorAll('#labInvoiceItemsBody tr');
+      let grossSubtotal = 0;
+      let totalDiscount = 0;
+      let totalTax = 0;
+
+      rows.forEach(r => {
+        const fee = parseFloat(r.querySelector('.item-fee')?.value || 0) || 0;
+        const discPct = parseFloat(r.querySelector('.item-disc')?.value || 0) || 0;
+        const taxPct = parseFloat(r.querySelector('.item-tax')?.value || 0) || 0;
+
+        const discAmt = fee * (discPct / 100);
+        const afterDisc = fee - discAmt;
+        const taxAmt = afterDisc * (taxPct / 100);
+        const lineTotal = afterDisc + taxAmt;
+
+        const totalSpan = r.querySelector('.item-total');
+        if (totalSpan) totalSpan.textContent = lineTotal.toFixed(2);
+
+        grossSubtotal += fee;
+        totalDiscount += discAmt;
+        totalTax += taxAmt;
+      });
+
+      const netTotal = grossSubtotal - totalDiscount + totalTax;
+
+      const lblSub = document.getElementById('lblLabInvSubtotal');
+      const lblDisc = document.getElementById('lblLabInvDiscount');
+      const lblTax = document.getElementById('lblLabInvTax');
+      const lblTot = document.getElementById('lblLabInvTotal');
+
+      if (lblSub) lblSub.textContent = `₹${grossSubtotal.toFixed(2)}`;
+      if (lblDisc) lblDisc.textContent = `- ₹${totalDiscount.toFixed(2)}`;
+      if (lblTax) lblTax.textContent = `+ ₹${totalTax.toFixed(2)}`;
+      if (lblTot) lblTot.textContent = `₹${netTotal.toFixed(2)}`;
+    }
+
+    async function saveLabInvoice(e) {
+      if (e) e.preventDefault();
+
+      const docSel = document.getElementById('labInvDoctorSelect');
+      const selectedDoc = docSel?.value;
+      if (!selectedDoc) {
+        alert('⚠️ Please select an available on-duty doctor from the dropdown menu.');
+        return;
+      }
+
+      const invNo = document.getElementById('labInvNumber').value.trim();
+      const bId = document.getElementById('labInvBookingId').value.trim();
+      const pId = document.getElementById('labInvPatientId').value.trim();
+      const pName = document.getElementById('labInvPatientName').value.trim();
+      const ageGen = document.getElementById('labInvAgeGender').value.trim();
+      const phone = document.getElementById('labInvPhone').value.trim();
+      const payStatus = document.getElementById('labInvPayStatus').value;
+      const payMode = document.getElementById('labInvPayMode').value;
+      const txnId = document.getElementById('labInvTxnId').value.trim();
+      const invDate = document.getElementById('labInvDate').value;
+
+      const rows = document.querySelectorAll('#labInvoiceItemsBody tr');
+      const items = [];
+      let grossSub = 0, totDisc = 0, totTax = 0;
+
+      rows.forEach(r => {
+        const name = r.querySelector('.item-name')?.value || 'Diagnostic Test';
+        const dept = r.querySelector('.item-dept')?.value || 'Pathology';
+        const fee = parseFloat(r.querySelector('.item-fee')?.value || 0) || 0;
+        const disc = parseFloat(r.querySelector('.item-disc')?.value || 0) || 0;
+        const tax = parseFloat(r.querySelector('.item-tax')?.value || 0) || 0;
+        const discAmt = fee * (disc / 100);
+        const taxAmt = (fee - discAmt) * (tax / 100);
+        const total = (fee - discAmt) + taxAmt;
+
+        items.push({ name, dept, fee, disc, tax, total });
+        grossSub += fee;
+        totDisc += discAmt;
+        totTax += taxAmt;
+      });
+
+      const grandTotal = grossSub - totDisc + totTax;
+
+      const invoiceObj = {
+        invoiceNo: invNo,
+        bookingId: bId,
+        patientId: pId,
+        patientName: pName,
+        ageGender: ageGen,
+        phone: phone,
+        doctorName: selectedDoc,
+        items: items,
+        subtotal: grossSub,
+        discount: totDisc,
+        tax: totTax,
+        totalAmount: grandTotal,
+        paymentStatus: payStatus,
+        paymentMode: payMode,
+        txnId: txnId,
+        date: invDate || new Date().toISOString()
+      };
+
+      // 1. Save to local storage registry
+      let invoices = [];
+      try { invoices = JSON.parse(localStorage.getItem('niramaya_lab_invoices') || '[]'); } catch(e){}
+      const existingIdx = invoices.findIndex(i => i.invoiceNo === invNo || i.bookingId === bId);
+      if (existingIdx >= 0) {
+        invoices[existingIdx] = invoiceObj;
+      } else {
+        invoices.unshift(invoiceObj);
+      }
+      localStorage.setItem('niramaya_lab_invoices', JSON.stringify(invoices));
+
+      // 2. Update booking in local queue
+      try {
+        let bookings = JSON.parse(localStorage.getItem('niramaya_lab_bookings') || '[]');
+        let bk = bookings.find(b => b.bookingId === bId);
+        if (bk) {
+          bk.doctorName = selectedDoc;
+          bk.amount = grandTotal;
+          bk.paymentStatus = payStatus;
+          bk.patientName = pName;
+        } else {
+          bookings.unshift({
+            bookingId: bId,
+            patientId: pId,
+            patientName: pName,
+            doctorName: selectedDoc,
+            amount: grandTotal,
+            paymentStatus: payStatus,
+            testName: items.map(i=>i.name).join(', ')
+          });
+        }
+        localStorage.setItem('niramaya_lab_bookings', JSON.stringify(bookings));
+      } catch(e){}
+
+      // 3. Post to backend payment endpoint if applicable
+      fetch('/api/lab/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: bId,
+          patientId: pId,
+          amount: grandTotal,
+          paymentMode: payMode,
+          transactionId: txnId,
+          status: payStatus
+        })
+      }).catch(e=>{});
+
+      closeLabInvoiceModal();
+      showToast(`✅ Laboratory Invoice ${invNo} successfully saved & confirmed!`);
+      renderLabInvoicesTable();
+      fetchBookings();
+    }
+
+    function renderLabInvoicesTable() {
+      const tbody = document.getElementById('labInvoicesTableBody');
+      if (!tbody) return;
+
+      let invoices = [];
+      try { invoices = JSON.parse(localStorage.getItem('niramaya_lab_invoices') || '[]'); } catch(e){}
+
+      if (invoices.length === 0) {
+        // Pre-populate with default real invoice
+        invoices = [{
+          invoiceNo: 'LAB-INV-100842',
+          bookingId: 'LAB-100842',
+          patientId: 'PT100842',
+          patientName: 'Rekha Prasad',
+          doctorName: 'Dr. Ananya Rao',
+          items: [{ name: 'Complete Blood Count (CBC)', dept: 'Hematology', fee: 650, total: 682.50 }],
+          totalAmount: 682.50,
+          paymentStatus: 'Paid',
+          paymentMode: 'UPI',
+          date: '2026-07-30'
+        }];
+        localStorage.setItem('niramaya_lab_invoices', JSON.stringify(invoices));
+      }
+
+      tbody.innerHTML = invoices.map(inv => {
+        const testsStr = Array.isArray(inv.items) ? inv.items.map(i => i.name).join(', ') : 'Diagnostics Panel';
+        const isPaid = (inv.paymentStatus || '').toLowerCase() === 'paid';
+        const statusBadge = isPaid 
+          ? `<span style="background:#DCFCE7; color:#15803D; font-weight:700; padding:4px 10px; border-radius:12px; font-size:0.75rem;">✓ Paid</span>`
+          : `<span style="background:#FEF3C7; color:#B45309; font-weight:700; padding:4px 10px; border-radius:12px; font-size:0.75rem;">⏳ ${inv.paymentStatus || 'Pending'}</span>`;
+
+        return `
+          <tr style="border-bottom:1px solid var(--border);">
+            <td><strong style="color:var(--primary); font-family:monospace;">${inv.invoiceNo}</strong></td>
+            <td><code>${inv.bookingId || '-'}</code></td>
+            <td><b>${inv.patientName}</b><br><small style="color:var(--ink-soft);">${inv.patientId}</small></td>
+            <td><strong style="color:#0F2A4A;">${inv.doctorName}</strong></td>
+            <td><span style="color:var(--ink);">${testsStr}</span></td>
+            <td><strong style="color:var(--primary); font-family:'Sora';">₹${(inv.totalAmount || 0).toFixed(2)}</strong></td>
+            <td>${statusBadge}</td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-secondary btn-sm" onclick="openLabInvoiceModal('${inv.invoiceNo}')" style="padding:4px 8px; font-size:0.75rem;">
+                  ✏️ Edit Bill
+                </button>
+                <button class="btn btn-teal btn-sm" onclick="printLabInvoiceReceipt('${inv.invoiceNo}')" style="padding:4px 8px; font-size:0.75rem;">
+                  🖨️ Receipt
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function printLabInvoiceReceipt(invNo) {
+      let invoices = [];
+      try { invoices = JSON.parse(localStorage.getItem('niramaya_lab_invoices') || '[]'); } catch(e){}
+
+      let inv = invoices.find(i => i.invoiceNo === invNo);
+      if (!inv && invoices.length > 0) inv = invoices[0];
+      if (!inv) {
+        inv = {
+          invoiceNo: document.getElementById('labInvNumber')?.value || 'LAB-INV-100842',
+          bookingId: document.getElementById('labInvBookingId')?.value || 'LAB-100842',
+          patientId: document.getElementById('labInvPatientId')?.value || 'PT100842',
+          patientName: document.getElementById('labInvPatientName')?.value || 'Rekha Prasad',
+          doctorName: document.getElementById('labInvDoctorSelect')?.value || 'Dr. Ananya Rao',
+          totalAmount: parseFloat(document.getElementById('lblLabInvTotal')?.textContent?.replace('₹','') || '682.50'),
+          paymentStatus: document.getElementById('labInvPayStatus')?.value || 'Paid',
+          paymentMode: document.getElementById('labInvPayMode')?.value || 'UPI',
+          date: document.getElementById('labInvDate')?.value || '2026-07-30',
+          items: [{ name: 'Complete Blood Count (CBC)', dept: 'Hematology', fee: 650, total: 682.50 }]
+        };
+      }
+
+      const receiptHtml = `
+        <div style="font-family:'Segoe UI',sans-serif; color:#0F172A; max-width:650px; margin:auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--primary); padding-bottom:12px; margin-bottom:16px;">
+            <div>
+              <h2 style="margin:0; color:var(--primary); font-family:'Sora';">Niramaya Hospitals</h2>
+              <p style="margin:2px 0 0 0; font-size:0.8rem; color:#64748B;">Central Clinical Diagnostics & Pathology Laboratory</p>
+              <p style="margin:2px 0 0 0; font-size:0.75rem; color:#64748B;">GSTIN: 29AAAAA0000A1Z5 · Bengaluru, India</p>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:1.1rem; font-weight:800; color:var(--primary);">TAX INVOICE / CASH BILL</div>
+              <div style="font-family:monospace; font-weight:700; font-size:0.9rem;">${inv.invoiceNo}</div>
+              <div style="font-size:0.8rem; color:#64748B;">Date: ${inv.date?.split('T')[0] || '2026-07-30'}</div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; background:#F8FAFC; padding:12px; border-radius:8px; margin-bottom:16px; font-size:0.85rem;">
+            <div>
+              <div><b>Patient ID:</b> ${inv.patientId}</div>
+              <div><b>Patient Name:</b> ${inv.patientName}</div>
+              <div><b>Booking Ref:</b> ${inv.bookingId}</div>
+            </div>
+            <div>
+              <div><b>Recommending Doctor:</b> <span style="color:var(--primary); font-weight:700;">${inv.doctorName}</span></div>
+              <div><b>Payment Mode:</b> ${inv.paymentMode || 'UPI'} (${inv.paymentStatus || 'Paid'})</div>
+              <div><b>Billing Status:</b> <span style="color:#059669; font-weight:700;">CONFIRMED ✓</span></div>
+            </div>
+          </div>
+
+          <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:0.85rem;">
+            <thead>
+              <tr style="background:#E2E8F0; text-align:left;">
+                <th style="padding:8px;">#</th>
+                <th style="padding:8px;">Test / Investigation Item</th>
+                <th style="padding:8px;">Dept</th>
+                <th style="padding:8px; text-align:right;">Net Fee (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(inv.items || [{name:'Diagnostic Test', dept:'Lab', total:inv.totalAmount}]).map((it, idx) => `
+                <tr style="border-bottom:1px solid #E2E8F0;">
+                  <td style="padding:8px;">${idx+1}</td>
+                  <td style="padding:8px;"><b>${it.name}</b></td>
+                  <td style="padding:8px;">${it.dept || 'Pathology'}</td>
+                  <td style="padding:8px; text-align:right; font-weight:700;">₹${(it.total || it.fee || 0).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="border-top:2px solid #0F172A; font-weight:800; font-size:1.05rem;">
+                <td colspan="3" style="padding:10px 8px; text-align:right;">Total Amount Paid:</td>
+                <td style="padding:10px 8px; text-align:right; color:var(--primary);">₹${(inv.totalAmount || 0).toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:24px; padding-top:14px; border-top:1px dashed #CBD5E1; font-size:0.75rem; color:#64748B;">
+            <div>
+              ✓ Electronically verified diagnostic bill.<br>
+              Authorized by Niramaya Healthcare Pathology System.
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:700; color:#0F172A;">Authorized Diagnostic Officer</div>
+              <div>Hospital Billing Desk</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const contentDiv = document.getElementById('labReceiptContent');
+      if (contentDiv) contentDiv.innerHTML = receiptHtml;
+      const modal = document.getElementById('labReceiptPrintModal');
+      if (modal) modal.classList.add('show');
+    }
+
+    // Real-time synchronization listeners for Lab Portal
     window.addEventListener('storage', (e) => {
       fetchBookings();
+      loadLabOnlineDoctors();
+      renderLabInvoicesTable();
     });
+
+    try {
+      const labDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
+      labDocChannel.onmessage = (msg) => {
+        console.log('⚡ [Lab Console] Live doctor status update:', msg.data);
+        loadLabOnlineDoctors();
+        if (msg.data && msg.data.isAvailable) {
+          showToast(`🩺 ${msg.data.name || 'A Doctor'} is now Online & Accepting Appointments!`);
+        }
+      };
+    } catch(e){}
 
     window.onload = function() {
       fetchBookings();
+      loadLabOnlineDoctors();
+      renderLabInvoicesTable();
       setInterval(fetchBookings, 15000);
+      setInterval(loadLabOnlineDoctors, 5000);
     };
 
     function openLabDailyReportModal() {

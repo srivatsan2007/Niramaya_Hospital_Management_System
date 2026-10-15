@@ -1229,6 +1229,39 @@
           </div>
         </div>
 
+        <!-- On-Duty & Available Doctors Live Status Monitor -->
+        <div class="card" style="border: 2px solid #0D9488; background: #F0FDFA; margin-bottom: 24px;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(13,148,136,0.2); padding-bottom:12px;">
+            <div>
+              <div class="card-title" style="color: #0F766E; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.3rem;">🩺</span>
+                <span>On-Duty & Available Doctors Live Monitor</span>
+                <span class="badge-count" id="badgeOnlineDoctorsCount" style="background:#0D9488; color:#fff; font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:700;">0 Online</span>
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">Real-time presence monitoring of physicians accepting patient consultations across all hospital departments.</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="loadLiveDoctorAvailability()">🔄 Refresh Doctors</button>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr style="background: rgba(13,148,136,0.08);">
+                  <th>Doctor ID</th>
+                  <th>Doctor Name</th>
+                  <th>Department / Specialty</th>
+                  <th>Consultation Fee</th>
+                  <th>Working Hours</th>
+                  <th>Presence & Availability Status</th>
+                  <th>Quick Action</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAdminLiveDoctors">
+                <tr><td colspan="7" style="text-align:center; padding:16px;">Loading active physicians...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Counter Payments & Unpaid Patient Tokens Ticket Center -->
         <div class="card" style="border: 2px solid #E8A94C; background: #FFFDF9;">
           <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(232,169,76,0.3); padding-bottom:12px;">
@@ -2503,6 +2536,7 @@
     async function loadAllLiveStats() {
       try {
         loadCounterPaymentsTable();
+        loadLiveDoctorAvailability();
         const res = await fetch("/api/admin/stats");
         const data = await res.json();
 
@@ -2615,19 +2649,33 @@
         return;
       }
 
-      tbody.innerHTML = filtered.map(s => `
-        <tr>
-          <td><strong>${s.employeeCode || s.staffId || '-'}</strong></td>
-          <td><b>${s.fullName || s.name || '-'}</b></td>
-          <td><span class="badge badge-info">${s.role || 'Staff'}</span></td>
-          <td>${s.email || '-'}<br><span style="font-size:0.75rem; color:var(--text-muted);">${s.mobile || s.phone || ''}</span></td>
-          <td>${s.department || 'General'}</td>
-          <td><span class="badge ${s.status === 'Active' ? 'badge-success' : 'badge-danger'}">${s.status || 'Active'}</span></td>
-          <td>
-            <button class="btn btn-secondary btn-sm" onclick="toggleUserStatus('${s.employeeCode}', '${s.status}')">Toggle</button>
-          </td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = filtered.map(s => {
+        let isDoc = (s.role || '').toLowerCase() === 'doctor';
+        let docStatusBadge = '';
+        if (isDoc) {
+          let regDocs = [];
+          try { regDocs = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+          const matched = regDocs.find(d => (d.email && d.email.toLowerCase() === (s.email||'').toLowerCase()) || (d.name && d.name.toLowerCase() === (s.fullName||s.name||'').toLowerCase()));
+          const isOnline = matched ? Boolean(matched.isAvailable) : (s.status === 'Active');
+          docStatusBadge = isOnline 
+            ? `<br><span class="badge" style="background:#DCFCE7; color:#15803D; font-size:0.7rem; font-weight:700;">🟢 Online</span>`
+            : `<br><span class="badge" style="background:#FEE2E2; color:#B91C1C; font-size:0.7rem; font-weight:700;">🔴 Offline</span>`;
+        }
+
+        return `
+          <tr>
+            <td><strong>${s.employeeCode || s.staffId || '-'}</strong></td>
+            <td><b>${s.fullName || s.name || '-'}</b></td>
+            <td><span class="badge badge-info">${s.role || 'Staff'}</span></td>
+            <td>${s.email || '-'}<br><span style="font-size:0.75rem; color:var(--text-muted);">${s.mobile || s.phone || ''}</span></td>
+            <td>${s.department || 'General'}</td>
+            <td><span class="badge ${s.status === 'Active' ? 'badge-success' : 'badge-danger'}">${s.status || 'Active'}</span>${docStatusBadge}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="toggleUserStatus('${s.employeeCode}', '${s.status}')">Toggle</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
     async function toggleUserStatus(code, currentStatus) {
@@ -2639,6 +2687,173 @@
       });
       loadUserManagementTable();
     }
+
+    // -------------------------------------------------------------
+    // LIVE DOCTOR AVAILABILITY MONITOR FOR ADMIN ERP
+    // -------------------------------------------------------------
+    async function loadLiveDoctorAvailability() {
+      try {
+        let dbDocs = [];
+        try {
+          const res = await fetch("/api/doctors");
+          if (res.ok) dbDocs = await res.json();
+        } catch(e) {}
+
+        let localReg = [];
+        try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+
+        const merged = new Map();
+        if (Array.isArray(dbDocs)) {
+          dbDocs.forEach(d => {
+            const k = (d.doctorId || d.email || d.name || '').toLowerCase();
+            merged.set(k, d);
+          });
+        }
+
+        localReg.forEach(lr => {
+          const k = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+          if (merged.has(k)) {
+            const ex = merged.get(k);
+            merged.set(k, {
+              ...ex,
+              ...lr,
+              status: lr.status || ex.status,
+              availableStatus: lr.status || ex.availableStatus,
+              isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
+              acceptAppointments: lr.acceptAppointments || ex.acceptAppointments
+            });
+          } else {
+            merged.set(k, lr);
+          }
+        });
+
+        const docs = Array.from(merged.values());
+        const tbody = document.getElementById("tbodyAdminLiveDoctors");
+        const badge = document.getElementById("badgeOnlineDoctorsCount");
+
+        let onlineCount = 0;
+        docs.forEach(d => {
+          const st = (d.status || d.availableStatus || '').toLowerCase();
+          const isOnline = (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+          if (isOnline) onlineCount++;
+        });
+
+        if (badge) {
+          badge.textContent = `${onlineCount} Online & Accepting`;
+          badge.style.background = onlineCount > 0 ? '#0D9488' : '#64748B';
+        }
+
+        if (!tbody) return;
+        if (docs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:16px;">No physician records found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = docs.map(d => {
+          const st = (d.status || d.availableStatus || '').toLowerCase();
+          const isOnline = (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+          const docId = d.doctorId || d.id || '-';
+          const docName = d.doctorName || d.name || 'Doctor';
+          const dept = d.department || d.dept || d.category || 'General Medicine';
+          const fee = d.consultationFees || d.consultationFee || d.fee || 800;
+          const hours = d.workingHours || d.timing || '09:00 AM - 05:00 PM';
+
+          const statusBadge = isOnline
+            ? `<span class="badge" style="background:#DCFCE7; color:#15803D; font-weight:700; padding:4px 10px; border-radius:20px; display:inline-flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:50%; background:#22C55E; display:inline-block; box-shadow:0 0 8px #22C55E;"></span> Online & Accepting Appointments</span>`
+            : `<span class="badge" style="background:#FEE2E2; color:#B91C1C; font-weight:700; padding:4px 10px; border-radius:20px; display:inline-flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:50%; background:#EF4444; display:inline-block;"></span> Offline / On Leave</span>`;
+
+          return `
+            <tr>
+              <td><strong>${docId}</strong></td>
+              <td><b>${docName}</b></td>
+              <td><span class="badge badge-info">${dept}</span></td>
+              <td><b>₹${fee}</b></td>
+              <td>${hours}</td>
+              <td>${statusBadge}</td>
+              <td>
+                <button class="btn btn-sm ${isOnline ? 'btn-secondary' : 'btn-primary'}" style="padding:4px 10px; font-size:0.75rem; font-weight:700;" onclick="adminToggleDoctorAvailability('${docId}', '${d.email || ''}', ${isOnline})">
+                  ${isOnline ? '🔴 Set Offline' : '🟢 Set Online'}
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch(e) {
+        console.error("Error loading live doctor availability:", e);
+      }
+    }
+
+    async function adminToggleDoctorAvailability(docId, email, currentIsOnline) {
+      const newStatus = currentIsOnline ? 'Offline' : 'Online';
+      const newAccept = currentIsOnline ? 'No' : 'Yes';
+
+      // 1. Update local registry
+      let localReg = [];
+      try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
+      let item = localReg.find(d => (d.doctorId && d.doctorId === docId) || (d.email && d.email === email));
+      if (item) {
+        item.status = currentIsOnline ? 'Offline / On Leave' : 'Online & Accepting Appointments';
+        item.isAvailable = !currentIsOnline;
+        item.acceptAppointments = newAccept;
+        item.updatedAt = Date.now();
+      } else {
+        localReg.push({
+          doctorId: docId,
+          email: email,
+          status: currentIsOnline ? 'Offline / On Leave' : 'Online & Accepting Appointments',
+          isAvailable: !currentIsOnline,
+          acceptAppointments: newAccept,
+          updatedAt: Date.now()
+        });
+      }
+      localStorage.setItem('niramaya_doctors_registry', JSON.stringify(localReg));
+
+      // 2. Call backend
+      fetch('/api/doctor/toggle-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctorId: docId || email, status: newStatus, acceptAppointments: newAccept })
+      }).catch(e=>{});
+
+      // 3. Broadcast to all open tabs/portals
+      try {
+        const ch = new BroadcastChannel('niramaya_doctor_availability_channel');
+        ch.postMessage({ doctorId: docId, status: newStatus, isAvailable: !currentIsOnline, timestamp: Date.now() });
+        setTimeout(() => ch.close(), 500);
+      } catch(e){}
+
+      localStorage.setItem('niramaya_doctor_availability_broadcast', JSON.stringify({
+        doctorId: docId,
+        email: email,
+        status: currentIsOnline ? 'Offline' : 'Online',
+        isAvailable: !currentIsOnline,
+        timestamp: Date.now()
+      }));
+      window.dispatchEvent(new Event('storage'));
+
+      loadLiveDoctorAvailability();
+    }
+
+    // Real-time synchronization listeners for Admin Dashboard
+    window.addEventListener('storage', (e) => {
+      if (!e.key || e.key === 'niramaya_doctors_registry' || e.key === 'niramaya_doctor_availability_broadcast') {
+        loadLiveDoctorAvailability();
+        filterUserTable();
+      }
+    });
+
+    try {
+      const adminDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
+      adminDocChannel.onmessage = (msg) => {
+        console.log('⚡ [Admin Dashboard] Live doctor status update:', msg.data);
+        loadLiveDoctorAvailability();
+        filterUserTable();
+      };
+    } catch(e){}
+
+    setInterval(() => {
+      loadLiveDoctorAvailability();
+    }, 5000);
 
     async function loadCounterPaymentsTable() {
       try {

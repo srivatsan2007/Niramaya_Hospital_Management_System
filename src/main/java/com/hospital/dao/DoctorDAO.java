@@ -78,13 +78,17 @@ public class DoctorDAO {
 
     public boolean updateAvailability(String doctorIdOrEmail, String status, String acceptAppointments) {
         boolean acceptBool = "Yes".equalsIgnoreCase(acceptAppointments) || "true".equalsIgnoreCase(acceptAppointments) || "1".equals(acceptAppointments);
+        String dbStatus = (status != null && status.toLowerCase().contains("online")) ? "Online" : (status != null && status.toLowerCase().contains("offline")) ? "Offline" : status;
+        if (dbStatus != null && dbStatus.length() > 20) {
+            dbStatus = dbStatus.substring(0, 20);
+        }
         String sql = "UPDATE doctors SET available_status = ?, status = ?, appointment_available = ?, accept_appointments = ? WHERE doctor_id = ? OR LOWER(email) = LOWER(?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, status);
-            ps.setString(2, status);
+            ps.setString(1, dbStatus);
+            ps.setString(2, dbStatus);
             ps.setBoolean(3, acceptBool);
-            ps.setString(4, acceptAppointments);
+            ps.setString(4, acceptAppointments != null && acceptAppointments.length() > 20 ? acceptAppointments.substring(0, 20) : acceptAppointments);
             ps.setString(5, doctorIdOrEmail);
             ps.setString(6, doctorIdOrEmail);
 
@@ -140,7 +144,7 @@ public class DoctorDAO {
 
     public List<Doctor> getOnlineAvailableDoctors() {
         List<Doctor> list = new ArrayList<>();
-        String sql = "SELECT * FROM doctors WHERE (appointment_available = true OR accept_appointments = 'Yes' OR accept_appointments = '1' OR accept_appointments = 'true') ORDER BY doctor_id ASC";
+        String sql = "SELECT * FROM doctors WHERE (appointment_available = true OR accept_appointments = 'Yes' OR accept_appointments = '1' OR accept_appointments = 'true') AND (available_status IS NULL OR (LOWER(available_status) NOT LIKE '%offline%' AND LOWER(available_status) NOT LIKE '%leave%' AND LOWER(available_status) NOT LIKE '%inactive%')) AND (status IS NULL OR (LOWER(status) NOT LIKE '%offline%' AND LOWER(status) NOT LIKE '%leave%' AND LOWER(status) NOT LIKE '%inactive%')) ORDER BY doctor_id ASC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {

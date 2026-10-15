@@ -3589,57 +3589,100 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
 
   async function getActiveDoctorsList() {
     try {
-      const res = await fetch('/api/doctors');
-      if (res.ok) {
-        const dbDocs = await res.json();
-        if (Array.isArray(dbDocs) && dbDocs.length > 0) {
-          activeDoctorsCache = dbDocs.map(d => {
-            const docId = d.doctorId || d.id || 'DOC1001';
-            const docName = d.doctorName || d.name || 'Dr. Doctor';
-            const email = d.email || '';
-            const dept = d.category || d.department || d.specialization || 'General Medicine';
-            const fee = parseFloat(d.consultationFees || d.consultationFee || 500);
-            const qualification = d.qualification || 'MBBS';
-            const days = d.workingDays || d.availableDays || 'Mon - Sat';
-            const hours = d.workingHours || d.availableTime || '09:00 AM - 05:00 PM';
-            const status = d.availableStatus || d.status || 'Online';
-            const acceptAppt = d.acceptAppointments !== 'No' && d.appointmentAvailable !== false;
-            const isOnline = status.toLowerCase().includes('online') && acceptAppt;
+      let dbDocs = [];
+      try {
+        const res = await fetch('/api/doctors');
+        if (res.ok) dbDocs = await res.json();
+      } catch(e) {}
 
-            const avatar = docName.replace(/^dr\.\s*/i, '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
-            const exp = d.age ? `${d.age} Yrs (${qualification})` : qualification;
+      // Merge with live central registry from localStorage for instant 0-latency multi-tab updates
+      let localReg = [];
+      try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
 
-            // Divide doctor's registered working hours into 20-minute interval slots
-            const calculatedSlots = generateDynamicTimeSlots(hours);
+      // Map of docs
+      const mergedDocsMap = new Map();
 
-            return {
-              id: docId,
-              email: email,
-              name: docName,
-              role: `${dept} Specialist · ${qualification}`,
-              dept: dept,
-              rating: '5.0 ★ (New)',
-              experience: exp,
-              fee: fee,
-              avatar: avatar,
-              timing: `${hours} (${days})`,
-              days: days,
-              status: status + (isOnline ? ' & Accepting Appointments' : ' (Offline)'),
-              isAvailable: isOnline,
-              acceptAppointments: acceptAppt ? 'Yes' : 'No',
-              todaySlots: calculatedSlots,
-              tomorrowSlots: calculatedSlots
-            };
+      // Seed with API docs
+      if (Array.isArray(dbDocs)) {
+        dbDocs.forEach(d => {
+          const key = (d.doctorId || d.email || d.name || '').toLowerCase();
+          mergedDocsMap.set(key, d);
+        });
+      }
+
+      // Merge local live registry entries (takes precedence for instant status update)
+      localReg.forEach(lr => {
+        const key = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+        if (mergedDocsMap.has(key)) {
+          const ex = mergedDocsMap.get(key);
+          mergedDocsMap.set(key, {
+            ...ex,
+            ...lr,
+            status: lr.status || ex.status,
+            availableStatus: lr.status || ex.availableStatus,
+            isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
+            acceptAppointments: lr.acceptAppointments || ex.acceptAppointments
           });
-
-          // Filter out offline doctors
-          return activeDoctorsCache.filter(d => d.isAvailable);
+        } else {
+          mergedDocsMap.set(key, lr);
         }
+      });
+
+      const combinedDocs = Array.from(mergedDocsMap.values());
+
+      if (combinedDocs.length > 0) {
+        activeDoctorsCache = combinedDocs.map(d => {
+          const docId = d.doctorId || d.id || 'DOC1001';
+          const docName = d.doctorName || d.name || 'Dr. Doctor';
+          const email = d.email || '';
+          const dept = d.category || d.department || d.specialization || d.dept || 'General Medicine';
+          const fee = parseFloat(d.consultationFees || d.consultationFee || d.fee || 500);
+          const qualification = d.qualification || 'MBBS, MD';
+          const days = d.workingDays || d.availableDays || d.days || 'Mon - Sat';
+          const hours = d.workingHours || d.availableTime || d.timing || '09:00 AM - 05:00 PM';
+          const status = d.availableStatus || d.status || 'Online';
+          
+          let isOnline = false;
+          if (d.isAvailable !== undefined) {
+            isOnline = Boolean(d.isAvailable);
+          } else {
+            const acceptAppt = d.acceptAppointments !== 'No' && d.appointmentAvailable !== false;
+            isOnline = status.toLowerCase().includes('online') && acceptAppt;
+          }
+
+          const avatar = docName.replace(/^dr\.\s*/i, '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
+          const exp = d.experience || (d.age ? `${d.age} Yrs (${qualification})` : qualification);
+
+          // Divide doctor's registered working hours into 20-minute interval slots
+          const calculatedSlots = generateDynamicTimeSlots(hours);
+
+          return {
+            id: docId,
+            email: email,
+            name: docName,
+            role: `${dept} Specialist · ${qualification}`,
+            dept: dept,
+            rating: '5.0 ★ (Verified)',
+            experience: exp,
+            fee: fee,
+            avatar: avatar,
+            timing: `${hours} (${days})`,
+            days: days,
+            status: isOnline ? 'Online & Accepting Appointments' : 'Offline / On Leave',
+            isAvailable: isOnline,
+            acceptAppointments: isOnline ? 'Yes' : 'No',
+            todaySlots: calculatedSlots,
+            tomorrowSlots: calculatedSlots
+          };
+        });
+
+        // Filter out offline doctors for appointment booking
+        return activeDoctorsCache.filter(d => d.isAvailable);
       }
     } catch(e) {
-      console.error('Error fetching live doctors from Neon PostgreSQL database:', e);
+      console.error('Error fetching live doctors:', e);
     }
-    return activeDoctorsCache;
+    return activeDoctorsCache.filter(d => d.isAvailable);
   }
 
   // Real-time synchronization when doctor updates status or issues prescription in Doctor Console
@@ -3647,6 +3690,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     if (
       !e.key || 
       e.key === 'niramaya_doctors_registry' || 
+      e.key === 'niramaya_doctor_availability_broadcast' || 
       e.key === 'niramaya_all_appointments' || 
       e.key === 'niramaya_all_prescriptions' || 
       e.key.startsWith('niramaya_doc_profile_') || 
@@ -3654,8 +3698,27 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     ) {
       renderDoctors();
       renderUserBookings();
+      if (typeof populateLabDoctorDropdown === 'function') populateLabDoctorDropdown();
     }
   });
+
+  // Cross-Tab Instant Doctor Availability Channel
+  try {
+    const liveDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
+    liveDocChannel.onmessage = (msg) => {
+      console.log('⚡ [Patient Portal] Real-time doctor availability update:', msg.data);
+      renderDoctors();
+      if (typeof populateLabDoctorDropdown === 'function') populateLabDoctorDropdown();
+      if (msg.data && msg.data.isAvailable) {
+        showToast(`🩺 ${msg.data.name || 'A Doctor'} is now Online & Accepting Appointments!`);
+      }
+    };
+  } catch(e) {}
+
+  // Periodic fallback sync every 5 seconds
+  setInterval(() => {
+    renderDoctors();
+  }, 5000);
 
   // Render Doctor Cards from Neon PostgreSQL Database
   async function renderDoctors() {
@@ -3758,7 +3821,10 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
             <div style="display:flex; gap:12px; align-items:center;">
               <div class="avatar" style="width:48px; height:48px; font-size:1.1rem; background:linear-gradient(135deg,var(--blue-700),var(--teal-500)); color:#fff; font-weight:700;">${doc.avatar}</div>
               <div>
-                <b style="font-family:'Sora'; font-size:1.05rem; display:block; color:var(--blue-900);">${doc.name}</b>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <b style="font-family:'Sora'; font-size:1.05rem; color:var(--blue-900);">${doc.name}</b>
+                  <span class="badge" style="background:#DCFCE7; color:#15803D; font-weight:700; font-size:0.7rem; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; border-radius:50%; background:#22C55E; display:inline-block; box-shadow:0 0 6px #22C55E;"></span> Online & Accepting</span>
+                </div>
                 <span style="font-size:0.8rem; color:var(--teal-500); font-weight:700;">${doc.dept}</span>
               </div>
             </div>
@@ -5460,23 +5526,21 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
         });
       }
 
-      // Convert Map to array
-      let finalDocs = Array.from(allDoctorsMap.values());
+      // Convert Map to array and filter ONLY AVAILABLE ONLINE DOCTORS
+      let finalDocs = Array.from(allDoctorsMap.values()).filter(d => {
+        if (d.isAvailable !== undefined) return Boolean(d.isAvailable);
+        if (d.status) return d.status.toLowerCase().includes('online') || d.status.toLowerCase().includes('accept');
+        return true;
+      });
 
-      // Fallback if empty
       if (finalDocs.length === 0) {
-        finalDocs = [
-          { id: 'DOC1001', name: 'Dr. Priya Sharma', dept: 'General Medicine' },
-          { id: 'DOC1002', name: 'Dr. Rajesh Kumar', dept: 'Cardiology' },
-          { id: 'DOC1003', name: 'Dr. Ananya Rao', dept: 'Cardiology' },
-          { id: 'DOC1004', name: 'Dr. Srivatsan R', dept: 'Neurology' },
-          { id: 'DOC1005', name: 'Dr. Meera Nambiar', dept: 'Pediatrics' }
-        ];
+        selectDocEl.innerHTML = '<option value="" disabled selected>⚠️ No doctors currently online & accepting appointments</option>';
+        return;
       }
 
       selectDocEl.innerHTML = finalDocs.map(d => {
         const isSel = recDocName && d.name.toLowerCase().includes(recDocName.toLowerCase()) ? 'selected' : '';
-        return `<option value="${d.id}" data-docname="${d.name}" data-docdept="${d.dept}" ${isSel}>${d.name} (${d.dept})</option>`;
+        return `<option value="${d.id}" data-docname="${d.name}" data-docdept="${d.dept}" ${isSel}>${d.name} (${d.dept}) — 🟢 Online</option>`;
       }).join('');
     }
 

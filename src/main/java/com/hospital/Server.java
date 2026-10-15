@@ -741,6 +741,9 @@ public class Server {
             Map<String, String> fields = parseJsonFlat(body);
 
             String doctorId = fields.getOrDefault("doctorId", "").trim();
+            if (doctorId.isEmpty()) {
+                doctorId = fields.getOrDefault("email", "").trim();
+            }
             String status = fields.getOrDefault("status", "Offline").trim();
             String acceptAppointments = fields.getOrDefault("acceptAppointments", "No").trim();
 
