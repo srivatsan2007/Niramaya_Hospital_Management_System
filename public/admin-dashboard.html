@@ -764,6 +764,104 @@
     .notif-item:last-child {
       border-bottom: none;
     }
+
+    /* Bed Card Styles for IPD Management */
+    .bed-grid-layout {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 16px;
+    }
+    .bed-card {
+      background: var(--paper);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+    }
+    .bed-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+    .bed-card.available { border-top: 4px solid var(--success); }
+    .bed-card.occupied { border-top: 4px solid var(--danger); background: rgba(239, 68, 68, 0.02); }
+    .bed-card.maintenance { border-top: 4px solid var(--warning); background: rgba(245, 158, 11, 0.02); }
+    
+    .bed-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      display: inline-block;
+      width: fit-content;
+    }
+    .badge-avail { background: var(--success-soft); color: var(--success); }
+    .badge-occ { background: var(--danger-soft); color: var(--danger); }
+    .badge-maint { background: var(--warning-soft); color: var(--warning); }
+
+    /* Official Birth Certificate Styling */
+    .birth-cert-paper {
+      background: #FFFDF9;
+      border: 4px double #B45309;
+      border-radius: 12px;
+      padding: 32px 28px;
+      color: #1E293B;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    .birth-cert-paper::before {
+      content: 'NIRAMAYA HOSPITALS';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: rgba(180, 83, 9, 0.04);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* Mobile Responsive Overrides */
+    @media (max-width: 992px) {
+      .main-wrapper {
+        margin-left: 0 !important;
+        width: 100% !important;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr !important;
+      }
+      .topbar {
+        padding: 0 14px !important;
+      }
+      .page-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+      }
+      .modal-content {
+        width: 95% !important;
+        max-width: 95vw !important;
+        padding: 18px !important;
+        margin: auto !important;
+      }
+    }
+    @media (max-width: 576px) {
+      .form-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .form-group.full {
+        grid-column: span 1 !important;
+      }
+      .search-box {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 
@@ -900,6 +998,38 @@
         </div>
       </li>
 
+      <!-- 🏥 Option A: OT Surgery Registry -->
+      <li class="nav-item">
+        <div class="nav-header" onclick="switchNavView('viewSurgery', this)">
+          <div class="nav-title-group">
+            <span>🏥</span>
+            <span>OT Surgery Registry</span>
+          </div>
+          <span class="badge-count" id="cntSurgeries" style="background:#0D6EFD; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:10px;">0</span>
+        </div>
+      </li>
+
+      <!-- 👶 Option A: Maternity & Birth Registry -->
+      <li class="nav-item">
+        <div class="nav-header" onclick="switchNavView('viewBirths', this)">
+          <div class="nav-title-group">
+            <span>👶</span>
+            <span>Birth Registry</span>
+          </div>
+          <span class="badge-count" id="cntBirths" style="background:#10B981; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:10px;">0</span>
+        </div>
+      </li>
+
+      <!-- 🛏️ Option B: IPD Bed & Admission Management -->
+      <li class="nav-item">
+        <div class="nav-header" onclick="switchNavView('viewIpdBeds', this)">
+          <div class="nav-title-group">
+            <span>🛏️</span>
+            <span>IPD & Bed Allocation</span>
+          </div>
+          <span class="badge-count" id="cntActiveIpd" style="background:#8B5CF6; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:10px;">0</span>
+        </div>
+      </li>
 
       <!-- 🗄️ Database Management Center -->
       <li class="nav-item">
@@ -1548,6 +1678,231 @@
         </div>
       </section>
 
+      <!-- ================= 10.6 OPERATION THEATER & SURGERY REGISTRY ================= -->
+      <section id="viewSurgery" class="view-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Operation Theater (OT) & Surgery Registry</h1>
+            <p class="page-subtitle">Surgical procedures, operating suites, assigned surgeons, and post-op outcomes</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="loadSurgeriesTable()">🔄 Refresh</button>
+            <button class="btn btn-primary btn-sm" onclick="openScheduleSurgeryModal()">+ Schedule Surgery</button>
+          </div>
+        </div>
+
+        <!-- Surgery KPI Stats -->
+        <div class="stats-overview-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Total Recorded Surgeries</div>
+            <div class="stat-val" id="statTotalSurgeries">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Scheduled / Upcoming</div>
+            <div class="stat-val" id="statScheduledSurgeries" style="color:var(--primary);">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Completed Procedures</div>
+            <div class="stat-val" id="statCompletedSurgeries" style="color:var(--success);">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Active OT Suites</div>
+            <div class="stat-val" id="statOtSuites" style="color:var(--teal);">3</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div class="card-title">Surgical Schedule & Registry Log</div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <input type="text" id="filterSurgerySearch" placeholder="🔍 Search patient, surgeon, procedure..." oninput="filterSurgeriesTable()" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; width:260px;">
+              <select id="filterSurgeryStatus" onchange="filterSurgeriesTable()" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; background:#fff;">
+                <option value="ALL">All Statuses</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Post-Op Recovery">Post-Op Recovery</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container" style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Report ID</th>
+                  <th>Patient Details</th>
+                  <th>Surgeon & Anesthetist</th>
+                  <th>Procedure</th>
+                  <th>OT Suite</th>
+                  <th>Schedule</th>
+                  <th>Anesthesia</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbodySurgeries">
+                <tr><td colspan="9" style="text-align:center; padding:20px;">Loading surgery records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 10.7 MATERNITY & BIRTH REGISTRY ================= -->
+      <section id="viewBirths" class="view-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Maternity & Birth Registry</h1>
+            <p class="page-subtitle">Hospital childbirth certificates, maternal delivery logs, and neonatal vital statistics</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="loadBirthsTable()">🔄 Refresh</button>
+            <button class="btn btn-primary btn-sm" onclick="openRegisterBirthModal()">+ Register Birth</button>
+          </div>
+        </div>
+
+        <!-- Birth KPI Stats -->
+        <div class="stats-overview-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Total Registered Births</div>
+            <div class="stat-val" id="statTotalBirths">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Baby Boys (Male)</div>
+            <div class="stat-val" id="statBoys" style="color:#0284C7;">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Baby Girls (Female)</div>
+            <div class="stat-val" id="statGirls" style="color:#EC4899;">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Normal Deliveries</div>
+            <div class="stat-val" id="statNormalDeliveries" style="color:var(--success);">0</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div class="card-title">Hospital Newborn Birth Registry</div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <input type="text" id="filterBirthSearch" placeholder="🔍 Search certificate, mother, father..." oninput="filterBirthsTable()" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; width:260px;">
+              <select id="filterBirthGender" onchange="filterBirthsTable()" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; background:#fff;">
+                <option value="ALL">All Genders</option>
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container" style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Certificate #</th>
+                  <th>Baby Gender</th>
+                  <th>Mother & Father</th>
+                  <th>Birth Date & Time</th>
+                  <th>Weight</th>
+                  <th>Delivery Type</th>
+                  <th>Doctor & Pediatrician</th>
+                  <th>Blood Group</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyBirths">
+                <tr><td colspan="9" style="text-align:center; padding:20px;">Loading birth records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 10.8 IPD BED ALLOCATION & INPATIENTS ================= -->
+      <section id="viewIpdBeds" class="view-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">In-Patient Department (IPD) & Bed Allocation</h1>
+            <p class="page-subtitle">Hospital blocks, ward rooms, real-time bed occupancy, inpatient admissions, and discharges</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="loadIpdBedsData()">🔄 Refresh</button>
+            <button class="btn btn-primary btn-sm" onclick="openAdmitPatientModal()">+ Admit IPD Patient</button>
+          </div>
+        </div>
+
+        <!-- IPD KPI Stats -->
+        <div class="stats-overview-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Total Capacity (Beds)</div>
+            <div class="stat-val" id="statIpdTotalBeds">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Occupied Beds</div>
+            <div class="stat-val" id="statIpdOccupiedBeds" style="color:var(--danger);">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Available Beds</div>
+            <div class="stat-val" id="statIpdAvailableBeds" style="color:var(--success);">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Occupancy Rate</div>
+            <div class="stat-val" id="statIpdOccupancyRate" style="color:var(--primary);">0%</div>
+          </div>
+        </div>
+
+        <!-- Block Selector Pills -->
+        <div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
+          <button class="btn btn-sm btn-primary ipd-block-tab active" onclick="filterIpdBedsByBlock('ALL', this)">All Blocks</button>
+          <button class="btn btn-sm btn-secondary ipd-block-tab" onclick="filterIpdBedsByBlock('Block A - North Wing', this)">Block A (General / Semi)</button>
+          <button class="btn btn-sm btn-secondary ipd-block-tab" onclick="filterIpdBedsByBlock('Block B - South Wing', this)">Block B (Deluxe Private)</button>
+          <button class="btn btn-sm btn-secondary ipd-block-tab" onclick="filterIpdBedsByBlock('Block C - Critical Care', this)">Block C (ICU / CCU)</button>
+          <button class="btn btn-sm btn-secondary ipd-block-tab" onclick="filterIpdBedsByBlock('Block D - Maternity & Child', this)">Block D (Maternity / NICU)</button>
+        </div>
+
+        <!-- Bed Cards Grid -->
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-header">
+            <div class="card-title">Live Hospital Bed Layout Map</div>
+            <div style="display:flex; gap:16px; font-size:0.8rem; align-items:center;">
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--success);"></span> Available</span>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--danger);"></span> Occupied</span>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--warning);"></span> Maintenance</span>
+            </div>
+          </div>
+          <div class="bed-grid-layout" id="ipdBedCardsGrid">
+            <!-- Dynamically populated bed cards -->
+          </div>
+        </div>
+
+        <!-- Active Inpatients Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Currently Admitted Inpatients</div>
+          </div>
+          <div class="table-container" style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Admission ID</th>
+                  <th>Patient Details</th>
+                  <th>Block & Ward</th>
+                  <th>Room & Bed</th>
+                  <th>Attending Doctor</th>
+                  <th>Admission Date</th>
+                  <th>Expected Discharge</th>
+                  <th>Diagnosis</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyIpdAdmissions">
+                <tr><td colspan="10" style="text-align:center; padding:20px;">Loading inpatients...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ================= 11. DATABASE MANAGER CENTER ================= -->
       <section id="viewDatabaseManager" class="view-section">
 
@@ -1704,6 +2059,369 @@
     </div>
   </div>
 
+  <!-- MODAL: SCHEDULE SURGERY (OPTION A) -->
+  <div class="modal-overlay" id="modalScheduleSurgery">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🏥 Schedule New Surgical Operation</h3>
+        <button class="close-btn" onclick="closeModal('modalScheduleSurgery')">✕</button>
+      </div>
+      <form id="formScheduleSurgery" onsubmit="submitScheduleSurgery(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Patient ID</label>
+            <input type="text" id="surgPatientId" required placeholder="PT100842" value="PT100842">
+          </div>
+          <div class="form-group">
+            <label>Patient Name</label>
+            <input type="text" id="surgPatientName" required placeholder="Full Patient Name">
+          </div>
+          <div class="form-group">
+            <label>Lead Surgeon</label>
+            <select id="surgSurgeon" required>
+              <option value="Dr. Ananya Rao">Dr. Ananya Rao (Senior Cardiologist / General)</option>
+              <option value="Dr. Rajesh Kumar">Dr. Rajesh Kumar (Emergency Medicine / Trauma)</option>
+              <option value="Dr. Meera Iyer">Dr. Meera Iyer (Pediatrician / Obstetrics)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Anesthetist Name</label>
+            <input type="text" id="surgAnesthetist" placeholder="Dr. S. Nair" value="Dr. S. Nair">
+          </div>
+          <div class="form-group full">
+            <label>Surgical Procedure Name</label>
+            <input type="text" id="surgProcedure" required placeholder="e.g. Laparoscopic Appendectomy / Coronary Bypass / C-Section">
+          </div>
+          <div class="form-group">
+            <label>OT Suite / Theater</label>
+            <select id="surgOtRoom" required>
+              <option value="OT Suite 1 - General Surgery">OT Suite 1 - General Surgery</option>
+              <option value="OT Suite 2 - Emergency OT">OT Suite 2 - Emergency OT</option>
+              <option value="OT Suite 3 - Maternity & C-Section">OT Suite 3 - Maternity & C-Section</option>
+              <option value="OT Suite 4 - Cardiac & Neuro">OT Suite 4 - Cardiac & Neuro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Operation Date</label>
+            <input type="date" id="surgDate" required>
+          </div>
+          <div class="form-group">
+            <label>Estimated Start Time</label>
+            <input type="text" id="surgStartTime" placeholder="09:30 AM" value="09:30 AM" required>
+          </div>
+          <div class="form-group">
+            <label>Estimated End Time</label>
+            <input type="text" id="surgEndTime" placeholder="11:30 AM" value="11:30 AM">
+          </div>
+          <div class="form-group">
+            <label>Anesthesia Type</label>
+            <select id="surgAnesthesia">
+              <option value="General Anesthesia">General Anesthesia</option>
+              <option value="Spinal Anesthesia">Spinal Anesthesia</option>
+              <option value="Epidural Anesthesia">Epidural Anesthesia</option>
+              <option value="Local Anesthesia">Local Anesthesia</option>
+              <option value="Sedation Only">Sedation Only</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Initial Status</label>
+            <select id="surgStatus">
+              <option value="Scheduled">Scheduled</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Pre-op Notes / Special Instructions</label>
+            <textarea id="surgNotes" rows="2" placeholder="Pre-op fasting verified, NPO instructions, cross-match blood units ready..."></textarea>
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalScheduleSurgery')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Schedule Surgery</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: UPDATE SURGERY STATUS (OPTION A) -->
+  <div class="modal-overlay" id="modalUpdateSurgeryStatus">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Update Surgery Status</h3>
+        <button class="close-btn" onclick="closeModal('modalUpdateSurgeryStatus')">✕</button>
+      </div>
+      <form id="formUpdateSurgeryStatus" onsubmit="submitUpdateSurgeryStatus(event)">
+        <input type="hidden" id="updateSurgId">
+        <div style="display:flex; flex-direction:column; gap:14px; margin-top:10px;">
+          <div>
+            <label style="font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Operation Report ID</label>
+            <div id="updateSurgIdDisplay" style="font-weight:700; color:var(--primary); font-size:1.1rem; margin-top:4px;"></div>
+          </div>
+          <div class="form-group">
+            <label>Surgical Procedure Status</label>
+            <select id="updateSurgStatusSelect" required style="padding:10px; border-radius:6px; border:1px solid var(--border-color); width:100%;">
+              <option value="Scheduled">Scheduled</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Post-Op Recovery">Post-Op Recovery</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Post-Op Findings / Surgical Outcome Notes</label>
+            <textarea id="updateSurgFindings" rows="3" placeholder="Procedure outcome, specimen sent to pathology, blood loss, recovery condition..." style="padding:10px; border-radius:6px; border:1px solid var(--border-color); width:100%;"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalUpdateSurgeryStatus')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTER NEWBORN BIRTH (OPTION A) -->
+  <div class="modal-overlay" id="modalRegisterBirth">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title">👶 Register Newborn Childbirth</h3>
+        <button class="close-btn" onclick="closeModal('modalRegisterBirth')">✕</button>
+      </div>
+      <form id="formRegisterBirth" onsubmit="submitRegisterBirth(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Mother's Full Name</label>
+            <input type="text" id="birthMotherName" required placeholder="Mother's Name">
+          </div>
+          <div class="form-group">
+            <label>Father's Full Name</label>
+            <input type="text" id="birthFatherName" required placeholder="Father's Name">
+          </div>
+          <div class="form-group">
+            <label>Baby Gender</label>
+            <select id="birthGender" required>
+              <option value="Female">Female (Girl)</option>
+              <option value="Male">Male (Boy)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Birth Weight (kg)</label>
+            <input type="text" id="birthWeight" placeholder="3.25 kg" value="3.20 kg" required>
+          </div>
+          <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date" id="birthDate" required>
+          </div>
+          <div class="form-group">
+            <label>Time of Birth</label>
+            <input type="text" id="birthTime" placeholder="04:22 AM" required>
+          </div>
+          <div class="form-group">
+            <label>Delivery Type</label>
+            <select id="birthDeliveryType" required>
+              <option value="Normal Vaginal Delivery">Normal Vaginal Delivery</option>
+              <option value="Cesarean Section (C-Section)">Cesarean Section (C-Section)</option>
+              <option value="Assisted Vacuum Delivery">Assisted Vacuum Delivery</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Delivering Obstetrician</label>
+            <select id="birthDoctor" required>
+              <option value="Dr. Meera Iyer">Dr. Meera Iyer (Obstetrics & Pediatrics)</option>
+              <option value="Dr. Ananya Rao">Dr. Ananya Rao (Senior Consultant)</option>
+              <option value="Dr. Rajesh Kumar">Dr. Rajesh Kumar</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Attending Pediatrician</label>
+            <input type="text" id="birthPediatrician" placeholder="Dr. Rajesh Kumar" value="Dr. Rajesh Kumar">
+          </div>
+          <div class="form-group">
+            <label>Baby's Blood Group</label>
+            <select id="birthBloodGroup">
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Delivery / Neonatal Observation Notes</label>
+            <textarea id="birthNotes" rows="2" placeholder="Cried immediately after birth, APGAR score 9/10, BCG & Hep-B given..."></textarea>
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalRegisterBirth')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Generate Birth Certificate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: VIEW / PRINT OFFICIAL BIRTH CERTIFICATE (OPTION A) -->
+  <div class="modal-overlay" id="modalViewBirthCert">
+    <div class="modal-content" style="max-width: 680px; background:transparent; padding:0; border:none; box-shadow:none;">
+      <div class="birth-cert-paper" id="printableBirthCert">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #B45309; padding-bottom:12px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:48px; height:48px; background:linear-gradient(135deg, #0A4DA6, #0AB2A7); border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Sora'; font-weight:800; font-size:1.5rem;">N</div>
+            <div>
+              <h2 style="font-family:'Sora'; font-size:1.3rem; color:#06306B; margin:0;">NIRAMAYA HOSPITALS</h2>
+              <div style="font-size:0.75rem; color:#B45309; font-weight:700; letter-spacing:1px;">DEPARTMENT OF OBSTETRICS & PEDIATRICS</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.75rem; color:#64748B; font-weight:700;">CERTIFICATE NUMBER</div>
+            <div id="certModalNo" style="font-family:'JetBrains Mono'; font-weight:700; color:#B45309; font-size:0.95rem;">BC-2026-0000</div>
+          </div>
+        </div>
+
+        <div style="text-align:center; margin:18px 0;">
+          <h3 style="font-family:'Sora'; font-size:1.4rem; color:#06306B; letter-spacing:0.5px; text-transform:uppercase;">Certificate of Live Birth</h3>
+          <p style="font-size:0.85rem; color:#64748B; margin-top:2px;">This document certifies that the following birth occurred under medical care at Niramaya Hospital.</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; background:rgba(255,255,255,0.7); border:1px solid #E2E8F0; border-radius:10px; padding:18px; margin-bottom:18px;">
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Mother's Name</strong> <span id="certMother" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Father's Name</strong> <span id="certFather" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Baby's Gender</strong> <span id="certGender" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Birth Weight</strong> <span id="certWeight" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Date of Birth</strong> <span id="certDate" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Time of Birth</strong> <span id="certTime" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Delivery Method</strong> <span id="certDelivery" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Blood Group</strong> <span id="certBlood" style="font-weight:700; font-size:1rem; color:#0B1F33;">-</span></div>
+          <div style="grid-column:span 2;"><strong style="color:#64748B; font-size:0.78rem; text-transform:uppercase; display:block;">Clinical Notes</strong> <span id="certNotes" style="font-size:0.88rem; color:#475569;">-</span></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #CBD5E1; padding-top:20px; margin-top:20px;">
+          <div>
+            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certDoctor">Dr. Meera Iyer</div>
+            <div style="font-size:0.72rem; color:#64748B;">Attending Obstetrician & Gynecologist</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:70px; height:70px; border:2px dashed #B45309; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.65rem; color:#B45309; font-weight:700; text-transform:uppercase; padding:4px;">Official Hospital Seal</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certPediatrician">Dr. Rajesh Kumar</div>
+            <div style="font-size:0.72rem; color:#64748B;">Senior Consultant Pediatrician</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalViewBirthCert')">Close</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()">🖨️ Print Certificate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADMIT IPD PATIENT (OPTION B) -->
+  <div class="modal-overlay" id="modalAdmitPatient">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🛏️ In-Patient Department (IPD) Admission</h3>
+        <button class="close-btn" onclick="closeModal('modalAdmitPatient')">✕</button>
+      </div>
+      <form id="formAdmitPatient" onsubmit="submitAdmitPatient(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Patient ID</label>
+            <input type="text" id="admitPatientId" required placeholder="PT100842" value="PT100842">
+          </div>
+          <div class="form-group">
+            <label>Patient Full Name</label>
+            <input type="text" id="admitPatientName" required placeholder="Full Name">
+          </div>
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="admitGender">
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Age (Years)</label>
+            <input type="number" id="admitAge" min="1" max="120" value="32" required>
+          </div>
+          <div class="form-group">
+            <label>Contact Phone</label>
+            <input type="text" id="admitPhone" placeholder="+91 98765 43210" value="+91 98765 43210" required>
+          </div>
+          <div class="form-group">
+            <label>Select Bed (Available Beds Only)</label>
+            <select id="admitBedSelect" required onchange="onAdmitBedSelected()">
+              <!-- Dynamically populated available beds -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Attending Doctor</label>
+            <select id="admitDoctor" required>
+              <option value="Dr. Ananya Rao">Dr. Ananya Rao (Senior Cardiologist)</option>
+              <option value="Dr. Rajesh Kumar">Dr. Rajesh Kumar (Emergency Medicine)</option>
+              <option value="Dr. Meera Iyer">Dr. Meera Iyer (Pediatrician)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Admission Date</label>
+            <input type="date" id="admitDate" required>
+          </div>
+          <div class="form-group">
+            <label>Expected Discharge Date</label>
+            <input type="date" id="admitExpectedDischarge">
+          </div>
+          <div class="form-group">
+            <label>Advance Deposit (₹)</label>
+            <input type="number" id="admitAdvance" min="0" step="500" value="5000">
+          </div>
+          <div class="form-group full">
+            <label>Clinical Diagnosis / Reason for Admission</label>
+            <textarea id="admitDiagnosis" rows="2" placeholder="Diagnosis, symptoms, admitting medical condition..." required></textarea>
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalAdmitPatient')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Admit & Allocate Bed</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DISCHARGE IPD PATIENT (OPTION B) -->
+  <div class="modal-overlay" id="modalDischargePatient">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Discharge Inpatient</h3>
+        <button class="close-btn" onclick="closeModal('modalDischargePatient')">✕</button>
+      </div>
+      <form id="formDischargePatient" onsubmit="submitDischargePatient(event)">
+        <input type="hidden" id="dischargeAdmissionId">
+        <div style="display:flex; flex-direction:column; gap:14px; margin-top:10px;">
+          <div style="background:var(--bg-main); border:1px solid var(--border-color); border-radius:8px; padding:12px;">
+            <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Inpatient Admission</div>
+            <div id="dischargePatientSummary" style="font-weight:700; color:var(--text-main); font-size:1.05rem; margin-top:2px;"></div>
+          </div>
+          <div class="form-group">
+            <label>Discharge Date</label>
+            <input type="date" id="dischargeDateInput" required style="padding:10px; border-radius:6px; border:1px solid var(--border-color); width:100%;">
+          </div>
+          <p style="font-size:0.84rem; color:var(--text-muted); line-height:1.4;">
+            Confirming discharge will mark the admission as <strong>Discharged</strong> and immediately release the allocated bed to <strong>Available</strong> status for new patients.
+          </p>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalDischargePatient')">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background:var(--danger); border-color:var(--danger);">Confirm Discharge</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- JAVASCRIPT LOGIC -->
   <script>
     // --- 1. RBAC & ROLE CHECK ---
@@ -1721,6 +2439,9 @@
       initCharts();
       loadAllLiveStats();
       initDbManager();
+      loadSurgeriesTable();
+      loadBirthsTable();
+      loadIpdBedsData();
     });
 
     function logoutAdmin() {
@@ -2337,6 +3058,613 @@
     function toggleNotifications() {
       const dd = document.getElementById("notifDropdown");
       dd.classList.toggle("active");
+    }
+
+    // =========================================================================
+    // OPTION A: OPERATION THEATER & SURGERY REGISTRY CONTROLLER
+    // =========================================================================
+    let allSurgeriesData = [];
+
+    async function loadSurgeriesTable() {
+      try {
+        const res = await fetch("/api/operation-reports");
+        const list = await res.json();
+        allSurgeriesData = Array.isArray(list) ? list : [];
+        
+        let scheduled = 0, completed = 0;
+        allSurgeriesData.forEach(s => {
+          if (s.status === 'Completed') completed++;
+          else if (s.status === 'Scheduled' || s.status === 'In Progress') scheduled++;
+        });
+
+        document.getElementById("statTotalSurgeries").innerText = allSurgeriesData.length;
+        document.getElementById("statScheduledSurgeries").innerText = scheduled;
+        document.getElementById("statCompletedSurgeries").innerText = completed;
+        document.getElementById("cntSurgeries").innerText = allSurgeriesData.length;
+
+        renderSurgeriesTable(allSurgeriesData);
+      } catch (err) {
+        console.error("Error loading surgeries:", err);
+      }
+    }
+
+    function renderSurgeriesTable(list) {
+      const tbody = document.getElementById("tbodySurgeries");
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--text-muted);">No surgery records found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(s => {
+        let badgeClass = 'badge-primary';
+        let badgeStyle = 'background:rgba(13,110,253,0.1); color:#0D6EFD;';
+        if (s.status === 'Completed') {
+          badgeStyle = 'background:rgba(16,185,129,0.1); color:#10B981;';
+        } else if (s.status === 'In Progress') {
+          badgeStyle = 'background:rgba(245,158,11,0.1); color:#F59E0B;';
+        } else if (s.status === 'Cancelled') {
+          badgeStyle = 'background:rgba(239,68,68,0.1); color:#EF4444;';
+        }
+
+        return `
+          <tr>
+            <td><strong style="color:var(--primary); font-family:'JetBrains Mono';">${escapeHTML(s.reportId)}</strong></td>
+            <td>
+              <div style="font-weight:700;">${escapeHTML(s.patientName)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(s.patientId)}</div>
+            </td>
+            <td>
+              <div style="font-weight:600;">${escapeHTML(s.surgeonName)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">Anesthetist: ${escapeHTML(s.anesthetistName || 'N/A')}</div>
+            </td>
+            <td><strong>${escapeHTML(s.procedureName)}</strong></td>
+            <td><span class="badge" style="background:#F1F5F9; color:#334155;">${escapeHTML(s.otRoom)}</span></td>
+            <td>
+              <div>${escapeHTML(s.operationDate)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(s.startTime)} - ${escapeHTML(s.endTime || '')}</div>
+            </td>
+            <td><small>${escapeHTML(s.anesthesiaType)}</small></td>
+            <td><span style="font-size:0.75rem; font-weight:700; padding:4px 8px; border-radius:6px; ${badgeStyle}">${escapeHTML(s.status)}</span></td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="openUpdateSurgeryStatusModal('${escapeHTML(s.reportId)}', '${escapeHTML(s.status)}', '${escapeHTML(s.findingsNotes || '')}')">Update Status</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterSurgeriesTable() {
+      const q = (document.getElementById("filterSurgerySearch").value || "").toLowerCase();
+      const status = document.getElementById("filterSurgeryStatus").value;
+
+      const filtered = allSurgeriesData.filter(s => {
+        const matchesText = (s.patientName && s.patientName.toLowerCase().includes(q)) ||
+                            (s.surgeonName && s.surgeonName.toLowerCase().includes(q)) ||
+                            (s.procedureName && s.procedureName.toLowerCase().includes(q)) ||
+                            (s.reportId && s.reportId.toLowerCase().includes(q));
+        const matchesStatus = status === 'ALL' || s.status === status;
+        return matchesText && matchesStatus;
+      });
+      renderSurgeriesTable(filtered);
+    }
+
+    function openScheduleSurgeryModal() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById("surgDate").value = today;
+      document.getElementById("modalScheduleSurgery").classList.add("active");
+    }
+
+    async function submitScheduleSurgery(e) {
+      e.preventDefault();
+      const payload = {
+        patientId: document.getElementById("surgPatientId").value.trim(),
+        patientName: document.getElementById("surgPatientName").value.trim(),
+        surgeonName: document.getElementById("surgSurgeon").value.trim(),
+        anesthetistName: document.getElementById("surgAnesthetist").value.trim(),
+        procedureName: document.getElementById("surgProcedure").value.trim(),
+        otRoom: document.getElementById("surgOtRoom").value.trim(),
+        operationDate: document.getElementById("surgDate").value,
+        startTime: document.getElementById("surgStartTime").value.trim(),
+        endTime: document.getElementById("surgEndTime").value.trim(),
+        anesthesiaType: document.getElementById("surgAnesthesia").value,
+        status: document.getElementById("surgStatus").value,
+        findingsNotes: document.getElementById("surgNotes").value.trim()
+      };
+
+      try {
+        const res = await fetch("/api/operation-reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("✓ Operation Scheduled: " + data.message);
+          closeModal("modalScheduleSurgery");
+          document.getElementById("formScheduleSurgery").reset();
+          loadSurgeriesTable();
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Failed to schedule operation: " + err.message);
+      }
+    }
+
+    function openUpdateSurgeryStatusModal(reportId, currentStatus, currentNotes) {
+      document.getElementById("updateSurgId").value = reportId;
+      document.getElementById("updateSurgIdDisplay").innerText = reportId;
+      document.getElementById("updateSurgStatusSelect").value = currentStatus || "Completed";
+      document.getElementById("updateSurgFindings").value = currentNotes || "";
+      document.getElementById("modalUpdateSurgeryStatus").classList.add("active");
+    }
+
+    async function submitUpdateSurgeryStatus(e) {
+      e.preventDefault();
+      const payload = {
+        reportId: document.getElementById("updateSurgId").value,
+        status: document.getElementById("updateSurgStatusSelect").value,
+        findingsNotes: document.getElementById("updateSurgFindings").value.trim()
+      };
+
+      try {
+        const res = await fetch("/api/operation-reports/update-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("✓ " + data.message);
+          closeModal("modalUpdateSurgeryStatus");
+          loadSurgeriesTable();
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Update failed: " + err.message);
+      }
+    }
+
+    // =========================================================================
+    // OPTION A: MATERNITY & BIRTH REGISTRY CONTROLLER
+    // =========================================================================
+    let allBirthsData = [];
+
+    async function loadBirthsTable() {
+      try {
+        const res = await fetch("/api/birth-reports");
+        const list = await res.json();
+        allBirthsData = Array.isArray(list) ? list : [];
+
+        let boys = 0, girls = 0, normal = 0;
+        allBirthsData.forEach(b => {
+          if (b.babyGender === 'Male') boys++;
+          if (b.babyGender === 'Female') girls++;
+          if (b.deliveryType && b.deliveryType.toLowerCase().includes('normal')) normal++;
+        });
+
+        document.getElementById("statTotalBirths").innerText = allBirthsData.length;
+        document.getElementById("statBoys").innerText = boys;
+        document.getElementById("statGirls").innerText = girls;
+        document.getElementById("statNormalDeliveries").innerText = normal;
+        document.getElementById("cntBirths").innerText = allBirthsData.length;
+
+        renderBirthsTable(allBirthsData);
+      } catch (err) {
+        console.error("Error loading birth reports:", err);
+      }
+    }
+
+    function renderBirthsTable(list) {
+      const tbody = document.getElementById("tbodyBirths");
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--text-muted);">No birth records found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(b => {
+        const genderColor = b.babyGender === 'Male' ? '#0284C7' : '#EC4899';
+        const genderBg = b.babyGender === 'Male' ? 'rgba(2,132,199,0.1)' : 'rgba(236,72,153,0.1)';
+
+        return `
+          <tr>
+            <td><strong style="color:#B45309; font-family:'JetBrains Mono';">${escapeHTML(b.certificateNo)}</strong></td>
+            <td>
+              <span style="font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:12px; background:${genderBg}; color:${genderColor};">
+                ${b.babyGender === 'Male' ? '👦' : '👧'} ${escapeHTML(b.babyGender)}
+              </span>
+            </td>
+            <td>
+              <div style="font-weight:700;">Mother: ${escapeHTML(b.motherName)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">Father: ${escapeHTML(b.fatherName || 'N/A')}</div>
+            </td>
+            <td>
+              <div>${escapeHTML(b.birthDate)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(b.birthTime)}</div>
+            </td>
+            <td><strong>${escapeHTML(b.birthWeight)}</strong></td>
+            <td><small>${escapeHTML(b.deliveryType)}</small></td>
+            <td>
+              <div style="font-size:0.85rem; font-weight:600;">${escapeHTML(b.deliveringDoctor)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">Pediatrician: ${escapeHTML(b.pediatricianName || 'N/A')}</div>
+            </td>
+            <td><span class="badge" style="background:#F1F5F9; color:#0F172A; font-weight:700;">${escapeHTML(b.bloodGroup || 'O+')}</span></td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="viewBirthCertificate('${escapeHTML(b.certificateNo)}')">📜 View Certificate</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterBirthsTable() {
+      const q = (document.getElementById("filterBirthSearch").value || "").toLowerCase();
+      const gender = document.getElementById("filterBirthGender").value;
+
+      const filtered = allBirthsData.filter(b => {
+        const matchesText = (b.motherName && b.motherName.toLowerCase().includes(q)) ||
+                            (b.fatherName && b.fatherName.toLowerCase().includes(q)) ||
+                            (b.certificateNo && b.certificateNo.toLowerCase().includes(q));
+        const matchesGender = gender === 'ALL' || b.babyGender === gender;
+        return matchesText && matchesGender;
+      });
+      renderBirthsTable(filtered);
+    }
+
+    function openRegisterBirthModal() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById("birthDate").value = today;
+      document.getElementById("modalRegisterBirth").classList.add("active");
+    }
+
+    async function submitRegisterBirth(e) {
+      e.preventDefault();
+      const payload = {
+        motherName: document.getElementById("birthMotherName").value.trim(),
+        fatherName: document.getElementById("birthFatherName").value.trim(),
+        babyGender: document.getElementById("birthGender").value,
+        birthWeight: document.getElementById("birthWeight").value.trim(),
+        birthDate: document.getElementById("birthDate").value,
+        birthTime: document.getElementById("birthTime").value.trim(),
+        deliveryType: document.getElementById("birthDeliveryType").value,
+        deliveringDoctor: document.getElementById("birthDoctor").value,
+        pediatricianName: document.getElementById("birthPediatrician").value.trim(),
+        bloodGroup: document.getElementById("birthBloodGroup").value,
+        complicationsNotes: document.getElementById("birthNotes").value.trim()
+      };
+
+      try {
+        const res = await fetch("/api/birth-reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("✓ Childbirth Registered: " + data.message);
+          closeModal("modalRegisterBirth");
+          document.getElementById("formRegisterBirth").reset();
+          loadBirthsTable();
+          viewBirthCertificate(data.certificateNo);
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Registration failed: " + err.message);
+      }
+    }
+
+    function viewBirthCertificate(certNo) {
+      const record = allBirthsData.find(b => b.certificateNo === certNo);
+      if (!record) {
+        alert("Birth certificate details could not be found.");
+        return;
+      }
+
+      document.getElementById("certModalNo").innerText = record.certificateNo;
+      document.getElementById("certMother").innerText = record.motherName;
+      document.getElementById("certFather").innerText = record.fatherName || 'Not Stated';
+      document.getElementById("certGender").innerText = record.babyGender;
+      document.getElementById("certWeight").innerText = record.birthWeight;
+      document.getElementById("certDate").innerText = record.birthDate;
+      document.getElementById("certTime").innerText = record.birthTime;
+      document.getElementById("certDelivery").innerText = record.deliveryType;
+      document.getElementById("certBlood").innerText = record.bloodGroup || 'O+';
+      document.getElementById("certNotes").innerText = record.complicationsNotes || 'Healthy newborn delivery. Vitals stable.';
+      document.getElementById("certDoctor").innerText = record.deliveringDoctor;
+      document.getElementById("certPediatrician").innerText = record.pediatricianName || 'Dr. Rajesh Kumar';
+
+      document.getElementById("modalViewBirthCert").classList.add("active");
+    }
+
+    // =========================================================================
+    // OPTION B: IPD BED & ADMISSION MANAGEMENT CONTROLLER
+    // =========================================================================
+    let allIpdBeds = [];
+    let allIpdAdmissions = [];
+    let currentIpdBlockFilter = 'ALL';
+
+    async function loadIpdBedsData() {
+      try {
+        const [bedsRes, admsRes] = await Promise.all([
+          fetch("/api/ipd/beds"),
+          fetch("/api/ipd/admissions?status=all")
+        ]);
+        allIpdBeds = await bedsRes.json();
+        allIpdAdmissions = await admsRes.json();
+
+        let occ = 0, avail = 0;
+        allIpdBeds.forEach(b => {
+          if (b.status === 'Occupied') occ++;
+          else if (b.status === 'Available') avail++;
+        });
+
+        document.getElementById("statIpdTotalBeds").innerText = allIpdBeds.length;
+        document.getElementById("statIpdOccupiedBeds").innerText = occ;
+        document.getElementById("statIpdAvailableBeds").innerText = avail;
+        const rate = allIpdBeds.length > 0 ? Math.round((occ / allIpdBeds.length) * 100) : 0;
+        document.getElementById("statIpdOccupancyRate").innerText = rate + "%";
+        document.getElementById("cntActiveIpd").innerText = occ;
+
+        renderIpdBedCards(currentIpdBlockFilter);
+        renderIpdAdmissionsTable(allIpdAdmissions);
+      } catch (err) {
+        console.error("Error loading IPD data:", err);
+      }
+    }
+
+    function renderIpdBedCards(blockName) {
+      currentIpdBlockFilter = blockName;
+      const grid = document.getElementById("ipdBedCardsGrid");
+      const filtered = blockName === 'ALL' ? allIpdBeds : allIpdBeds.filter(b => b.blockName === blockName);
+
+      if (!filtered || filtered.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1; padding:20px; text-align:center; color:var(--text-muted);">No beds found in this block.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(b => {
+        let cardClass = 'available';
+        let badgeClass = 'badge-avail';
+        let statusLabel = 'Available';
+        if (b.status === 'Occupied') {
+          cardClass = 'occupied';
+          badgeClass = 'badge-occ';
+          statusLabel = 'Occupied';
+        } else if (b.status === 'Under Maintenance') {
+          cardClass = 'maintenance';
+          badgeClass = 'badge-maint';
+          statusLabel = 'Maintenance';
+        }
+
+        return `
+          <div class="bed-card ${cardClass}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <strong style="font-size:1.1rem; color:var(--text-main); font-family:'Sora';">${escapeHTML(b.bedNumber)}</strong>
+                <div style="font-size:0.75rem; color:var(--text-muted);">Room: ${escapeHTML(b.roomNumber)}</div>
+              </div>
+              <span class="bed-badge ${badgeClass}">${statusLabel}</span>
+            </div>
+            <div style="font-size:0.78rem; color:var(--primary); font-weight:600;">${escapeHTML(b.wardType)}</div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">${escapeHTML(b.blockName)}</div>
+            
+            ${b.status === 'Occupied' ? `
+              <div style="background:rgba(239,68,68,0.06); border-radius:6px; padding:6px 8px; margin-top:4px;">
+                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Inpatient</div>
+                <div style="font-size:0.85rem; font-weight:700; color:#EF4444;">${escapeHTML(b.currentPatientName || 'Admitted')}</div>
+              </div>
+            ` : `
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Rate: <strong>₹${b.dailyCharge}/day</strong></div>
+            `}
+
+            <div style="margin-top:auto; padding-top:6px;">
+              ${b.status === 'Available' ? `
+                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="openAdmitPatientModal('${escapeHTML(b.bedId)}')">+ Admit Here</button>
+              ` : b.status === 'Occupied' ? `
+                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="findAndDischargeBed('${escapeHTML(b.bedId)}')">Discharge</button>
+              ` : `
+                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="setBedAvailable('${escapeHTML(b.bedId)}')">Set Available</button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterIpdBedsByBlock(blockName, btn) {
+      document.querySelectorAll(".ipd-block-tab").forEach(t => {
+        t.classList.remove("active", "btn-primary");
+        t.classList.add("btn-secondary");
+      });
+      if (btn) {
+        btn.classList.add("active", "btn-primary");
+        btn.classList.remove("btn-secondary");
+      }
+      renderIpdBedCards(blockName);
+    }
+
+    function renderIpdAdmissionsTable(list) {
+      const tbody = document.getElementById("tbodyIpdAdmissions");
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--text-muted);">No inpatient admission records.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(a => {
+        const isAdmitted = a.status === 'Admitted';
+        const badgeStyle = isAdmitted ? 'background:rgba(16,185,129,0.1); color:#10B981;' : 'background:#F1F5F9; color:#64748B;';
+
+        return `
+          <tr>
+            <td><strong style="color:var(--primary); font-family:'JetBrains Mono';">${escapeHTML(a.admissionId)}</strong></td>
+            <td>
+              <div style="font-weight:700;">${escapeHTML(a.patientName)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(a.patientGender)}, ${a.patientAge} yrs | ${escapeHTML(a.patientPhone)}</div>
+            </td>
+            <td>
+              <div>${escapeHTML(a.blockName)}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(a.wardType)}</div>
+            </td>
+            <td>
+              <strong style="color:var(--primary);">${escapeHTML(a.roomNumber)} - ${escapeHTML(a.bedNumber)}</strong>
+              <div style="font-size:0.72rem; color:var(--text-muted);">${escapeHTML(a.bedId)}</div>
+            </td>
+            <td><div style="font-weight:600;">${escapeHTML(a.attendingDoctor)}</div></td>
+            <td>${escapeHTML(a.admissionDate)}</td>
+            <td>${escapeHTML(a.expectedDischargeDate || 'Pending')}</td>
+            <td><small>${escapeHTML(a.diagnosis)}</small></td>
+            <td><span style="font-size:0.75rem; font-weight:700; padding:4px 8px; border-radius:6px; ${badgeStyle}">${escapeHTML(a.status)}</span></td>
+            <td>
+              ${isAdmitted ? `
+                <button class="btn btn-secondary btn-sm" style="color:var(--danger);" onclick="openDischargeModal('${escapeHTML(a.admissionId)}', '${escapeHTML(a.patientName)}', '${escapeHTML(a.bedId)}')">Discharge</button>
+              ` : `
+                <span style="font-size:0.75rem; color:var(--text-muted);">Discharged: ${escapeHTML(a.actualDischargeDate || '')}</span>
+              `}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openAdmitPatientModal(preselectedBedId) {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById("admitDate").value = today;
+
+      // Populate available beds dropdown
+      const sel = document.getElementById("admitBedSelect");
+      const availBeds = allIpdBeds.filter(b => b.status === 'Available');
+
+      if (availBeds.length === 0) {
+        sel.innerHTML = `<option value="">No available beds (Hospital Full)</option>`;
+      } else {
+        sel.innerHTML = availBeds.map(b => `
+          <option value="${escapeHTML(b.bedId)}" data-block="${escapeHTML(b.blockName)}" data-ward="${escapeHTML(b.wardType)}" data-room="${escapeHTML(b.roomNumber)}" data-bed="${escapeHTML(b.bedNumber)}" ${b.bedId === preselectedBedId ? 'selected' : ''}>
+            ${escapeHTML(b.blockName)} | ${escapeHTML(b.roomNumber)} - ${escapeHTML(b.bedNumber)} (${escapeHTML(b.wardType)}) - ₹${b.dailyCharge}/day
+          </option>
+        `).join('');
+      }
+
+      document.getElementById("modalAdmitPatient").classList.add("active");
+    }
+
+    function onAdmitBedSelected() {
+      // Selected bed callback if needed
+    }
+
+    async function submitAdmitPatient(e) {
+      e.preventDefault();
+      const sel = document.getElementById("admitBedSelect");
+      const opt = sel.options[sel.selectedIndex];
+      if (!opt || !opt.value) {
+        alert("Please select a valid available bed.");
+        return;
+      }
+
+      const payload = {
+        patientId: document.getElementById("admitPatientId").value.trim(),
+        patientName: document.getElementById("admitPatientName").value.trim(),
+        patientGender: document.getElementById("admitGender").value,
+        patientAge: document.getElementById("admitAge").value,
+        patientPhone: document.getElementById("admitPhone").value.trim(),
+        bedId: opt.value,
+        blockName: opt.getAttribute("data-block") || "Block A - North Wing",
+        wardType: opt.getAttribute("data-ward") || "General Ward",
+        roomNumber: opt.getAttribute("data-room") || "A-101",
+        bedNumber: opt.getAttribute("data-bed") || "Bed 1",
+        attendingDoctor: document.getElementById("admitDoctor").value,
+        admissionDate: document.getElementById("admitDate").value,
+        expectedDischargeDate: document.getElementById("admitExpectedDischarge").value,
+        diagnosis: document.getElementById("admitDiagnosis").value.trim(),
+        advancePaid: document.getElementById("admitAdvance").value || "0"
+      };
+
+      try {
+        const res = await fetch("/api/ipd/admissions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("✓ " + data.message);
+          closeModal("modalAdmitPatient");
+          document.getElementById("formAdmitPatient").reset();
+          loadIpdBedsData();
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Admission failed: " + err.message);
+      }
+    }
+
+    function openDischargeModal(admId, patientName, bedId) {
+      document.getElementById("dischargeAdmissionId").value = admId;
+      document.getElementById("dischargePatientSummary").innerText = `${patientName} (${admId}) - Bed: ${bedId}`;
+      document.getElementById("dischargeDateInput").value = new Date().toISOString().split('T')[0];
+      document.getElementById("modalDischargePatient").classList.add("active");
+    }
+
+    function findAndDischargeBed(bedId) {
+      const activeAdm = allIpdAdmissions.find(a => a.bedId === bedId && a.status === 'Admitted');
+      if (activeAdm) {
+        openDischargeModal(activeAdm.admissionId, activeAdm.patientName, bedId);
+      } else {
+        setBedAvailable(bedId);
+      }
+    }
+
+    async function setBedAvailable(bedId) {
+      if (!confirm(`Mark Bed ${bedId} as Available?`)) return;
+      try {
+        const res = await fetch("/api/ipd/beds", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bedId: bedId, status: "Available" })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadIpdBedsData();
+        }
+      } catch (err) {
+        alert("Failed to update bed status: " + err.message);
+      }
+    }
+
+    async function submitDischargePatient(e) {
+      e.preventDefault();
+      const admId = document.getElementById("dischargeAdmissionId").value;
+      const dischargeDate = document.getElementById("dischargeDateInput").value;
+
+      try {
+        const res = await fetch("/api/ipd/discharge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ admissionId: admId, dischargeDate: dischargeDate })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("✓ " + data.message);
+          closeModal("modalDischargePatient");
+          loadIpdBedsData();
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Discharge failed: " + err.message);
+      }
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
   </script>
   <script src="assets/js/mobile-responsive.js"></script>

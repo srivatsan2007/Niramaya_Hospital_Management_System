@@ -1327,6 +1327,78 @@ public class DBConnection {
                     "created_at VARCHAR(50)" +
                     ");");
 
+            // --- OPTION A: Operation Theater & Birth Registry Tables ---
+            stmt.execute("CREATE TABLE IF NOT EXISTS operation_reports (" +
+                    "report_id VARCHAR(50) PRIMARY KEY, " +
+                    "patient_id VARCHAR(50), " +
+                    "patient_name VARCHAR(100), " +
+                    "surgeon_id VARCHAR(50), " +
+                    "surgeon_name VARCHAR(100), " +
+                    "anesthetist_name VARCHAR(100), " +
+                    "procedure_name VARCHAR(200) NOT NULL, " +
+                    "ot_room VARCHAR(100), " +
+                    "operation_date VARCHAR(50), " +
+                    "start_time VARCHAR(50), " +
+                    "end_time VARCHAR(50), " +
+                    "anesthesia_type VARCHAR(100), " +
+                    "status VARCHAR(50) DEFAULT 'Scheduled', " +
+                    "findings_notes TEXT, " +
+                    "created_at VARCHAR(50)" +
+                    ");");
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS birth_reports (" +
+                    "report_id VARCHAR(50) PRIMARY KEY, " +
+                    "certificate_no VARCHAR(50), " +
+                    "mother_id VARCHAR(50), " +
+                    "mother_name VARCHAR(100) NOT NULL, " +
+                    "father_name VARCHAR(100), " +
+                    "baby_gender VARCHAR(20), " +
+                    "birth_weight VARCHAR(30), " +
+                    "birth_date VARCHAR(50), " +
+                    "birth_time VARCHAR(50), " +
+                    "delivery_type VARCHAR(100), " +
+                    "delivering_doctor VARCHAR(100), " +
+                    "pediatrician_name VARCHAR(100), " +
+                    "blood_group VARCHAR(20), " +
+                    "complications_notes TEXT, " +
+                    "created_at VARCHAR(50)" +
+                    ");");
+
+            // --- OPTION B: IPD Bed & Admission Management Tables ---
+            stmt.execute("CREATE TABLE IF NOT EXISTS ipd_beds (" +
+                    "bed_id VARCHAR(50) PRIMARY KEY, " +
+                    "block_name VARCHAR(100) NOT NULL, " +
+                    "ward_type VARCHAR(100) NOT NULL, " +
+                    "room_number VARCHAR(50) NOT NULL, " +
+                    "bed_number VARCHAR(50) NOT NULL, " +
+                    "daily_charge DOUBLE PRECISION DEFAULT 1500.0, " +
+                    "status VARCHAR(50) DEFAULT 'Available', " +
+                    "current_admission_id VARCHAR(50), " +
+                    "current_patient_name VARCHAR(100)" +
+                    ");");
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS ipd_admissions (" +
+                    "admission_id VARCHAR(50) PRIMARY KEY, " +
+                    "patient_id VARCHAR(50), " +
+                    "patient_name VARCHAR(100) NOT NULL, " +
+                    "patient_gender VARCHAR(20), " +
+                    "patient_age INT, " +
+                    "patient_phone VARCHAR(30), " +
+                    "bed_id VARCHAR(50), " +
+                    "block_name VARCHAR(100), " +
+                    "ward_type VARCHAR(100), " +
+                    "room_number VARCHAR(50), " +
+                    "bed_number VARCHAR(50), " +
+                    "attending_doctor VARCHAR(100), " +
+                    "admission_date VARCHAR(50), " +
+                    "expected_discharge_date VARCHAR(50), " +
+                    "actual_discharge_date VARCHAR(50), " +
+                    "diagnosis TEXT, " +
+                    "status VARCHAR(50) DEFAULT 'Admitted', " +
+                    "advance_paid DOUBLE PRECISION DEFAULT 0.0, " +
+                    "created_at VARCHAR(50)" +
+                    ");");
+
 
             // --- POPULATE COMPREHENSIVE SEED DATA FOR ALL MODULES IF EMPTY ---
             // 1. Doctors Seed
@@ -1466,6 +1538,80 @@ public class DBConnection {
                 }
             } catch (Exception e) { System.err.println("[SQL SEED] nurses: " + e.getMessage()); }
 
+            // 11. Seed Operation Reports
+            try {
+                if (isPostgreSQL()) {
+                    stmt.execute("INSERT INTO operation_reports (report_id, patient_id, patient_name, surgeon_id, surgeon_name, anesthetist_name, procedure_name, ot_room, operation_date, start_time, end_time, anesthesia_type, status, findings_notes, created_at) VALUES " +
+                            "('OT-2026-001', 'PT100842', 'Rekha Prasad', 'DOC10084', 'Dr. Ananya Rao', 'Dr. S. Nair', 'Laparoscopic Cholecystectomy', 'OT Suite 1 - General Surgery', '2026-10-16', '09:30 AM', '11:30 AM', 'General Anesthesia', 'Completed', 'Gallbladder removed cleanly without adhesions. Hemostasis achieved. Specimen sent to pathology.', '2026-10-15 08:30'), " +
+                            "('OT-2026-002', 'PT100843', 'Arvind Swamy', 'DOC10085', 'Dr. Rajesh Kumar', 'Dr. M. Kapoor', 'Emergency Appendectomy', 'OT Suite 2 - Emergency OT', '2026-10-16', '02:00 PM', '03:30 PM', 'Spinal Anesthesia', 'Scheduled', 'Pre-op fasting checklist verified, blood cross-match ready.', '2026-10-15 10:15'), " +
+                            "('OT-2026-003', 'PT100844', 'Sunita Devi', 'DOC10086', 'Dr. Meera Iyer', 'Dr. S. Nair', 'Elective Lower Segment C-Section', 'OT Suite 3 - Maternity OT', '2026-10-17', '10:00 AM', '11:15 AM', 'Epidural Anesthesia', 'Scheduled', 'Term pregnancy at 38 weeks. Pre-anesthetic evaluation complete.', '2026-10-15 11:00') ON CONFLICT (report_id) DO NOTHING;");
+                } else {
+                    stmt.execute("INSERT OR IGNORE INTO operation_reports (report_id, patient_id, patient_name, surgeon_id, surgeon_name, anesthetist_name, procedure_name, ot_room, operation_date, start_time, end_time, anesthesia_type, status, findings_notes, created_at) VALUES " +
+                            "('OT-2026-001', 'PT100842', 'Rekha Prasad', 'DOC10084', 'Dr. Ananya Rao', 'Dr. S. Nair', 'Laparoscopic Cholecystectomy', 'OT Suite 1 - General Surgery', '2026-10-16', '09:30 AM', '11:30 AM', 'General Anesthesia', 'Completed', 'Gallbladder removed cleanly without adhesions. Hemostasis achieved. Specimen sent to pathology.', '2026-10-15 08:30'), " +
+                            "('OT-2026-002', 'PT100843', 'Arvind Swamy', 'DOC10085', 'Dr. Rajesh Kumar', 'Dr. M. Kapoor', 'Emergency Appendectomy', 'OT Suite 2 - Emergency OT', '2026-10-16', '02:00 PM', '03:30 PM', 'Spinal Anesthesia', 'Scheduled', 'Pre-op fasting checklist verified, blood cross-match ready.', '2026-10-15 10:15'), " +
+                            "('OT-2026-003', 'PT100844', 'Sunita Devi', 'DOC10086', 'Dr. Meera Iyer', 'Dr. S. Nair', 'Elective Lower Segment C-Section', 'OT Suite 3 - Maternity OT', '2026-10-17', '10:00 AM', '11:15 AM', 'Epidural Anesthesia', 'Scheduled', 'Term pregnancy at 38 weeks. Pre-anesthetic evaluation complete.', '2026-10-15 11:00');");
+                }
+            } catch (Exception e) { System.err.println("[SQL SEED] operation_reports: " + e.getMessage()); }
+
+            // 12. Seed Birth Reports
+            try {
+                if (isPostgreSQL()) {
+                    stmt.execute("INSERT INTO birth_reports (report_id, certificate_no, mother_id, mother_name, father_name, baby_gender, birth_weight, birth_date, birth_time, delivery_type, delivering_doctor, pediatrician_name, blood_group, complications_notes, created_at) VALUES " +
+                            "('BR-2026-001', 'BC-2026-0182', 'PT100846', 'Priya Natarajan', 'Natarajan S.', 'Female', '3.20 kg', '2026-10-14', '04:22 AM', 'Normal Vaginal Delivery', 'Dr. Meera Iyer', 'Dr. Rajesh Kumar', 'O+', 'Healthy cry immediately after birth. APGAR score 9/10 at 5 mins.', '2026-10-14 05:00'), " +
+                            "('BR-2026-002', 'BC-2026-0183', 'PT100847', 'Kavitha Raman', 'Ramanathan K.', 'Male', '3.45 kg', '2026-10-15', '07:15 AM', 'Cesarean Section (C-Section)', 'Dr. Ananya Rao', 'Dr. Meera Iyer', 'B+', 'Baby delivered active and pink. Vaccinations BCG & Hepatitis B administered.', '2026-10-15 08:00') ON CONFLICT (report_id) DO NOTHING;");
+                } else {
+                    stmt.execute("INSERT OR IGNORE INTO birth_reports (report_id, certificate_no, mother_id, mother_name, father_name, baby_gender, birth_weight, birth_date, birth_time, delivery_type, delivering_doctor, pediatrician_name, blood_group, complications_notes, created_at) VALUES " +
+                            "('BR-2026-001', 'BC-2026-0182', 'PT100846', 'Priya Natarajan', 'Natarajan S.', 'Female', '3.20 kg', '2026-10-14', '04:22 AM', 'Normal Vaginal Delivery', 'Dr. Meera Iyer', 'Dr. Rajesh Kumar', 'O+', 'Healthy cry immediately after birth. APGAR score 9/10 at 5 mins.', '2026-10-14 05:00'), " +
+                            "('BR-2026-002', 'BC-2026-0183', 'PT100847', 'Kavitha Raman', 'Ramanathan K.', 'Male', '3.45 kg', '2026-10-15', '07:15 AM', 'Cesarean Section (C-Section)', 'Dr. Ananya Rao', 'Dr. Meera Iyer', 'B+', 'Baby delivered active and pink. Vaccinations BCG & Hepatitis B administered.', '2026-10-15 08:00');");
+                }
+            } catch (Exception e) { System.err.println("[SQL SEED] birth_reports: " + e.getMessage()); }
+
+            // 13. Seed IPD Beds
+            try {
+                if (isPostgreSQL()) {
+                    stmt.execute("INSERT INTO ipd_beds (bed_id, block_name, ward_type, room_number, bed_number, daily_charge, status, current_admission_id, current_patient_name) VALUES " +
+                            "('BED-A101-1', 'Block A - North Wing', 'General Ward', 'A-101', 'Bed 1', 1200.0, 'Occupied', 'IPD-2026-001', 'Rekha Prasad'), " +
+                            "('BED-A101-2', 'Block A - North Wing', 'General Ward', 'A-101', 'Bed 2', 1200.0, 'Available', null, null), " +
+                            "('BED-A102-1', 'Block A - North Wing', 'Semi-Private', 'A-102', 'Bed 1', 2200.0, 'Available', null, null), " +
+                            "('BED-A102-2', 'Block A - North Wing', 'Semi-Private', 'A-102', 'Bed 2', 2200.0, 'Available', null, null), " +
+                            "('BED-B201-1', 'Block B - South Wing', 'Private Deluxe', 'B-201', 'Bed 1', 4500.0, 'Occupied', 'IPD-2026-002', 'Vikram Malhotra'), " +
+                            "('BED-B202-1', 'Block B - South Wing', 'Private Deluxe', 'B-202', 'Bed 1', 4500.0, 'Available', null, null), " +
+                            "('BED-C01-1', 'Block C - Critical Care', 'Intensive Care Unit (ICU)', 'ICU-01', 'Bed 1', 7500.0, 'Available', null, null), " +
+                            "('BED-C02-1', 'Block C - Critical Care', 'Intensive Care Unit (ICU)', 'ICU-02', 'Bed 2', 7500.0, 'Under Maintenance', null, null), " +
+                            "('BED-D101-1', 'Block D - Maternity & Child', 'Maternity Suite', 'MAT-101', 'Bed 1', 3500.0, 'Occupied', 'IPD-2026-003', 'Priya Natarajan'), " +
+                            "('BED-D102-1', 'Block D - Maternity & Child', 'Maternity Suite', 'MAT-102', 'Bed 2', 3500.0, 'Available', null, null), " +
+                            "('BED-D201-1', 'Block D - Maternity & Child', 'Neonatal ICU (NICU)', 'NICU-01', 'Bed 1', 6500.0, 'Available', null, null) ON CONFLICT (bed_id) DO NOTHING;");
+                } else {
+                    stmt.execute("INSERT OR IGNORE INTO ipd_beds (bed_id, block_name, ward_type, room_number, bed_number, daily_charge, status, current_admission_id, current_patient_name) VALUES " +
+                            "('BED-A101-1', 'Block A - North Wing', 'General Ward', 'A-101', 'Bed 1', 1200.0, 'Occupied', 'IPD-2026-001', 'Rekha Prasad'), " +
+                            "('BED-A101-2', 'Block A - North Wing', 'General Ward', 'A-101', 'Bed 2', 1200.0, 'Available', null, null), " +
+                            "('BED-A102-1', 'Block A - North Wing', 'Semi-Private', 'A-102', 'Bed 1', 2200.0, 'Available', null, null), " +
+                            "('BED-A102-2', 'Block A - North Wing', 'Semi-Private', 'A-102', 'Bed 2', 2200.0, 'Available', null, null), " +
+                            "('BED-B201-1', 'Block B - South Wing', 'Private Deluxe', 'B-201', 'Bed 1', 4500.0, 'Occupied', 'IPD-2026-002', 'Vikram Malhotra'), " +
+                            "('BED-B202-1', 'Block B - South Wing', 'Private Deluxe', 'B-202', 'Bed 1', 4500.0, 'Available', null, null), " +
+                            "('BED-C01-1', 'Block C - Critical Care', 'Intensive Care Unit (ICU)', 'ICU-01', 'Bed 1', 7500.0, 'Available', null, null), " +
+                            "('BED-C02-1', 'Block C - Critical Care', 'Intensive Care Unit (ICU)', 'ICU-02', 'Bed 2', 7500.0, 'Under Maintenance', null, null), " +
+                            "('BED-D101-1', 'Block D - Maternity & Child', 'Maternity Suite', 'MAT-101', 'Bed 1', 3500.0, 'Occupied', 'IPD-2026-003', 'Priya Natarajan'), " +
+                            "('BED-D102-1', 'Block D - Maternity & Child', 'Maternity Suite', 'MAT-102', 'Bed 2', 3500.0, 'Available', null, null), " +
+                            "('BED-D201-1', 'Block D - Maternity & Child', 'Neonatal ICU (NICU)', 'NICU-01', 'Bed 1', 6500.0, 'Available', null, null);");
+                }
+            } catch (Exception e) { System.err.println("[SQL SEED] ipd_beds: " + e.getMessage()); }
+
+            // 14. Seed IPD Admissions
+            try {
+                if (isPostgreSQL()) {
+                    stmt.execute("INSERT INTO ipd_admissions (admission_id, patient_id, patient_name, patient_gender, patient_age, patient_phone, bed_id, block_name, ward_type, room_number, bed_number, attending_doctor, admission_date, expected_discharge_date, diagnosis, status, advance_paid, created_at) VALUES " +
+                            "('IPD-2026-001', 'PT100842', 'Rekha Prasad', 'Female', 28, '+91 98765 43210', 'BED-A101-1', 'Block A - North Wing', 'General Ward', 'A-101', 'Bed 1', 'Dr. Ananya Rao', '2026-10-14', '2026-10-18', 'Acute Cholecystitis undergoing post-op recovery', 'Admitted', 5000.0, '2026-10-14 10:00'), " +
+                            "('IPD-2026-002', 'PT100845', 'Vikram Malhotra', 'Male', 52, '+91 98765 43218', 'BED-B201-1', 'Block B - South Wing', 'Private Deluxe', 'B-201', 'Bed 1', 'Dr. Rajesh Kumar', '2026-10-13', '2026-10-17', 'Post-cardiac intervention observation and vitals stabilization', 'Admitted', 10000.0, '2026-10-13 14:30'), " +
+                            "('IPD-2026-003', 'PT100846', 'Priya Natarajan', 'Female', 29, '+91 98765 43219', 'BED-D101-1', 'Block D - Maternity & Child', 'Maternity Suite', 'MAT-101', 'Bed 1', 'Dr. Meera Iyer', '2026-10-14', '2026-10-17', 'Postpartum maternal care and neonatal observation', 'Admitted', 8000.0, '2026-10-14 06:00') ON CONFLICT (admission_id) DO NOTHING;");
+                } else {
+                    stmt.execute("INSERT OR IGNORE INTO ipd_admissions (admission_id, patient_id, patient_name, patient_gender, patient_age, patient_phone, bed_id, block_name, ward_type, room_number, bed_number, attending_doctor, admission_date, expected_discharge_date, diagnosis, status, advance_paid, created_at) VALUES " +
+                            "('IPD-2026-001', 'PT100842', 'Rekha Prasad', 'Female', 28, '+91 98765 43210', 'BED-A101-1', 'Block A - North Wing', 'General Ward', 'A-101', 'Bed 1', 'Dr. Ananya Rao', '2026-10-14', '2026-10-18', 'Acute Cholecystitis undergoing post-op recovery', 'Admitted', 5000.0, '2026-10-14 10:00'), " +
+                            "('IPD-2026-002', 'PT100845', 'Vikram Malhotra', 'Male', 52, '+91 98765 43218', 'BED-B201-1', 'Block B - South Wing', 'Private Deluxe', 'B-201', 'Bed 1', 'Dr. Rajesh Kumar', '2026-10-13', '2026-10-17', 'Post-cardiac intervention observation and vitals stabilization', 'Admitted', 10000.0, '2026-10-13 14:30'), " +
+                            "('IPD-2026-003', 'PT100846', 'Priya Natarajan', 'Female', 29, '+91 98765 43219', 'BED-D101-1', 'Block D - Maternity & Child', 'Maternity Suite', 'MAT-101', 'Bed 1', 'Dr. Meera Iyer', '2026-10-14', '2026-10-17', 'Postpartum maternal care and neonatal observation', 'Admitted', 8000.0, '2026-10-14 06:00');");
+                }
+            } catch (Exception e) { System.err.println("[SQL SEED] ipd_admissions: " + e.getMessage()); }
+
             System.out.println("✓ JDBC Database Tables initialized successfully (PostgreSQL / MySQL / SQLite).");
         } catch (Exception e) {
             System.err.println("[SQL Exception] JDBC Table Init Error: " + e.getMessage());
@@ -1481,7 +1627,8 @@ public class DBConnection {
             "online_consultations", "audit_logs", "nurses", "nurse_assignments",
             "patient_vitals", "nursing_notes", "medication_administration",
             "patient_monitoring", "nurse_shift", "injection_records",
-            "inventory_requests", "emergency_alerts", "contact_queries"
+            "inventory_requests", "emergency_alerts", "contact_queries",
+            "operation_reports", "birth_reports", "ipd_beds", "ipd_admissions"
         };
         System.out.println("=========================================================");
         System.out.println(" Verifying PostgreSQL / Database Tables Status...");

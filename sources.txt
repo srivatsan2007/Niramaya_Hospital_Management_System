@@ -2,12 +2,14 @@ D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\Server.ja
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\ActivityLogDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\AdminDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\AppointmentDAO.java
+D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\BirthReportDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\ContactDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\DailyReportDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\DatabaseManagerDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\DBConnection.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\DoctorDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\InvoiceDAO.java
+D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\IpdDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\LabBookingDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\LabPaymentDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\LabReportDAO.java
@@ -15,6 +17,7 @@ D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\LabTe
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\MedicineDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\NurseDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\OnlineConsultationDAO.java
+D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\OperationReportDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\PatientDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\PharmacyOrderDAO.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\dao\PharmacyStaffDAO.java
@@ -37,6 +40,7 @@ D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\gui\Patie
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\gui\PharmacyDashboardSwing.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\ActivityLog.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\Appointment.java
+D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\BirthReport.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\ConsultationNotes.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\ContactQuery.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\DailyNurseTask.java
@@ -45,6 +49,8 @@ D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\Doc
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\EmergencyAlert.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\InjectionRecord.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\InventoryRequest.java
+D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\IpdAdmission.java
+D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\IpdBed.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\LabBooking.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\LabPayment.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\LabReport.java
@@ -59,6 +65,7 @@ D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\Nur
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\NurseShift.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\NursingNote.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\OnlineConsultation.java
+D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\OperationReport.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\Patient.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\PatientMonitoring.java
 D:\Niramaya_Hospital_Management_System-main\src\main\java\com\hospital\model\PatientVital.java

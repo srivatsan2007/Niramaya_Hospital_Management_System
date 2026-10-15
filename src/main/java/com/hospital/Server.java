@@ -60,6 +60,9 @@ public class Server {
     private static final OnlineConsultationDAO onlineConsultationDAO = new OnlineConsultationDAO();
     private static final DailyReportDAO dailyReportDAO = new DailyReportDAO();
     private static final ContactDAO contactDAO = new ContactDAO();
+    private static final OperationReportDAO operationReportDAO = new OperationReportDAO();
+    private static final BirthReportDAO birthReportDAO = new BirthReportDAO();
+    private static final IpdDAO ipdDAO = new IpdDAO();
 
     public static String hashPassword(String rawPassword) {
         if (rawPassword == null || rawPassword.isEmpty()) return "";
@@ -243,6 +246,16 @@ public class Server {
 
         addRoute(server, "/api/patient/todays-appointments", new PatientTodaysAppointmentsHandler());
         addRoute(server, "/api/patient/completed-appointments", new PatientCompletedAppointmentsHandler());
+
+        // Option A: Operation Theater & Birth Registry APIs
+        addRoute(server, "/api/operation-reports", new OperationReportsHandler());
+        addRoute(server, "/api/operation-reports/update-status", new UpdateOperationStatusHandler());
+        addRoute(server, "/api/birth-reports", new BirthReportsHandler());
+
+        // Option B: IPD Bed & Admission Management APIs
+        addRoute(server, "/api/ipd/beds", new IpdBedsHandler());
+        addRoute(server, "/api/ipd/admissions", new IpdAdmissionsHandler());
+        addRoute(server, "/api/ipd/discharge", new IpdDischargeHandler());
 
         // Seed initial demo Pharmacy Orders if empty
         if (pharmacyOrderDAO.getAllOrders().isEmpty()) {
@@ -4019,6 +4032,326 @@ public class Server {
             String patientId = q.getOrDefault("patientId", "PT100842");
             List<Appointment> list = appointmentDAO.getCompletedAppointmentsForPatient(patientId);
             send(exchange, 200, "application/json", formatAppointmentsJsonList(list));
+        }
+    }
+
+    // =========================================================================
+    // OPTION A: OPERATION THEATER & BIRTH REGISTRY HANDLERS
+    // =========================================================================
+
+    private static String formatOperationReportsJsonList(List<OperationReport> list) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            OperationReport r = list.get(i);
+            sb.append(String.format(
+                "{\"reportId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"surgeonId\":\"%s\",\"surgeonName\":\"%s\",\"anesthetistName\":\"%s\",\"procedureName\":\"%s\",\"otRoom\":\"%s\",\"operationDate\":\"%s\",\"startTime\":\"%s\",\"endTime\":\"%s\",\"anesthesiaType\":\"%s\",\"status\":\"%s\",\"findingsNotes\":\"%s\",\"createdAt\":\"%s\"}",
+                escape(r.getReportId()), escape(r.getPatientId()), escape(r.getPatientName()),
+                escape(r.getSurgeonId()), escape(r.getSurgeonName()), escape(r.getAnesthetistName()),
+                escape(r.getProcedureName()), escape(r.getOtRoom()), escape(r.getOperationDate()),
+                escape(r.getStartTime()), escape(r.getEndTime()), escape(r.getAnesthesiaType()),
+                escape(r.getStatus()), escape(r.getFindingsNotes()), escape(r.getCreatedAt())
+            ));
+            if (i < list.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    private static String formatBirthReportsJsonList(List<BirthReport> list) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            BirthReport r = list.get(i);
+            sb.append(String.format(
+                "{\"reportId\":\"%s\",\"certificateNo\":\"%s\",\"motherId\":\"%s\",\"motherName\":\"%s\",\"fatherName\":\"%s\",\"babyGender\":\"%s\",\"birthWeight\":\"%s\",\"birthDate\":\"%s\",\"birthTime\":\"%s\",\"deliveryType\":\"%s\",\"deliveringDoctor\":\"%s\",\"pediatricianName\":\"%s\",\"bloodGroup\":\"%s\",\"complicationsNotes\":\"%s\",\"createdAt\":\"%s\"}",
+                escape(r.getReportId()), escape(r.getCertificateNo()), escape(r.getMotherId()),
+                escape(r.getMotherName()), escape(r.getFatherName()), escape(r.getBabyGender()),
+                escape(r.getBirthWeight()), escape(r.getBirthDate()), escape(r.getBirthTime()),
+                escape(r.getDeliveryType()), escape(r.getDeliveringDoctor()), escape(r.getPediatricianName()),
+                escape(r.getBloodGroup()), escape(r.getComplicationsNotes()), escape(r.getCreatedAt())
+            ));
+            if (i < list.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    // GET & POST /api/operation-reports
+    static class OperationReportsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String method = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(method)) {
+                Map<String, String> q = parseQueryParams(exchange.getRequestURI());
+                List<OperationReport> list;
+                if (q.containsKey("surgeon")) {
+                    list = operationReportDAO.getReportsBySurgeon(q.get("surgeon"));
+                } else if (q.containsKey("patientId")) {
+                    list = operationReportDAO.getReportsByPatient(q.get("patientId"));
+                } else {
+                    list = operationReportDAO.getAllReports();
+                }
+                send(exchange, 200, "application/json", formatOperationReportsJsonList(list));
+            } else if ("POST".equalsIgnoreCase(method)) {
+                String body = readRequestBodyStr(exchange);
+                Map<String, String> m = parseJsonFlat(body);
+
+                String reportId = "OT-" + (202600 + new Random().nextInt(9000));
+                String patientId = m.getOrDefault("patientId", "PT100842").trim();
+                String patientName = m.getOrDefault("patientName", "Patient").trim();
+                String surgeonId = m.getOrDefault("surgeonId", "DOC10084").trim();
+                String surgeonName = m.getOrDefault("surgeonName", "Dr. Ananya Rao").trim();
+                String anesthetistName = m.getOrDefault("anesthetistName", "Dr. S. Nair").trim();
+                String procedureName = m.getOrDefault("procedureName", "Surgical Procedure").trim();
+                String otRoom = m.getOrDefault("otRoom", "OT Suite 1 - General").trim();
+                String operationDate = m.getOrDefault("operationDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
+                String startTime = m.getOrDefault("startTime", "09:00 AM").trim();
+                String endTime = m.getOrDefault("endTime", "11:00 AM").trim();
+                String anesthesiaType = m.getOrDefault("anesthesiaType", "General Anesthesia").trim();
+                String status = m.getOrDefault("status", "Scheduled").trim();
+                String findingsNotes = m.getOrDefault("findingsNotes", "Pre-op evaluation complete.").trim();
+                String now = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+
+                OperationReport r = new OperationReport(reportId, patientId, patientName, surgeonId, surgeonName,
+                        anesthetistName, procedureName, otRoom, operationDate, startTime, endTime, anesthesiaType,
+                        status, findingsNotes, now);
+
+                boolean ok = operationReportDAO.createReport(r);
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":%b,\"reportId\":\"%s\",\"message\":\"%s\"}",
+                        ok, escape(reportId), ok ? "Surgery scheduled successfully (ID: " + reportId + ")" : "Failed to record surgery"));
+            } else {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+            }
+        }
+    }
+
+    // POST /api/operation-reports/update-status
+    static class UpdateOperationStatusHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod()) && !"PUT".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = readRequestBodyStr(exchange);
+            Map<String, String> m = parseJsonFlat(body);
+            String reportId = m.getOrDefault("reportId", "").trim();
+            String status = m.getOrDefault("status", "Completed").trim();
+            String findingsNotes = m.get("findingsNotes");
+
+            if (reportId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"reportId is required\"}");
+                return;
+            }
+
+            boolean ok = operationReportDAO.updateStatus(reportId, status, findingsNotes);
+            send(exchange, 200, "application/json", String.format(
+                    "{\"success\":%b,\"message\":\"%s\"}",
+                    ok, ok ? "Operation report status updated to " + escape(status) : "Failed to update operation report"));
+        }
+    }
+
+    // GET & POST /api/birth-reports
+    static class BirthReportsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String method = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(method)) {
+                Map<String, String> q = parseQueryParams(exchange.getRequestURI());
+                if (q.containsKey("certificateNo")) {
+                    BirthReport r = birthReportDAO.getBirthReportByCertificate(q.get("certificateNo"));
+                    if (r != null) {
+                        List<BirthReport> single = Collections.singletonList(r);
+                        send(exchange, 200, "application/json", formatBirthReportsJsonList(single));
+                    } else {
+                        send(exchange, 404, "application/json", "{\"success\":false,\"message\":\"Certificate not found\"}");
+                    }
+                    return;
+                }
+                List<BirthReport> list = birthReportDAO.getAllBirthReports();
+                send(exchange, 200, "application/json", formatBirthReportsJsonList(list));
+            } else if ("POST".equalsIgnoreCase(method)) {
+                String body = readRequestBodyStr(exchange);
+                Map<String, String> m = parseJsonFlat(body);
+
+                String reportId = "BR-" + (202600 + new Random().nextInt(9000));
+                String certNo = m.getOrDefault("certificateNo", "BC-2026-" + (1000 + new Random().nextInt(9000))).trim();
+                String motherId = m.getOrDefault("motherId", "PT" + (100000 + new Random().nextInt(900000))).trim();
+                String motherName = m.getOrDefault("motherName", "Mother Name").trim();
+                String fatherName = m.getOrDefault("fatherName", "").trim();
+                String babyGender = m.getOrDefault("babyGender", "Female").trim();
+                String birthWeight = m.getOrDefault("birthWeight", "3.2 kg").trim();
+                String birthDate = m.getOrDefault("birthDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
+                String birthTime = m.getOrDefault("birthTime", new SimpleDateFormat("hh:mm a").format(new Date())).trim();
+                String deliveryType = m.getOrDefault("deliveryType", "Normal Vaginal Delivery").trim();
+                String deliveringDoctor = m.getOrDefault("deliveringDoctor", "Dr. Meera Iyer").trim();
+                String pediatricianName = m.getOrDefault("pediatricianName", "Dr. Rajesh Kumar").trim();
+                String bloodGroup = m.getOrDefault("bloodGroup", "O+").trim();
+                String complicationsNotes = m.getOrDefault("complicationsNotes", "Healthy newborn. Vitals stable.").trim();
+                String now = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+
+                BirthReport r = new BirthReport(reportId, certNo, motherId, motherName, fatherName, babyGender,
+                        birthWeight, birthDate, birthTime, deliveryType, deliveringDoctor, pediatricianName,
+                        bloodGroup, complicationsNotes, now);
+
+                boolean ok = birthReportDAO.createBirthReport(r);
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":%b,\"reportId\":\"%s\",\"certificateNo\":\"%s\",\"message\":\"%s\"}",
+                        ok, escape(reportId), escape(certNo), ok ? "Birth certificate issued successfully (" + certNo + ")" : "Failed to record birth"));
+            } else {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+            }
+        }
+    }
+
+    // =========================================================================
+    // OPTION B: IPD BED & ADMISSION MANAGEMENT HANDLERS
+    // =========================================================================
+
+    private static String formatIpdBedsJsonList(List<IpdBed> list) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            IpdBed b = list.get(i);
+            sb.append(String.format(
+                "{\"bedId\":\"%s\",\"blockName\":\"%s\",\"wardType\":\"%s\",\"roomNumber\":\"%s\",\"bedNumber\":\"%s\",\"dailyCharge\":%.2f,\"status\":\"%s\",\"currentAdmissionId\":\"%s\",\"currentPatientName\":\"%s\"}",
+                escape(b.getBedId()), escape(b.getBlockName()), escape(b.getWardType()),
+                escape(b.getRoomNumber()), escape(b.getBedNumber()), b.getDailyCharge(),
+                escape(b.getStatus()), escape(b.getCurrentAdmissionId() != null ? b.getCurrentAdmissionId() : ""),
+                escape(b.getCurrentPatientName() != null ? b.getCurrentPatientName() : "")
+            ));
+            if (i < list.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    private static String formatIpdAdmissionsJsonList(List<IpdAdmission> list) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            IpdAdmission a = list.get(i);
+            sb.append(String.format(
+                "{\"admissionId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"patientGender\":\"%s\",\"patientAge\":%d,\"patientPhone\":\"%s\",\"bedId\":\"%s\",\"blockName\":\"%s\",\"wardType\":\"%s\",\"roomNumber\":\"%s\",\"bedNumber\":\"%s\",\"attendingDoctor\":\"%s\",\"admissionDate\":\"%s\",\"expectedDischargeDate\":\"%s\",\"actualDischargeDate\":\"%s\",\"diagnosis\":\"%s\",\"status\":\"%s\",\"advancePaid\":%.2f,\"createdAt\":\"%s\"}",
+                escape(a.getAdmissionId()), escape(a.getPatientId()), escape(a.getPatientName()),
+                escape(a.getPatientGender()), a.getPatientAge(), escape(a.getPatientPhone()),
+                escape(a.getBedId()), escape(a.getBlockName()), escape(a.getWardType()),
+                escape(a.getRoomNumber()), escape(a.getBedNumber()), escape(a.getAttendingDoctor()),
+                escape(a.getAdmissionDate()), escape(a.getExpectedDischargeDate()),
+                escape(a.getActualDischargeDate() != null ? a.getActualDischargeDate() : ""),
+                escape(a.getDiagnosis()), escape(a.getStatus()), a.getAdvancePaid(), escape(a.getCreatedAt())
+            ));
+            if (i < list.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    // GET & POST /api/ipd/beds
+    static class IpdBedsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String method = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(method)) {
+                List<IpdBed> list = ipdDAO.getAllBeds();
+                send(exchange, 200, "application/json", formatIpdBedsJsonList(list));
+            } else if ("POST".equalsIgnoreCase(method)) {
+                String body = readRequestBodyStr(exchange);
+                Map<String, String> m = parseJsonFlat(body);
+                String bedId = m.getOrDefault("bedId", "").trim();
+                String status = m.getOrDefault("status", "Available").trim();
+                String patientName = m.get("patientName");
+                String admissionId = m.get("admissionId");
+
+                if (bedId.isEmpty()) {
+                    send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"bedId is required\"}");
+                    return;
+                }
+
+                boolean ok = ipdDAO.updateBedStatus(bedId, status, admissionId, patientName);
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":%b,\"message\":\"Bed %s status updated to %s\"}",
+                        ok, escape(bedId), escape(status)));
+            } else {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+            }
+        }
+    }
+
+    // GET & POST /api/ipd/admissions
+    static class IpdAdmissionsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String method = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(method)) {
+                Map<String, String> q = parseQueryParams(exchange.getRequestURI());
+                List<IpdAdmission> list;
+                if (q.containsKey("doctor")) {
+                    list = ipdDAO.getAdmissionsByDoctor(q.get("doctor"));
+                } else if ("all".equalsIgnoreCase(q.get("status"))) {
+                    list = ipdDAO.getAllAdmissions();
+                } else {
+                    list = ipdDAO.getActiveAdmissions();
+                }
+                send(exchange, 200, "application/json", formatIpdAdmissionsJsonList(list));
+            } else if ("POST".equalsIgnoreCase(method)) {
+                String body = readRequestBodyStr(exchange);
+                Map<String, String> m = parseJsonFlat(body);
+
+                String admissionId = "IPD-2026-" + (1000 + new Random().nextInt(9000));
+                String patientId = m.getOrDefault("patientId", "PT" + (100000 + new Random().nextInt(900000))).trim();
+                String patientName = m.getOrDefault("patientName", "Patient").trim();
+                String patientGender = m.getOrDefault("patientGender", "Other").trim();
+                int patientAge = 30;
+                try { patientAge = Integer.parseInt(m.getOrDefault("patientAge", "30").trim()); } catch (Exception ignored) {}
+                String patientPhone = m.getOrDefault("patientPhone", "+91 98765 43210").trim();
+                String bedId = m.getOrDefault("bedId", "BED-A101-2").trim();
+                String blockName = m.getOrDefault("blockName", "Block A - North Wing").trim();
+                String wardType = m.getOrDefault("wardType", "General Ward").trim();
+                String roomNumber = m.getOrDefault("roomNumber", "A-101").trim();
+                String bedNumber = m.getOrDefault("bedNumber", "Bed 2").trim();
+                String attendingDoctor = m.getOrDefault("attendingDoctor", "Dr. Ananya Rao").trim();
+                String admissionDate = m.getOrDefault("admissionDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
+                String expectedDischargeDate = m.getOrDefault("expectedDischargeDate", "").trim();
+                String diagnosis = m.getOrDefault("diagnosis", "Observation and treatment").trim();
+                double advancePaid = 0.0;
+                try { advancePaid = Double.parseDouble(m.getOrDefault("advancePaid", "0").trim()); } catch (Exception ignored) {}
+                String now = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+
+                IpdAdmission adm = new IpdAdmission(admissionId, patientId, patientName, patientGender, patientAge,
+                        patientPhone, bedId, blockName, wardType, roomNumber, bedNumber, attendingDoctor,
+                        admissionDate, expectedDischargeDate, null, diagnosis, "Admitted", advancePaid, now);
+
+                boolean ok = ipdDAO.admitPatient(adm);
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":%b,\"admissionId\":\"%s\",\"bedId\":\"%s\",\"message\":\"%s\"}",
+                        ok, escape(admissionId), escape(bedId), ok ? "Patient admitted successfully (Admission ID: " + admissionId + ", Bed: " + bedId + ")" : "Failed to admit patient"));
+            } else {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+            }
+        }
+    }
+
+    // POST /api/ipd/discharge
+    static class IpdDischargeHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod()) && !"PUT".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = readRequestBodyStr(exchange);
+            Map<String, String> m = parseJsonFlat(body);
+            String admissionId = m.getOrDefault("admissionId", "").trim();
+            String dischargeDate = m.getOrDefault("dischargeDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
+
+            if (admissionId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"admissionId is required\"}");
+                return;
+            }
+
+            boolean ok = ipdDAO.dischargePatient(admissionId, dischargeDate);
+            send(exchange, 200, "application/json", String.format(
+                    "{\"success\":%b,\"message\":\"%s\"}",
+                    ok, ok ? "Inpatient " + escape(admissionId) + " successfully discharged. Bed freed." : "Failed to discharge patient"));
         }
     }
 }
