@@ -1177,6 +1177,24 @@ public class DBConnection {
                     "created_at VARCHAR(50)" +
                     ");");
 
+            stmt.execute("CREATE TABLE IF NOT EXISTS appointment_assignments (" +
+                    "assignment_id VARCHAR(50) PRIMARY KEY, " +
+                    "appointment_id VARCHAR(50), " +
+                    "patient_id VARCHAR(50), " +
+                    "patient_name VARCHAR(100), " +
+                    "patient_age VARCHAR(10), " +
+                    "patient_gender VARCHAR(20), " +
+                    "doctor_id VARCHAR(50), " +
+                    "doctor_name VARCHAR(100), " +
+                    "nurse_id VARCHAR(50), " +
+                    "nurse_name VARCHAR(100), " +
+                    "appointment_time VARCHAR(50), " +
+                    "appointment_date VARCHAR(50), " +
+                    "status VARCHAR(50) DEFAULT 'Assigned', " +
+                    "vital_check_status VARCHAR(50) DEFAULT 'Pending', " +
+                    "created_at VARCHAR(50)" +
+                    ");");
+
             stmt.execute("CREATE TABLE IF NOT EXISTS patient_vitals (" +
                     "vital_id VARCHAR(50) PRIMARY KEY, " +
                     "patient_id VARCHAR(50) NOT NULL, " +
@@ -1538,6 +1556,20 @@ public class DBConnection {
                 }
             } catch (Exception e) { System.err.println("[SQL SEED] nurses: " + e.getMessage()); }
 
+            try {
+                if (isPostgreSQL()) {
+                    stmt.execute("INSERT INTO appointment_assignments (assignment_id, appointment_id, patient_id, patient_name, patient_age, patient_gender, doctor_id, doctor_name, nurse_id, nurse_name, appointment_time, appointment_date, status, vital_check_status, created_at) VALUES " +
+                            "('ASN-101', 'APT-100842', 'PT100842', 'Rekha Prasad', '28', 'Female', 'DOC10084', 'Dr. Ananya Rao', 'NUR10084', 'Nurse Priya Sharma', '10:00 AM', 'today', 'Assigned', 'Pending', '2026-10-15 09:00:00'), " +
+                            "('ASN-102', 'APT-100843', 'PT100843', 'Arvind Swamy', '45', 'Male', 'DOC10085', 'Dr. Rajesh Kumar', 'NUR10084', 'Nurse Priya Sharma', '11:30 AM', 'today', 'Assigned', 'Pending', '2026-10-15 09:15:00'), " +
+                            "('ASN-103', 'APT-100844', 'PT100844', 'Sunita Devi', '34', 'Female', 'DOC10086', 'Dr. Meera Iyer', 'NUR10084', 'Nurse Priya Sharma', '02:00 PM', 'today', 'VITALS_COMPLETED', 'Completed', '2026-10-15 08:30:00') ON CONFLICT (assignment_id) DO NOTHING;");
+                } else {
+                    stmt.execute("INSERT OR IGNORE INTO appointment_assignments (assignment_id, appointment_id, patient_id, patient_name, patient_age, patient_gender, doctor_id, doctor_name, nurse_id, nurse_name, appointment_time, appointment_date, status, vital_check_status, created_at) VALUES " +
+                            "('ASN-101', 'APT-100842', 'Rekha Prasad', '28', 'Female', 'DOC10084', 'Dr. Ananya Rao', 'NUR10084', 'Nurse Priya Sharma', '10:00 AM', 'today', 'Assigned', 'Pending', '2026-10-15 09:00:00'), " +
+                            "('ASN-102', 'APT-100843', 'Arvind Swamy', '45', 'Male', 'DOC10085', 'Dr. Rajesh Kumar', 'NUR10084', 'Nurse Priya Sharma', '11:30 AM', 'today', 'Assigned', 'Pending', '2026-10-15 09:15:00'), " +
+                            "('ASN-103', 'APT-100844', 'Sunita Devi', '34', 'Female', 'DOC10086', 'Dr. Meera Iyer', 'NUR10084', 'Nurse Priya Sharma', '02:00 PM', 'today', 'VITALS_COMPLETED', 'Completed', '2026-10-15 08:30:00');");
+                }
+            } catch (Exception e) { System.err.println("[SQL SEED] appointment_assignments: " + e.getMessage()); }
+
             // 11. Seed Operation Reports
             try {
                 if (isPostgreSQL()) {
@@ -1624,7 +1656,7 @@ public class DBConnection {
             "patients", "doctors", "staff", "appointments", "prescriptions",
             "pharmacy_orders", "pharmacy_inventory", "laboratory_reports",
             "lab_payments", "medicines", "billing", "notifications",
-            "online_consultations", "audit_logs", "nurses", "nurse_assignments",
+            "online_consultations", "audit_logs", "nurses", "nurse_assignments", "appointment_assignments",
             "patient_vitals", "nursing_notes", "medication_administration",
             "patient_monitoring", "nurse_shift", "injection_records",
             "inventory_requests", "emergency_alerts", "contact_queries",

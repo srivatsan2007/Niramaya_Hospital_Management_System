@@ -1812,6 +1812,21 @@ public class Server {
                 send(exchange, 200, "application/json",
                         String.format("{\"success\":%b,\"paymentId\":\"%s\",\"transactionId\":\"%s\"}", ok,
                                 escape(payId), escape(txnId)));
+            } else if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery();
+                String patientId = query != null && query.contains("patientId=") ? query.split("patientId=")[1].split("&")[0] : "";
+                List<com.hospital.model.LabPayment> list = patientId.isEmpty() ? labPaymentDAO.getPaymentsByPatient("PT100842") : labPaymentDAO.getPaymentsByPatient(patientId);
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < list.size(); i++) {
+                    com.hospital.model.LabPayment p = list.get(i);
+                    sb.append(String.format("{\"paymentId\":\"%s\",\"bookingId\":\"%s\",\"patientId\":\"%s\",\"amount\":%.2f,\"paymentMethod\":\"%s\",\"transactionId\":\"%s\",\"paymentStatus\":\"%s\",\"paymentDate\":\"%s\"}",
+                            escape(p.getPaymentId()), escape(p.getBookingId()), escape(p.getPatientId()), p.getAmount(), escape(p.getPaymentMethod()), escape(p.getTransactionId()), escape(p.getPaymentStatus()), escape(p.getPaymentDate())));
+                    if (i < list.size() - 1) sb.append(",");
+                }
+                sb.append("]");
+                send(exchange, 200, "application/json", sb.toString());
+            } else {
+                send(exchange, 405, "application/json", "{\"error\":\"Method Not Allowed\"}");
             }
         }
     }
