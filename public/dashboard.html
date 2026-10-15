@@ -4041,9 +4041,14 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         ? `<button type="button" class="btn btn-ghost btn-sm btn-view-patient-rx" data-pid="${pid}" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:#059669; border:1px solid #059669; margin-right:4px;">📜 View Rx</button>`
         : `<button type="button" class="btn btn-ghost btn-sm btn-view-patient-rx" data-pid="${pid}" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:#0D6EFD; border:1px solid #0D6EFD; margin-right:4px;">📜 View Rx</button>`;
 
+      const canCancel = !b.status?.toLowerCase().includes('completed') && !b.status?.toLowerCase().includes('cancelled');
+      const cancelBtn = canCancel
+        ? `<button type="button" class="btn btn-ghost btn-sm btn-cancel-patient-appt" data-token="${b.token}" style="font-size:0.75rem; padding:4px 8px; color:#DC2626; border:1px solid #FCA5A5; font-weight:700; margin-left:4px;">❌ Cancel</button>`
+        : '';
+
       const billAction = isPaid
-        ? `${meetBtn}${rxBtn}<button type="button" class="btn btn-ghost btn-sm btn-view-bill" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:var(--teal-500); border:1px solid var(--teal-500); font-weight:700; margin-right:4px;">📄 Print Receipt ✓</button>`
-        : `${rxBtn}<button type="button" class="btn btn-ghost btn-sm" onclick="showToast('⚠️ Receipt is LOCKED. Please pay at the hospital counter to unlock and print your official tax invoice.')" style="font-size:0.75rem; padding:4px 8px; color:#D97706; background:#FEF3C7; border:1px solid #FCD34D; font-weight:700; cursor:pointer;">🔒 Locked (Pay at Desk)</button>`;
+        ? `${meetBtn}${rxBtn}<button type="button" class="btn btn-ghost btn-sm btn-view-bill" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:var(--teal-500); border:1px solid var(--teal-500); font-weight:700; margin-right:4px;">📄 Print Receipt ✓</button>${cancelBtn}`
+        : `${rxBtn}<button type="button" class="btn btn-ghost btn-sm" onclick="showToast('⚠️ Receipt is LOCKED. Please pay at the hospital counter to unlock and print your official tax invoice.')" style="font-size:0.75rem; padding:4px 8px; color:#D97706; background:#FEF3C7; border:1px solid #FCD34D; font-weight:700; cursor:pointer;">🔒 Locked (Pay at Desk)</button>${cancelBtn}`;
 
       const typeBadge = b.consultMode === 'online' ? ' 💻 (Online)' : ' 🏥 (In-Person)';
 
@@ -4061,6 +4066,38 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         </tr>
       `;
     }).join('');
+
+    // Attach click event to Cancel Appointment buttons
+    tbody.querySelectorAll('.btn-cancel-patient-appt').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const token = btn.dataset.token;
+        if (!token) return;
+        if (!confirm('Are you sure you want to cancel your appointment ' + token + '?')) return;
+        try {
+          const res = await fetch('/api/appointment/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ appointmentId: token, cancelledBy: savedName || 'Patient', reason: 'Patient cancelled from portal' })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast('✅ Appointment ' + token + ' has been cancelled.');
+            try {
+              let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
+              localBookings.forEach(b => {
+                if (b.token === token) b.status = 'Cancelled ❌';
+              });
+              localStorage.setItem(userBookingsKey, JSON.stringify(localBookings));
+            } catch(e){}
+            renderUserBookings();
+          } else {
+            showToast('⚠️ ' + data.message);
+          }
+        } catch(e) {
+          showToast('❌ Failed to cancel appointment.');
+        }
+      });
+    });
 
     // Attach click event to View Bill buttons
     tbody.querySelectorAll('.btn-view-bill').forEach(btn => {
@@ -4091,13 +4128,17 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
           } catch(e){}
         }
 
-        // Find prescription specifically issued by this appointment's doctor!
-        let matchedRx = pRxList.find(r => {
-          if (!r.docName || !targetDocName) return false;
-          const rClean = r.docName.toLowerCase().replace(/^dr\.\s*/i, '').trim();
-          const tClean = targetDocName.toLowerCase().replace(/^dr\.\s*/i, '').trim();
-          return rClean.includes(tClean) || tClean.includes(rClean);
-        });
+        // Find prescription specifically issued for this appointment token first (prevents multi-visit duplication)
+        let matchedRx = pRxList.find(r => (r.appointmentId && booking && r.appointmentId === booking.token) || (r.token && booking && r.token === booking.token));
+        if (!matchedRx) {
+          matchedRx = pRxList.find(r => {
+            if (!r.docName || !targetDocName) return false;
+            const rClean = r.docName.toLowerCase().replace(/^dr\.\s*/i, '').trim();
+            const tClean = targetDocName.toLowerCase().replace(/^dr\.\s*/i, '').trim();
+            return rClean.includes(tClean) || tClean.includes(rClean);
+          });
+        }
+
 
         if (!matchedRx && pRxList.length > 0) {
           matchedRx = pRxList[0];

@@ -913,6 +913,18 @@ public class DBConnection {
                     "created_at VARCHAR(50)" +
                     ");");
 
+            // 20B. CONTACT QUERIES TABLE
+            stmt.execute("CREATE TABLE IF NOT EXISTS contact_queries (" +
+                    "query_id VARCHAR(50) PRIMARY KEY, " +
+                    "name VARCHAR(100) NOT NULL, " +
+                    "email VARCHAR(100) NOT NULL, " +
+                    "phone VARCHAR(30), " +
+                    "subject VARCHAR(200), " +
+                    "message TEXT NOT NULL, " +
+                    "status VARCHAR(30) DEFAULT 'Open', " +
+                    "created_at VARCHAR(50)" +
+                    ");");
+
             // Seed default departments if empty
             try {
                 if (isPostgreSQL()) {
@@ -1304,6 +1316,18 @@ public class DBConnection {
                     "created_at VARCHAR(50)" +
                     ");");
 
+            stmt.execute("CREATE TABLE IF NOT EXISTS contact_queries (" +
+                    "query_id VARCHAR(50) PRIMARY KEY, " +
+                    "name VARCHAR(100) NOT NULL, " +
+                    "email VARCHAR(100) NOT NULL, " +
+                    "phone VARCHAR(30), " +
+                    "subject VARCHAR(200), " +
+                    "message TEXT NOT NULL, " +
+                    "status VARCHAR(30) DEFAULT 'Open', " +
+                    "created_at VARCHAR(50)" +
+                    ");");
+
+
             // --- POPULATE COMPREHENSIVE SEED DATA FOR ALL MODULES IF EMPTY ---
             // 1. Doctors Seed
             try {
@@ -1457,7 +1481,7 @@ public class DBConnection {
             "online_consultations", "audit_logs", "nurses", "nurse_assignments",
             "patient_vitals", "nursing_notes", "medication_administration",
             "patient_monitoring", "nurse_shift", "injection_records",
-            "inventory_requests", "emergency_alerts"
+            "inventory_requests", "emergency_alerts", "contact_queries"
         };
         System.out.println("=========================================================");
         System.out.println(" Verifying PostgreSQL / Database Tables Status...");

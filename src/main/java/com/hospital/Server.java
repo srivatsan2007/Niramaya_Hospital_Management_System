@@ -59,6 +59,7 @@ public class Server {
     private static final DatabaseManagerDAO databaseManagerDAO = new DatabaseManagerDAO();
     private static final OnlineConsultationDAO onlineConsultationDAO = new OnlineConsultationDAO();
     private static final DailyReportDAO dailyReportDAO = new DailyReportDAO();
+    private static final ContactDAO contactDAO = new ContactDAO();
 
     public static String hashPassword(String rawPassword) {
         if (rawPassword == null || rawPassword.isEmpty()) return "";
@@ -140,6 +141,12 @@ public class Server {
         addRoute(server, "/api/admin/pharmacy-staff", new AdminPharmacyStaffHandler());
         addRoute(server, "/api/admin/lab-technicians", new AdminLabTechniciansHandler());
         addRoute(server, "/api/appointments", new AppointmentsHandler());
+        addRoute(server, "/api/appointment/approve", new ApproveAppointmentHandler());
+        addRoute(server, "/api/appointment/cancel", new CancelAppointmentHandler());
+        addRoute(server, "/api/appointment/status", new UpdateAppointmentStatusHandler());
+        addRoute(server, "/api/contact/submit", new ContactSubmitHandler());
+        addRoute(server, "/api/admin/contact-queries", new AdminContactQueriesHandler());
+        addRoute(server, "/api/admin/export-data", new AdminExportDataHandler());
         addRoute(server, "/api/prescriptions", new PrescriptionsHandler());
 
         // Laboratory Module APIs
@@ -825,6 +832,230 @@ public class Server {
             }
         }
     }
+
+    // POST /api/appointment/approve
+    static class ApproveAppointmentHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            Map<String, String> fields = parseJsonFlat(body);
+            String apptId = fields.getOrDefault("appointmentId", "").trim();
+            String doctorId = fields.getOrDefault("doctorId", "DOC10084").trim();
+
+            if (apptId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"Appointment ID is required\"}");
+                return;
+            }
+
+            boolean ok = appointmentDAO.approveAppointment(apptId, doctorId);
+            send(exchange, 200, "application/json", String.format("{\"success\":%b,\"message\":\"%s\"}", ok, ok ? "Appointment " + escape(apptId) + " accepted and approved by Doctor successfully." : "Failed to approve appointment."));
+        }
+    }
+
+    // POST /api/appointment/cancel
+    static class CancelAppointmentHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            Map<String, String> fields = parseJsonFlat(body);
+            String apptId = fields.getOrDefault("appointmentId", "").trim();
+            String cancelledBy = fields.getOrDefault("cancelledBy", "User").trim();
+            String reason = fields.getOrDefault("reason", "").trim();
+
+            if (apptId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"Appointment ID is required\"}");
+                return;
+            }
+
+            boolean ok = appointmentDAO.cancelAppointment(apptId, cancelledBy, reason);
+            send(exchange, 200, "application/json", String.format("{\"success\":%b,\"message\":\"%s\"}", ok, ok ? "Appointment " + escape(apptId) + " successfully cancelled." : "Failed to cancel appointment."));
+        }
+    }
+
+    // POST /api/appointment/status
+    static class UpdateAppointmentStatusHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            Map<String, String> fields = parseJsonFlat(body);
+            String apptId = fields.getOrDefault("appointmentId", "").trim();
+            String status = fields.getOrDefault("status", "Confirmed").trim();
+
+            if (apptId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"Appointment ID is required\"}");
+                return;
+            }
+
+            boolean ok = appointmentDAO.updateAppointmentStatus(apptId, status);
+            send(exchange, 200, "application/json", String.format("{\"success\":%b,\"message\":\"Appointment status updated to %s\"}", ok, escape(status)));
+        }
+    }
+
+    // POST /api/contact/submit
+    static class ContactSubmitHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            Map<String, String> fields = parseJsonFlat(body);
+
+            String name = fields.getOrDefault("name", "").trim();
+            String email = fields.getOrDefault("email", "").trim();
+            String phone = fields.getOrDefault("phone", "").trim();
+            String subject = fields.getOrDefault("subject", "General Inquiry").trim();
+            String message = fields.getOrDefault("message", "").trim();
+
+            if (name.isEmpty() || email.isEmpty() || message.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"Name, Email, and Message are required!\"}");
+                return;
+            }
+
+            String queryId = "INQ-" + (100000 + new Random().nextInt(900000));
+            String nowStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+
+            ContactQuery q = new ContactQuery(queryId, name, email, phone, subject, message, "Open", nowStr);
+            boolean ok = contactDAO.createContactQuery(q);
+
+            send(exchange, 200, "application/json", String.format(
+                    "{\"success\":%b,\"queryId\":\"%s\",\"message\":\"Thank you %s! Your inquiry has been submitted (ID: %s). Our hospital team will contact you shortly.\"}",
+                    ok, escape(queryId), escape(name), escape(queryId)));
+        }
+    }
+
+    // GET & POST /api/admin/contact-queries
+    static class AdminContactQueriesHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                List<ContactQuery> list = contactDAO.getAllContactQueries();
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < list.size(); i++) {
+                    ContactQuery q = list.get(i);
+                    sb.append(String.format(
+                            "{\"queryId\":\"%s\",\"name\":\"%s\",\"email\":\"%s\",\"phone\":\"%s\",\"subject\":\"%s\",\"message\":\"%s\",\"status\":\"%s\",\"createdAt\":\"%s\"}",
+                            escape(q.getQueryId()), escape(q.getName()), escape(q.getEmail()), escape(q.getPhone()),
+                            escape(q.getSubject()), escape(q.getMessage()), escape(q.getStatus()), escape(q.getCreatedAt())));
+                    if (i < list.size() - 1) sb.append(",");
+                }
+                sb.append("]");
+                send(exchange, 200, "application/json", sb.toString());
+            } else if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                Map<String, String> fields = parseJsonFlat(body);
+                String queryId = fields.getOrDefault("queryId", "").trim();
+                String action = fields.getOrDefault("action", "updateStatus").trim();
+                String status = fields.getOrDefault("status", "Resolved").trim();
+
+                boolean ok = false;
+                if ("delete".equalsIgnoreCase(action)) {
+                    ok = contactDAO.deleteQuery(queryId);
+                } else {
+                    ok = contactDAO.updateStatus(queryId, status);
+                }
+                send(exchange, 200, "application/json", String.format("{\"success\":%b,\"message\":\"Query updated successfully\"}", ok));
+            } else {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+            }
+        }
+    }
+
+    // GET /api/admin/export-data?type=appointments|patients|doctors|billing|inquiries
+    static class AdminExportDataHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String query = exchange.getRequestURI().getQuery();
+            String type = "appointments";
+            if (query != null && query.contains("type=")) {
+                type = query.split("type=")[1].split("&")[0];
+            }
+
+            StringBuilder csv = new StringBuilder();
+            String filename = type + "_export_" + System.currentTimeMillis() + ".csv";
+
+            if ("appointments".equalsIgnoreCase(type)) {
+                csv.append("Appointment ID,Patient ID,Doctor Name,Department,Date,Time,Status,Payment Status\n");
+                List<Appointment> list = appointmentDAO.getAllAppointments();
+                for (Appointment a : list) {
+                    csv.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                            safeCsv(a.getAppointmentId()), safeCsv(a.getPatientId()), safeCsv(a.getDoctorName()),
+                            safeCsv(a.getDepartment()), safeCsv(a.getAppointmentDate()), safeCsv(a.getAppointmentTime()),
+                            safeCsv(a.getStatus()), safeCsv(a.getPaymentStatus())));
+                }
+            } else if ("patients".equalsIgnoreCase(type)) {
+                csv.append("Patient ID,Full Name,Age,Gender,Phone,Email,Blood Group\n");
+                List<Patient> list = patientDAO.getAllPatients();
+                for (Patient p : list) {
+                    csv.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                            safeCsv(p.getPatientId()), safeCsv(p.getName()), p.getAge(),
+                            safeCsv(p.getGender()), safeCsv(p.getPhone()), safeCsv(p.getEmail()), safeCsv(p.getBloodGroup())));
+                }
+            } else if ("doctors".equalsIgnoreCase(type)) {
+                csv.append("Doctor ID,Name,Specialization,Department,Phone,Email,Consultation Fee,Status\n");
+                List<Doctor> list = doctorDAO.getAllDoctors();
+                for (Doctor d : list) {
+                    csv.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%.2f\",\"%s\"\n",
+                            safeCsv(d.getDoctorId()), safeCsv(d.getName()), safeCsv(d.getSpecialization()),
+                            safeCsv(d.getDepartment()), safeCsv(d.getPhone()), safeCsv(d.getEmail()),
+                            d.getConsultationFees(), safeCsv(d.getStatus())));
+                }
+            } else if ("inquiries".equalsIgnoreCase(type)) {
+                csv.append("Query ID,Name,Email,Phone,Subject,Message,Status,Date\n");
+                List<ContactQuery> list = contactDAO.getAllContactQueries();
+                for (ContactQuery q : list) {
+                    csv.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                            safeCsv(q.getQueryId()), safeCsv(q.getName()), safeCsv(q.getEmail()),
+                            safeCsv(q.getPhone()), safeCsv(q.getSubject()), safeCsv(q.getMessage()),
+                            safeCsv(q.getStatus()), safeCsv(q.getCreatedAt())));
+                }
+            } else {
+                csv.append("Bill ID,Patient ID,Bill Type,Total Amount,Paid Amount,Status,Payment Method,Date\n");
+                try (Connection conn = DBConnection.getConnection();
+                     PreparedStatement ps = conn.prepareStatement("SELECT * FROM billing ORDER BY created_at DESC");
+                     ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        csv.append(String.format("\"%s\",\"%s\",\"%s\",\"%.2f\",\"%.2f\",\"%s\",\"%s\",\"%s\"\n",
+                                safeCsv(rs.getString("bill_id")), safeCsv(rs.getString("patient_id")),
+                                safeCsv(rs.getString("bill_type")), rs.getDouble("total_amount"),
+                                rs.getDouble("paid_amount"), safeCsv(rs.getString("payment_status")),
+                                safeCsv(rs.getString("payment_method")), safeCsv(rs.getString("created_at"))));
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            exchange.getResponseHeaders().set("Content-Type", "text/csv; charset=UTF-8");
+            exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+            byte[] bytes = csv.toString().getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        }
+
+        private String safeCsv(String val) {
+            if (val == null) return "";
+            return val.replace("\"", "\"\"");
+        }
+    }
+
 
     // GET /api/admin/counter-payments
     static class AdminCounterPaymentsHandler implements HttpHandler {

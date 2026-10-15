@@ -56,6 +56,59 @@ public class AppointmentDAO {
     }
 
     /**
+     * Doctor acknowledges & approves appointment.
+     */
+    public boolean approveAppointment(String appointmentId, String doctorId) {
+        boolean ok = updateAppointmentStatus(appointmentId, "Confirmed");
+        if (ok) {
+            try (Connection conn = DBConnection.getConnection()) {
+                String logId = "LOG-" + (100000 + new java.util.Random().nextInt(900000));
+                String nowStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+                String logSql = "INSERT INTO activity_logs (log_id, user_id, user_name, role, module, action, status, ip_address, created_at) VALUES (?, ?, 'Doctor', 'Doctor', 'APPOINTMENTS', ?, 'Success', '127.0.0.1', ?)";
+                try (PreparedStatement psLog = conn.prepareStatement(logSql)) {
+                    psLog.setString(1, logId);
+                    psLog.setString(2, doctorId != null ? doctorId : "DOC");
+                    psLog.setString(3, "Doctor accepted & approved appointment " + appointmentId);
+                    psLog.setString(4, nowStr);
+                    psLog.executeUpdate();
+                }
+            } catch (Exception ignored) {}
+        }
+        return ok;
+    }
+
+    /**
+     * Patient or Doctor cancels an appointment.
+     */
+    public boolean cancelAppointment(String appointmentId, String cancelledBy, String reason) {
+        boolean ok = updateAppointmentStatus(appointmentId, "Cancelled");
+        if (ok) {
+            try (Connection conn = DBConnection.getConnection()) {
+                // Also update online_consultation if exists
+                try (PreparedStatement ps2 = conn.prepareStatement("UPDATE online_consultation SET meeting_status = 'Cancelled' WHERE appointment_id = ?")) {
+                    ps2.setString(1, appointmentId);
+                    ps2.executeUpdate();
+                } catch (Exception ignored) {}
+
+                String logId = "LOG-" + (100000 + new java.util.Random().nextInt(900000));
+                String nowStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+                String logSql = "INSERT INTO activity_logs (log_id, user_id, user_name, role, module, action, status, ip_address, created_at) VALUES (?, ?, ?, ?, 'APPOINTMENTS', ?, 'Success', '127.0.0.1', ?)";
+                try (PreparedStatement psLog = conn.prepareStatement(logSql)) {
+                    psLog.setString(1, logId);
+                    psLog.setString(2, cancelledBy != null ? cancelledBy : "System");
+                    psLog.setString(3, cancelledBy != null ? cancelledBy : "User");
+                    psLog.setString(4, "Patient/Doctor");
+                    psLog.setString(5, "Cancelled appointment " + appointmentId + (reason != null && !reason.isEmpty() ? " (Reason: " + reason + ")" : ""));
+                    psLog.setString(6, nowStr);
+                    psLog.executeUpdate();
+                }
+            } catch (Exception ignored) {}
+        }
+        return ok;
+    }
+
+
+    /**
      * Get appointments booked specifically for a given doctor.
      * Doctor A never sees Doctor B's appointments.
      */

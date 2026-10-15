@@ -1627,20 +1627,87 @@
         return;
       }
 
-      tbody.innerHTML = appts.map(a => `
+      tbody.innerHTML = appts.map(a => {
+        const isPending = a.status.includes('PENDING') || a.status.includes('WAITING') || a.status.includes('UNPAID');
+        const approveBtn = isPending ? `<button class="btn btn-sm" style="background:#059669; color:#fff; border:none; padding:4px 8px; font-weight:600;" onclick="approveDoctorAppointment('${a.token}')">✅ Accept</button>` : '';
+        const cancelBtn = a.status !== 'CANCELLED' ? `<button class="btn btn-sm" style="background:#DC2626; color:#fff; border:none; padding:4px 8px; font-weight:600;" onclick="cancelDoctorAppointment('${a.token}')">❌ Cancel</button>` : '';
+        return `
         <tr>
           <td><b>${a.token}</b></td>
           <td>${a.patientId}</td>
           <td><b>${a.patientName}</b></td>
           <td>${a.ageGender}</td>
           <td>${a.slotTime}</td>
-          <td><span class="badge-status badge-pending">${a.status}</span></td>
-          <td style="display:flex; gap:6px;">
+          <td><span class="badge-status ${a.status === 'CONFIRMED' ? 'badge-completed' : (a.status === 'CANCELLED' ? 'badge-cancelled' : 'badge-pending')}">${a.status}</span></td>
+          <td style="display:flex; gap:6px; flex-wrap:wrap;">
+            ${approveBtn}
             <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}')">📝 Write Rx</button>
             <button class="btn btn-success btn-sm" style="background:#059669; color:#fff; border:none;" onclick="markDoctorConsultationComplete('${a.token}')">✅ Complete</button>
+            ${cancelBtn}
           </td>
         </tr>
-      `).join('');
+      `}).join('');
+    }
+
+    async function approveDoctorAppointment(apptId) {
+      if (!confirm('Accept and approve appointment ' + apptId + '?')) return;
+      try {
+        const res = await fetch('/api/appointment/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId: apptId, doctorId: docProfile.doctorId || 'DOC10084' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ Appointment ' + apptId + ' accepted and approved!');
+          try {
+            let allAppts = JSON.parse(localStorage.getItem('niramaya_appointments') || '[]');
+            allAppts.forEach(a => {
+              if (a.id === apptId || a.appointmentId === apptId || a.token === apptId) {
+                a.status = 'Confirmed';
+              }
+            });
+            localStorage.setItem('niramaya_appointments', JSON.stringify(allAppts));
+          } catch(e){}
+          await loadDashboardData();
+          renderApptsTable();
+        } else {
+          showToast('⚠️ ' + data.message);
+        }
+      } catch(e) {
+        showToast('❌ Failed to approve appointment.');
+      }
+    }
+
+    async function cancelDoctorAppointment(apptId) {
+      const reason = prompt('Please enter reason for cancellation (optional):', 'Doctor unavailable / Emergency rescheduling');
+      if (reason === null) return;
+      try {
+        const res = await fetch('/api/appointment/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId: apptId, cancelledBy: docProfile.name || 'Doctor', reason: reason })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('ℹ️ Appointment ' + apptId + ' cancelled.');
+          try {
+            let allAppts = JSON.parse(localStorage.getItem('niramaya_appointments') || '[]');
+            allAppts.forEach(a => {
+              if (a.id === apptId || a.appointmentId === apptId || a.token === apptId) {
+                a.status = 'Cancelled';
+              }
+            });
+            localStorage.setItem('niramaya_appointments', JSON.stringify(allAppts));
+          } catch(e){}
+          await loadDashboardData();
+          renderApptsTable();
+        } else {
+          showToast('⚠️ ' + data.message);
+        }
+      } catch(e) {
+        showToast('❌ Failed to cancel appointment.');
+      }
     }
 
     async function markDoctorConsultationComplete(apptId) {
@@ -1673,6 +1740,7 @@
         showToast('❌ Failed to complete consultation.');
       }
     }
+
 
     function renderApptsTable() {
       const query = document.getElementById('filterApptQuery').value.toLowerCase();

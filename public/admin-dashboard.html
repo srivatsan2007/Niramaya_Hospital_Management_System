@@ -889,6 +889,18 @@
         </div>
       </li>
 
+      <!-- 📩 Visitor Inquiries & Feedback -->
+      <li class="nav-item">
+        <div class="nav-header" onclick="switchNavView('viewInquiries', this)">
+          <div class="nav-title-group">
+            <span>📩</span>
+            <span>Visitor Inquiries</span>
+          </div>
+          <span class="badge-count" id="cntInquiries" style="background:#0D6EFD; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:10px;">0</span>
+        </div>
+      </li>
+
+
       <!-- 🗄️ Database Management Center -->
       <li class="nav-item">
         <div class="nav-header" onclick="switchNavView('viewDatabaseManager', this)">
@@ -1153,7 +1165,11 @@
             <h1 class="page-title">User & Role Management</h1>
             <p class="page-subtitle">Manage Staff, Doctors, Nurses, Patients, & Administrators</p>
           </div>
-          <button class="btn btn-primary" onclick="openAddUserModal()">+ Register New Staff / Patient</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="openAddUserModal()">+ Register New Staff / Patient</button>
+            <button class="btn btn-secondary" onclick="exportDataCSV('patients')">📥 Export Patients (CSV)</button>
+            <button class="btn btn-secondary" onclick="exportDataCSV('doctors')">📥 Export Doctors (CSV)</button>
+          </div>
         </div>
 
         <div class="card">
@@ -1199,7 +1215,10 @@
             <h1 class="page-title">Appointment Master Console</h1>
             <p class="page-subtitle">Today's, Upcoming, Completed, and Counter Payment Approvals</p>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="loadAppointmentsTable(); loadCounterPaymentsTable();">🔄 Refresh All</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="loadAppointmentsTable(); loadCounterPaymentsTable();">🔄 Refresh All</button>
+            <button class="btn btn-primary btn-sm" onclick="exportDataCSV('appointments')">📥 Export Appointments (CSV)</button>
+          </div>
         </div>
 
         <!-- Counter Payments in Appointments Console -->
@@ -1233,9 +1252,11 @@
         </div>
 
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
             <div class="card-title">All Master Appointments (`appointments` table)</div>
+            <input type="text" id="searchApptMasterInput" placeholder="🔍 Search by ID, Patient, Doctor..." oninput="filterAppointmentsMasterTable()" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; width:260px;">
           </div>
+
           <div class="table-container">
             <table>
               <thead>
@@ -1247,10 +1268,11 @@
                   <th>Date & Time</th>
                   <th>Status</th>
                   <th>Payment</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="tbodyAdminAppts">
-                <tr><td colspan="7" style="text-align:center;">Loading appointments...</td></tr>
+                <tr><td colspan="8" style="text-align:center;">Loading appointments...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1354,7 +1376,9 @@
             <h1 class="page-title">Billing & Revenue Management</h1>
             <p class="page-subtitle">Financial transactions and payment collection logs</p>
           </div>
+          <button class="btn btn-primary btn-sm" onclick="exportDataCSV('billing')">📥 Export Billing (CSV)</button>
         </div>
+
         <div class="card">
           <div class="table-container">
             <table>
@@ -1477,8 +1501,56 @@
         </div>
       </section>
 
+      <!-- ================= 10.5 VISITOR INQUIRIES & CONTACT DESK ================= -->
+      <section id="viewInquiries" class="view-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Visitor Inquiries & Patient Feedback</h1>
+            <p class="page-subtitle">Messages submitted via the public contact desk and portal</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary btn-sm" onclick="loadContactQueriesTable()">🔄 Refresh</button>
+            <button class="btn btn-primary btn-sm" onclick="exportDataCSV('inquiries')">📥 Export Inquiries (CSV)</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div class="card-title">Inquiry Messages Queue</div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input type="text" id="filterInquirySearch" placeholder="🔍 Search by name, email, subject..." oninput="filterInquiriesTable()" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; width:260px;">
+              <select id="filterInquiryStatus" onchange="filterInquiriesTable()" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; background:#fff;">
+                <option value="ALL">All Statuses</option>
+                <option value="Open">Open</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Query ID</th>
+                  <th>Name</th>
+                  <th>Contact Info</th>
+                  <th>Subject</th>
+                  <th>Message</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyContactQueries">
+                <tr><td colspan="8" style="text-align:center; padding:20px;">Loading inquiries...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ================= 11. DATABASE MANAGER CENTER ================= -->
       <section id="viewDatabaseManager" class="view-section">
+
         <div class="page-header">
           <div>
             <h1 class="page-title">Database Management Center</h1>
@@ -1732,6 +1804,7 @@
       loadPharmacyTable();
       loadBillingTable();
       loadDepartmentsReport();
+      loadContactQueriesTable();
     }
 
     function initCharts() {
@@ -1904,44 +1977,150 @@
       }
     }
 
+    let rawApptsList = [];
     async function loadAppointmentsTable() {
       try {
         const res = await fetch("/api/appointments");
-        const list = await res.json();
-        const tbody = document.getElementById("tbodyAdminAppts");
-        if (!tbody) return;
-        if (!list || list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:16px;">No appointments found.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = list.map(a => {
-          const isPaid = (a.paymentStatus || '').toLowerCase().includes('paid');
-          const payBadge = isPaid
-            ? `<span class="badge" style="background:#D1FAE5; color:#065F46; font-weight:700;">Paid ✓</span>`
-            : `<span class="badge" style="background:#FEF3C7; color:#92400E; font-weight:700;">⚠️ Unpaid (Desk)</span>`;
-          const statusBadge = a.status === 'COMPLETED'
-            ? `<span class="badge badge-success">Completed</span>`
-            : (isPaid ? `<span class="badge badge-primary">Confirmed</span>` : `<span class="badge badge-warning">Pending Payment ⏳</span>`);
-
-          const actionBtn = !isPaid
-            ? `<button class="btn btn-primary btn-sm" onclick="markAppointmentPaidAtCounter('${a.appointmentId}', '${a.patientId}', '₹800.00')" style="background:#059669; font-size:0.75rem; padding:4px 8px;">💵 Collect</button>`
-            : `<span style="color:#059669; font-weight:700; font-size:0.8rem;">✓ Verified</span>`;
-
-          return `
-            <tr>
-              <td><strong style="color:var(--primary); font-family:monospace;">${a.appointmentId || '-'}</strong></td>
-              <td><strong>${a.patientId || '-'}</strong></td>
-              <td>${a.doctorName || a.doctorId || '-'}</td>
-              <td>${a.department || '-'}</td>
-              <td>${a.date || a.appointmentDate || ''} ${a.time || a.appointmentTime || ''}</td>
-              <td>${statusBadge}</td>
-              <td>${payBadge}</td>
-              <td>${actionBtn}</td>
-            </tr>
-          `;
-        }).join('');
+        rawApptsList = await res.json();
+        filterAppointmentsMasterTable();
       } catch (e) { console.error("Error loading appts:", e); }
     }
+
+    function filterAppointmentsMasterTable() {
+      const q = (document.getElementById("searchApptMasterInput")?.value || "").toLowerCase();
+      const list = (rawApptsList || []).filter(a => {
+        return !q || (a.appointmentId && a.appointmentId.toLowerCase().includes(q))
+          || (a.patientId && a.patientId.toLowerCase().includes(q))
+          || (a.doctorName && a.doctorName.toLowerCase().includes(q))
+          || (a.department && a.department.toLowerCase().includes(q))
+          || (a.status && a.status.toLowerCase().includes(q));
+      });
+
+      const tbody = document.getElementById("tbodyAdminAppts");
+      if (!tbody) return;
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:16px;">No appointments matching query.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(a => {
+        const isPaid = (a.paymentStatus || '').toLowerCase().includes('paid');
+        const payBadge = isPaid
+          ? `<span class="badge" style="background:#D1FAE5; color:#065F46; font-weight:700;">Paid ✓</span>`
+          : `<span class="badge" style="background:#FEF3C7; color:#92400E; font-weight:700;">⚠️ Unpaid (Desk)</span>`;
+        const statusBadge = a.status === 'COMPLETED'
+          ? `<span class="badge badge-success">Completed</span>`
+          : (isPaid ? `<span class="badge badge-primary">Confirmed</span>` : `<span class="badge badge-warning">Pending Payment ⏳</span>`);
+
+        const actionBtn = !isPaid
+          ? `<button class="btn btn-primary btn-sm" onclick="markAppointmentPaidAtCounter('${a.appointmentId}', '${a.patientId}', '₹800.00')" style="background:#059669; font-size:0.75rem; padding:4px 8px;">💵 Collect</button>`
+          : `<span style="color:#059669; font-weight:700; font-size:0.8rem;">✓ Verified</span>`;
+
+        return `
+          <tr>
+            <td><strong style="color:var(--primary); font-family:monospace;">${a.appointmentId || '-'}</strong></td>
+            <td><strong>${a.patientId || '-'}</strong></td>
+            <td>${a.doctorName || a.doctorId || '-'}</td>
+            <td>${a.department || '-'}</td>
+            <td>${a.date || a.appointmentDate || ''} ${a.time || a.appointmentTime || ''}</td>
+            <td>${statusBadge}</td>
+            <td>${payBadge}</td>
+            <td>${actionBtn}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function exportDataCSV(type) {
+      window.open('/api/admin/export-data?type=' + encodeURIComponent(type), '_blank');
+    }
+
+    let rawInquiriesList = [];
+    async function loadContactQueriesTable() {
+      try {
+        const res = await fetch("/api/admin/contact-queries");
+        rawInquiriesList = await res.json();
+        const cntEl = document.getElementById("cntInquiries");
+        if (cntEl) cntEl.textContent = (rawInquiriesList || []).filter(q => q.status === 'Open').length;
+        filterInquiriesTable();
+      } catch (e) { console.error("Error loading contact queries:", e); }
+    }
+
+    function filterInquiriesTable() {
+      const q = (document.getElementById("filterInquirySearch")?.value || "").toLowerCase();
+      const st = document.getElementById("filterInquiryStatus")?.value || "ALL";
+
+      const filtered = (rawInquiriesList || []).filter(item => {
+        const matchesQ = !q || (item.name && item.name.toLowerCase().includes(q))
+          || (item.email && item.email.toLowerCase().includes(q))
+          || (item.subject && item.subject.toLowerCase().includes(q))
+          || (item.message && item.message.toLowerCase().includes(q));
+        const matchesSt = st === "ALL" || (item.status || "Open").toLowerCase() === st.toLowerCase();
+        return matchesQ && matchesSt;
+      });
+
+      const tbody = document.getElementById("tbodyContactQueries");
+      if (!tbody) return;
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">No visitor inquiries found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        const isOpen = (item.status || 'Open') === 'Open';
+        const stBadge = isOpen
+          ? '<span class="badge" style="background:#FEF3C7; color:#92400E; font-weight:700;">Open ⏳</span>'
+          : '<span class="badge" style="background:#D1FAE5; color:#065F46; font-weight:700;">Resolved ✓</span>';
+
+        const actionBtns = isOpen
+          ? `<button class="btn btn-primary btn-sm" onclick="updateContactQueryStatus('${item.queryId}', 'Resolved')" style="background:#059669; font-size:0.75rem; padding:4px 8px;">✓ Resolve</button>
+             <button class="btn btn-secondary btn-sm" onclick="deleteContactQuery('${item.queryId}')" style="font-size:0.75rem; padding:4px 8px; color:#DC2626;">🗑️</button>`
+          : `<button class="btn btn-secondary btn-sm" onclick="updateContactQueryStatus('${item.queryId}', 'Open')" style="font-size:0.75rem; padding:4px 8px;">Reopen</button>
+             <button class="btn btn-secondary btn-sm" onclick="deleteContactQuery('${item.queryId}')" style="font-size:0.75rem; padding:4px 8px; color:#DC2626;">🗑️</button>`;
+
+        return `
+          <tr>
+            <td><strong style="font-family:monospace; color:var(--primary);">${item.queryId}</strong></td>
+            <td><b>${item.name}</b></td>
+            <td><a href="mailto:${item.email}" style="color:var(--primary); text-decoration:none;">${item.email}</a><br><span style="font-size:0.75rem; color:var(--text-muted);">${item.phone || '-'}</span></td>
+            <td><span class="badge badge-info">${item.subject}</span></td>
+            <td style="max-width:280px; word-break:break-word;">${item.message}</td>
+            <td style="font-size:0.8rem; color:var(--text-muted);">${item.createdAt || '-'}</td>
+            <td>${stBadge}</td>
+            <td style="display:flex; gap:6px;">${actionBtns}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function updateContactQueryStatus(queryId, status) {
+      try {
+        const res = await fetch("/api/admin/contact-queries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ queryId: queryId, status: status })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadContactQueriesTable();
+        }
+      } catch (e) { alert("Failed to update inquiry status"); }
+    }
+
+    async function deleteContactQuery(queryId) {
+      if (!confirm("Are you sure you want to delete inquiry " + queryId + "?")) return;
+      try {
+        const res = await fetch("/api/admin/contact-queries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ queryId: queryId, action: "delete" })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadContactQueriesTable();
+        }
+      } catch (e) { alert("Failed to delete inquiry"); }
+    }
+
 
     async function loadLabTable() {
       try {
