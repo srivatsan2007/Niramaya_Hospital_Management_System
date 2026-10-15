@@ -33,10 +33,10 @@
     <div class="nav-group">
       <h6>Care</h6>
       <a href="#" class="side-link" id="navPrescriptions"><span class="ic">📝</span> My E-Prescriptions</a>
-      <a href="#" class="side-link"><span class="ic">🎥</span> Consultations</a>
+      <a href="#" class="side-link" id="navConsultations"><span class="ic">🎥</span> Consultations</a>
       <a href="#" class="side-link" id="navLaboratory"><span class="ic">🧪</span> Laboratory</a>
       <a href="#" class="side-link" id="navPharmacy"><span class="ic">💊</span> Pharmacy</a>
-      <a href="#" class="side-link"><span class="ic">🧾</span> Billing</a>
+      <a href="#" class="side-link" id="navBilling"><span class="ic">🧾</span> Billing</a>
     </div>
 
     <div class="nav-group">
@@ -1027,8 +1027,165 @@
         </div>
       </div>
     </div>
+    <!-- ============ VIEW: CONSULTATIONS MODULE ============ -->
+    <div id="viewConsultations" class="dash-view" style="display:none;">
+      <div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; background:linear-gradient(135deg, #0F2A4A, #0D6EFD); padding:24px; border-radius:16px; color:#fff; box-shadow:var(--shadow-md);">
+        <div>
+          <h2 style="font-family:'Sora'; font-size:1.5rem; margin:0; color:#fff;">🎥 Online Video & Clinical Consultations</h2>
+          <p style="margin:4px 0 0 0; opacity:0.85; font-size:0.88rem;">Connect with verified specialists via HD encrypted Telemedicine rooms or view scheduled clinic visits.</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <a href="/telemedicine.html?role=patient" class="btn btn-teal" style="background:#fff; color:#0D6EFD; font-weight:700; font-size:0.9rem; padding:10px 18px; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+            🎥 Open Telemedicine Suite
+          </a>
+          <button type="button" class="btn btn-teal" onclick="switchView('appointments')" style="font-weight:700; font-size:0.9rem; padding:10px 18px;">
+            📅 + Book Consultation
+          </button>
+        </div>
+      </div>
 
+      <!-- ACTIVE TELEMEDICINE HERO BANNER -->
+      <div id="consultationHeroBanner" class="panel" style="margin-bottom:24px; background:linear-gradient(135deg, #0284C7 0%, #0D9488 100%); color:#fff; border:none; padding:20px 24px; border-radius:14px; box-shadow:0 8px 24px rgba(2,132,199,0.25);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:1.8rem;">
+              💻
+            </div>
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <h3 style="font-size:1.15rem; font-family:'Sora'; margin:0; color:#fff;">Virtual Consultation Suite</h3>
+                <span class="status-pill ok" style="background:rgba(255,255,255,0.25); color:#fff; font-size:0.75rem;">WebRTC Encrypted</span>
+              </div>
+              <p style="font-size:0.85rem; margin:4px 0 0; opacity:0.9;" id="consultHeroText">
+                Instant video rooms with audio, live chat, digital prescription sharing, and screen broadcast.
+              </p>
+            </div>
+          </div>
+          <a href="/telemedicine.html?role=patient" target="_blank" class="btn btn-ghost" style="background:#fff; color:#0284C7; font-weight:700; border:none; padding:8px 16px; border-radius:8px; text-decoration:none;">
+            🚀 Join Video Room Now →
+          </a>
+        </div>
+      </div>
 
+      <!-- CONSULTATIONS FILTER TABS -->
+      <div class="panel" style="margin-bottom:24px; padding:14px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm consult-tab-btn active" id="btnConsultAll" onclick="filterConsultations('all', this)" style="border-radius:20px; font-weight:700; padding:6px 16px; background:var(--blue-900); color:#fff;">All (0)</button>
+            <button class="btn btn-ghost btn-sm consult-tab-btn" id="btnConsultOnline" onclick="filterConsultations('online', this)" style="border-radius:20px; font-weight:600; padding:6px 16px;">💻 Online Video</button>
+            <button class="btn btn-ghost btn-sm consult-tab-btn" id="btnConsultInPerson" onclick="filterConsultations('in_person', this)" style="border-radius:20px; font-weight:600; padding:6px 16px;">🏥 In-Clinic</button>
+            <button class="btn btn-ghost btn-sm consult-tab-btn" id="btnConsultCompleted" onclick="filterConsultations('completed', this)" style="border-radius:20px; font-weight:600; padding:6px 16px;">✅ Completed</button>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="renderPatientConsultations()" style="font-size:0.8rem; font-weight:600;">
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- CONSULTATIONS TABLE -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Your Consultations Registry</h3>
+          <span style="font-size:0.8rem; color:var(--ink-soft);" id="lblConsultationsCount">Total: 0 consultations</span>
+        </div>
+        <div style="overflow-x:auto; margin-top:14px;">
+          <table style="width:100%; border-collapse:collapse;" class="data-table">
+            <thead>
+              <tr style="background:#F8FAFC; text-align:left; font-size:0.78rem; text-transform:uppercase; color:var(--ink-soft);">
+                <th style="padding:12px 14px;">Token / ID</th>
+                <th style="padding:12px 14px;">Doctor & Specialty</th>
+                <th style="padding:12px 14px;">Mode</th>
+                <th style="padding:12px 14px;">Date & Time</th>
+                <th style="padding:12px 14px;">Fee</th>
+                <th style="padding:12px 14px;">Status</th>
+                <th style="padding:12px 14px; text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPatientConsultations">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ VIEW: BILLING & INVOICES MODULE ============ -->
+    <div id="viewBilling" class="dash-view" style="display:none;">
+      <div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; background:linear-gradient(135deg, #0F2A4A, #059669); padding:24px; border-radius:16px; color:#fff; box-shadow:var(--shadow-md);">
+        <div>
+          <h2 style="font-family:'Sora'; font-size:1.5rem; margin:0; color:#fff;">🧾 Hospital Billing & Tax Invoices</h2>
+          <p style="margin:4px 0 0 0; opacity:0.85; font-size:0.88rem;">Official medical invoices, payments breakdown, diagnostic charges, and printable tax receipts.</p>
+        </div>
+        <button type="button" class="btn btn-teal" onclick="renderPatientBilling()" style="font-weight:700; font-size:0.9rem; padding:10px 18px;">
+          🔄 Refresh Invoices
+        </button>
+      </div>
+
+      <!-- 3 BILLING METRIC KPI CARDS -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:18px; margin-bottom:24px;">
+        <div class="panel" style="padding:20px; border-left:4px solid var(--teal-500); background:#fff;">
+          <span style="font-size:0.75rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700;">TOTAL AMOUNT BILLED</span>
+          <h3 style="font-family:'Sora'; font-size:1.6rem; color:var(--blue-900); margin:8px 0 4px;" id="billTotalAmount">₹ 0.00</h3>
+          <span style="font-size:0.75rem; color:var(--ink-soft);">Consultation, pharmacy & lab charges</span>
+        </div>
+
+        <div class="panel" style="padding:20px; border-left:4px solid #10B981; background:#fff;">
+          <span style="font-size:0.75rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700;">PAID & SETTLED</span>
+          <h3 style="font-family:'Sora'; font-size:1.6rem; color:#10B981; margin:8px 0 4px;" id="billPaidAmount">₹ 0.00</h3>
+          <span style="font-size:0.75rem; color:#10B981; font-weight:600;">✓ Receipts unlocked & verified</span>
+        </div>
+
+        <div class="panel" style="padding:20px; border-left:4px solid #F59E0B; background:#fff;">
+          <span style="font-size:0.75rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700;">PENDING / DUE</span>
+          <h3 style="font-family:'Sora'; font-size:1.6rem; color:#F59E0B; margin:8px 0 4px;" id="billPendingAmount">₹ 0.00</h3>
+          <span style="font-size:0.75rem; color:#F59E0B; font-weight:600;">⏳ Pay at desk or online via UPI</span>
+        </div>
+
+        <div class="panel" style="padding:20px; border-left:4px solid #6366F1; background:#fff;">
+          <span style="font-size:0.75rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700;">TAX INVOICES</span>
+          <h3 style="font-family:'Sora'; font-size:1.6rem; color:#6366F1; margin:8px 0 4px;" id="billTotalInvoices">0</h3>
+          <span style="font-size:0.75rem; color:var(--ink-soft);">GST compliant digital bills</span>
+        </div>
+      </div>
+
+      <!-- BILLING FILTER TABS -->
+      <div class="panel" style="margin-bottom:24px; padding:14px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm bill-tab-btn active" id="btnBillAll" onclick="filterBilling('all', this)" style="border-radius:20px; font-weight:700; padding:6px 16px; background:var(--blue-900); color:#fff;">All Bills (0)</button>
+            <button class="btn btn-ghost btn-sm bill-tab-btn" id="btnBillPaid" onclick="filterBilling('paid', this)" style="border-radius:20px; font-weight:600; padding:6px 16px;">✅ Paid (0)</button>
+            <button class="btn btn-ghost btn-sm bill-tab-btn" id="btnBillPending" onclick="filterBilling('pending', this)" style="border-radius:20px; font-weight:600; padding:6px 16px;">⏳ Pending (0)</button>
+          </div>
+          <input type="text" id="inputSearchBills" placeholder="🔍 Search invoice or doctor..." oninput="searchBillingList()" style="padding:6px 14px; border-radius:20px; border:1px solid #CBD5E1; font-size:0.82rem; width:220px;">
+        </div>
+      </div>
+
+      <!-- INVOICES TABLE -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Medical Billing & Invoices Registry</h3>
+          <span style="font-size:0.8rem; color:var(--ink-soft);">Official Niramaya GST Invoices</span>
+        </div>
+        <div style="overflow-x:auto; margin-top:14px;">
+          <table style="width:100%; border-collapse:collapse;" class="data-table">
+            <thead>
+              <tr style="background:#F8FAFC; text-align:left; font-size:0.78rem; text-transform:uppercase; color:var(--ink-soft);">
+                <th style="padding:12px 14px;">Invoice No</th>
+                <th style="padding:12px 14px;">Service / Description</th>
+                <th style="padding:12px 14px;">Date</th>
+                <th style="padding:12px 14px;">Payment Mode</th>
+                <th style="padding:12px 14px;">Amount</th>
+                <th style="padding:12px 14px;">Status</th>
+                <th style="padding:12px 14px; text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPatientBilling">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
   </main>
 </div>
@@ -2370,6 +2527,8 @@
     const viewPresc = document.getElementById('viewPrescriptions');
     const viewLab = document.getElementById('viewLaboratory');
     const viewPharm = document.getElementById('viewPharmacy');
+    const viewConsult = document.getElementById('viewConsultations');
+    const viewBill = document.getElementById('viewBilling');
 
     const navDash = document.getElementById('navDashboard');
     const navAppt = document.getElementById('navAppointments');
@@ -2378,6 +2537,8 @@
     const navPresc = document.getElementById('navPrescriptions');
     const navLab = document.getElementById('navLaboratory');
     const navPharm = document.getElementById('navPharmacy');
+    const navConsult = document.getElementById('navConsultations');
+    const navBill = document.getElementById('navBilling');
 
     document.querySelectorAll('.sidebar .side-link').forEach(link => link.classList.remove('active'));
 
@@ -2401,6 +2562,10 @@
       if (viewPresc) viewPresc.style.display = 'block';
       if (navPresc) navPresc.classList.add('active');
       renderPatientPrescriptions();
+    } else if (viewName === 'consultations') {
+      if (viewConsult) viewConsult.style.display = 'block';
+      if (navConsult) navConsult.classList.add('active');
+      renderPatientConsultations();
     } else if (viewName === 'laboratory') {
       if (viewLab) viewLab.style.display = 'block';
       if (navLab) navLab.classList.add('active');
@@ -2409,6 +2574,10 @@
       if (viewPharm) viewPharm.style.display = 'block';
       if (navPharm) navPharm.classList.add('active');
       if (typeof loadPatientPharmacyData === 'function') loadPatientPharmacyData();
+    } else if (viewName === 'billing') {
+      if (viewBill) viewBill.style.display = 'block';
+      if (navBill) navBill.classList.add('active');
+      renderPatientBilling();
     } else {
       if (viewDash) viewDash.style.display = 'block';
       if (navDash) navDash.classList.add('active');
@@ -2487,13 +2656,17 @@
   document.getElementById('navAppointments')?.addEventListener('click', (e) => { e.preventDefault(); switchView('appointments'); });
   document.getElementById('navPatients')?.addEventListener('click', (e) => { e.preventDefault(); switchView('patients'); });
   document.getElementById('navPrescriptions')?.addEventListener('click', (e) => { e.preventDefault(); switchView('prescriptions'); });
+  document.getElementById('navConsultations')?.addEventListener('click', (e) => { e.preventDefault(); switchView('consultations'); });
   document.getElementById('navLaboratory')?.addEventListener('click', (e) => { e.preventDefault(); switchView('laboratory'); });
   document.getElementById('navPharmacy')?.addEventListener('click', (e) => { e.preventDefault(); switchView('pharmacy'); });
+  document.getElementById('navBilling')?.addEventListener('click', (e) => { e.preventDefault(); switchView('billing'); });
 
   window.showView = function(viewName) {
     if (viewName === 'viewLaboratory' || viewName === 'laboratory') switchView('laboratory');
     else if (viewName === 'viewAppointments' || viewName === 'appointments') switchView('appointments');
     else if (viewName === 'viewPrescriptions' || viewName === 'prescriptions') switchView('prescriptions');
+    else if (viewName === 'viewConsultations' || viewName === 'consultations') switchView('consultations');
+    else if (viewName === 'viewBilling' || viewName === 'billing') switchView('billing');
     else if (viewName === 'viewPharmacy' || viewName === 'pharmacy') switchView('pharmacy');
     else if (viewName === 'viewProfile' || viewName === 'profile') switchView('profile');
     else if (viewName === 'viewPatients' || viewName === 'patients') switchView('patients');
@@ -4299,8 +4472,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
   document.getElementById('linkViewAllAppts')?.addEventListener('click', () => switchView('appointments'));
   
   document.getElementById('actVideoConsult')?.addEventListener('click', () => {
-    switchView('appointments');
-    showToast('💻 Select a doctor slot and choose "Online Video Consultation" option!');
+    switchView('consultations');
   });
 
   // Dynamic Prescription Populate & Download
@@ -4786,8 +4958,7 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
   });
 
   document.getElementById('actPayBill')?.addEventListener('click', () => {
-    switchView('appointments');
-    showToast('💳 Select your booking or doctor slot to make bill payment.');
+    switchView('billing');
   });
 
   document.getElementById('actMedicalRecords')?.addEventListener('click', () => {
@@ -6058,6 +6229,499 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
         }
       } catch (e) {
         alert('Invoice download unavailable.');
+      }
+    };
+
+    // ============ PATIENT CONSULTATIONS & BILLING CONTROLLER ============
+    function escapeHtmlSafe(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    window.cachedConsultations = [];
+    window.activeConsultFilter = 'all';
+
+    window.renderPatientConsultations = async function() {
+      const tbody = document.getElementById('tbodyPatientConsultations');
+      const lblCount = document.getElementById('lblConsultationsCount');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--ink-soft);">Loading your consultations...</td></tr>';
+
+      let consultations = [];
+      try {
+        const [resToday, resHist] = await Promise.all([
+          fetch(`/api/patient/todays-appointments?patientId=${encodeURIComponent(savedPatientId || '')}`),
+          fetch(`/api/patient/appointment-history?patientId=${encodeURIComponent(savedPatientId || '')}`)
+        ]);
+        const todayList = resToday.ok ? await resToday.json() : [];
+        const histList = resHist.ok ? await resHist.json() : [];
+        consultations = [...todayList, ...histList];
+      } catch (e) {}
+
+      try {
+        const localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
+        localBookings.forEach(b => {
+          if (!consultations.some(c => c.token === b.token || c.appointmentId === b.token || c.appointmentId === b.appointmentId)) {
+            consultations.push({
+              token: b.token || b.id || 'TOK-' + Math.floor(100000 + Math.random() * 900000),
+              appointmentId: b.token || b.id || 'TOK-100842',
+              patient: b.patient || savedName,
+              patientId: b.patientId || savedPatientId,
+              docName: b.docName || 'Dr. Ananya Rao',
+              dept: b.dept || 'General Medicine',
+              date: b.date || 'Today',
+              time: b.time || '10:00 AM',
+              fee: b.fee || '₹800',
+              status: b.status || 'Confirmed',
+              paymentStatus: b.paymentStatus || 'Paid via UPI ✓',
+              consultMode: b.consultMode || 'online',
+              meetLink: b.meetLink || '/telemedicine.html?role=patient&meetingId=MTG-782914'
+            });
+          }
+        });
+      } catch (e) {}
+
+      if (consultations.length === 0) {
+        consultations = [
+          {
+            token: 'TOK-889124',
+            appointmentId: 'TOK-889124',
+            patient: savedName || 'Patient',
+            patientId: savedPatientId || 'PT100842',
+            docName: 'Dr. Ananya Rao',
+            dept: 'Cardiology',
+            date: new Date().toISOString().split('T')[0],
+            time: '10:30 AM',
+            fee: '₹800',
+            status: 'Confirmed',
+            paymentStatus: 'Paid via UPI ✓',
+            consultMode: 'online',
+            meetLink: '/telemedicine.html?role=patient&meetingId=MTG-782914'
+          },
+          {
+            token: 'TOK-772109',
+            appointmentId: 'TOK-772109',
+            patient: savedName || 'Patient',
+            patientId: savedPatientId || 'PT100842',
+            docName: 'Dr. Rajesh Kumar',
+            dept: 'Neurology',
+            date: 'Yesterday',
+            time: '04:15 PM',
+            fee: '₹950',
+            status: 'Completed',
+            paymentStatus: 'Paid via UPI ✓',
+            consultMode: 'in_person',
+            meetLink: ''
+          }
+        ];
+      }
+
+      window.cachedConsultations = consultations;
+      applyConsultationFilter();
+    };
+
+    window.filterConsultations = function(filterType, btnEl) {
+      window.activeConsultFilter = filterType;
+      document.querySelectorAll('.consult-tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--ink)';
+        b.style.fontWeight = '600';
+      });
+      if (btnEl) {
+        btnEl.classList.add('active');
+        btnEl.style.background = 'var(--blue-900)';
+        btnEl.style.color = '#fff';
+        btnEl.style.fontWeight = '700';
+      }
+      applyConsultationFilter();
+    };
+
+    function applyConsultationFilter() {
+      const tbody = document.getElementById('tbodyPatientConsultations');
+      const lblCount = document.getElementById('lblConsultationsCount');
+      if (!tbody) return;
+
+      let list = window.cachedConsultations || [];
+      const filter = window.activeConsultFilter || 'all';
+
+      if (filter === 'online') {
+        list = list.filter(c => (c.consultMode || '').toLowerCase() === 'online');
+      } else if (filter === 'in_person') {
+        list = list.filter(c => (c.consultMode || '').toLowerCase() !== 'online');
+      } else if (filter === 'completed') {
+        list = list.filter(c => (c.status || '').toLowerCase().includes('complete'));
+      }
+
+      const allCount = (window.cachedConsultations || []).length;
+      const onlineCount = (window.cachedConsultations || []).filter(c => (c.consultMode || '').toLowerCase() === 'online').length;
+      const inPersonCount = (window.cachedConsultations || []).filter(c => (c.consultMode || '').toLowerCase() !== 'online').length;
+      const completedCount = (window.cachedConsultations || []).filter(c => (c.status || '').toLowerCase().includes('complete')).length;
+
+      const btnAll = document.getElementById('btnConsultAll');
+      const btnOnline = document.getElementById('btnConsultOnline');
+      const btnInPerson = document.getElementById('btnConsultInPerson');
+      const btnCompleted = document.getElementById('btnConsultCompleted');
+      if (btnAll) btnAll.textContent = `All (${allCount})`;
+      if (btnOnline) btnOnline.textContent = `💻 Online Video (${onlineCount})`;
+      if (btnInPerson) btnInPerson.textContent = `🏥 In-Clinic (${inPersonCount})`;
+      if (btnCompleted) btnCompleted.textContent = `✅ Completed (${completedCount})`;
+
+      if (lblCount) lblCount.textContent = `Showing ${list.length} of ${allCount} consultations`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; padding:36px; color:var(--ink-soft);">
+              <div style="font-size:2rem; margin-bottom:8px;">🎥</div>
+              <div style="font-weight:700; color:var(--blue-900); font-size:1rem; margin-bottom:4px;">No consultations found for this category</div>
+              <div style="font-size:0.82rem; margin-bottom:14px;">Schedule an appointment with our specialist physicians anytime.</div>
+              <button class="btn btn-teal btn-sm" onclick="switchView('appointments')">📅 + Book New Consultation</button>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = list.map(c => {
+        const isOnline = (c.consultMode || '').toLowerCase() === 'online';
+        const isCompleted = (c.status || '').toLowerCase().includes('complete');
+        const isPending = (c.status || '').toLowerCase().includes('pending');
+        const token = c.token || c.appointmentId || 'TK-101';
+        const fee = c.fee ? (c.fee.toString().startsWith('₹') ? c.fee : ('₹' + c.fee)) : '₹800';
+
+        const modeBadge = isOnline
+          ? `<span class="status-pill ok" style="background:rgba(2,132,199,0.12); color:#0284C7; font-weight:700; font-size:0.75rem;">💻 Online Video</span>`
+          : `<span class="status-pill wait" style="background:rgba(10,178,167,0.12); color:var(--teal-500); font-weight:700; font-size:0.75rem;">🏥 In-Clinic Visit</span>`;
+
+        const statusBadge = isCompleted
+          ? `<span class="status-pill ok" style="background:#D1E7DD; color:#0F5132; font-weight:700; font-size:0.75rem;">Completed ✓</span>`
+          : (isPending 
+              ? `<span class="status-pill wait" style="background:#FEF3C7; color:#B45309; font-weight:700; font-size:0.75rem;">Scheduled ⏳</span>`
+              : `<span class="status-pill ok" style="background:#E0F2FE; color:#0369A1; font-weight:700; font-size:0.75rem;">Confirmed ✓</span>`);
+
+        const meetingBtn = isOnline
+          ? `<a href="/telemedicine.html?role=patient&meetingId=${encodeURIComponent(token)}" target="_blank" class="btn btn-teal btn-sm" style="background:#0284C7; color:#fff; border:none; text-decoration:none; padding:5px 12px; font-size:0.78rem; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">🎥 Join Call</a>`
+          : '';
+
+        const invoiceBtn = `<button type="button" class="btn btn-ghost btn-sm" onclick='viewConsultationInvoice("${escapeHtmlSafe(token)}")' style="border:1px solid #CBD5E1; padding:4px 8px; font-size:0.75rem; border-radius:6px;">🧾 Bill</button>`;
+        const rxBtn = isCompleted
+          ? `<button type="button" class="btn btn-ghost btn-sm" onclick='switchView("prescriptions")' style="border:1px solid #0D6EFD; color:#0D6EFD; padding:4px 8px; font-size:0.75rem; border-radius:6px;">📝 Rx</button>`
+          : '';
+
+        return `
+          <tr style="border-bottom:1px solid var(--line);">
+            <td style="padding:12px 14px; font-family:'Courier Prime',monospace; font-weight:800; color:var(--blue-900);">${escapeHtmlSafe(token)}</td>
+            <td style="padding:12px 14px;">
+              <div style="font-weight:700; color:var(--blue-900);">${escapeHtmlSafe(c.docName || 'Dr. Specialist')}</div>
+              <div style="font-size:0.75rem; color:var(--ink-soft);">${escapeHtmlSafe(c.dept || 'General Medicine')}</div>
+            </td>
+            <td style="padding:12px 14px;">${modeBadge}</td>
+            <td style="padding:12px 14px;">
+              <div style="font-weight:600; color:var(--ink);">${escapeHtmlSafe(c.date || 'Today')}</div>
+              <div style="font-size:0.75rem; color:var(--ink-soft);">${escapeHtmlSafe(c.time || '10:00 AM')}</div>
+            </td>
+            <td style="padding:12px 14px; font-weight:800; color:var(--teal-500); font-family:'Sora';">${escapeHtmlSafe(fee)}</td>
+            <td style="padding:12px 14px;">${statusBadge}</td>
+            <td style="padding:12px 14px; text-align:right;">
+              <div style="display:flex; justify-content:flex-end; gap:6px; flex-wrap:wrap;">
+                ${meetingBtn}
+                ${invoiceBtn}
+                ${rxBtn}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.viewConsultationInvoice = function(token) {
+      const list = window.cachedConsultations || [];
+      const item = list.find(c => c.token === token || c.appointmentId === token) || list[0];
+      if (item && typeof openInvoiceModal === 'function') {
+        openInvoiceModal(item);
+      } else {
+        showToast('📄 Generating receipt invoice for token ' + token + '...');
+      }
+    };
+
+    // ============ PATIENT BILLING & INVOICES CONTROLLER ============
+    window.cachedBillingItems = [];
+    window.activeBillingFilter = 'all';
+
+    window.renderPatientBilling = async function() {
+      const tbody = document.getElementById('tbodyPatientBilling');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--ink-soft);">Aggregating medical invoices...</td></tr>';
+
+      let bills = [];
+
+      try {
+        const localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
+        localBookings.forEach((b, idx) => {
+          const isPaid = (b.paymentStatus || '').toLowerCase().includes('paid');
+          const feeVal = parseFloat((b.fee || '800').replace(/[^0-9.]/g, '')) || 800;
+          bills.push({
+            invoiceNo: 'INV-2026-' + (8400 + idx),
+            token: b.token || b.id || 'TK-101',
+            serviceName: `Doctor Consultation (${b.docName || 'Physician'} · ${b.dept || 'Medicine'})`,
+            date: b.date || 'Today',
+            time: b.time || '10:00 AM',
+            paymentMode: b.paymentStatus && b.paymentStatus.includes('Paid via') ? b.paymentStatus.replace('Paid via', '').replace('✓', '').trim() : 'UPI',
+            amount: feeVal,
+            status: isPaid ? 'PAID' : 'PENDING',
+            rawBooking: b
+          });
+        });
+      } catch(e) {}
+
+      try {
+        const pharmOrders = JSON.parse(localStorage.getItem('niramaya_patient_pharmacy_orders') || '[]');
+        pharmOrders.forEach((o, idx) => {
+          bills.push({
+            invoiceNo: 'INV-PHARM-' + (6200 + idx),
+            token: o.orderId || ('ORD-' + (6200 + idx)),
+            serviceName: `Pharmacy Prescription Dispensation (${o.items ? o.items.length : 2} Medications)`,
+            date: o.date || 'Today',
+            time: o.time || '11:30 AM',
+            paymentMode: o.paymentMode || 'Counter Payment',
+            amount: parseFloat(o.totalAmount || o.amount || 450),
+            status: 'PAID',
+            rawBooking: null
+          });
+        });
+      } catch(e) {}
+
+      try {
+        const labOrders = JSON.parse(localStorage.getItem('niramaya_lab_bookings') || '[]');
+        labOrders.forEach((l, idx) => {
+          bills.push({
+            invoiceNo: 'INV-LAB-' + (3100 + idx),
+            token: l.bookingId || ('LAB-' + (3100 + idx)),
+            serviceName: `Diagnostic Pathology Test (${l.testName || 'Complete Blood Count'})`,
+            date: l.date || 'Today',
+            time: '12:00 PM',
+            paymentMode: l.paymentMethod || 'UPI',
+            amount: parseFloat(l.price || l.amount || 600),
+            status: (l.paymentStatus || '').toLowerCase().includes('paid') ? 'PAID' : 'PENDING',
+            rawBooking: null
+          });
+        });
+      } catch(e) {}
+
+      if (bills.length === 0) {
+        bills = [
+          {
+            invoiceNo: 'INV-2026-9102',
+            token: 'TOK-889124',
+            serviceName: 'Cardiology Specialist Video Consultation (Dr. Ananya Rao)',
+            date: new Date().toISOString().split('T')[0],
+            time: '10:30 AM',
+            paymentMode: 'UPI (GPay)',
+            amount: 800.00,
+            status: 'PAID',
+            rawBooking: {
+              token: 'TOK-889124',
+              patient: savedName,
+              patientId: savedPatientId,
+              docName: 'Dr. Ananya Rao',
+              dept: 'Cardiology',
+              date: 'Today',
+              time: '10:30 AM',
+              fee: '₹800',
+              status: 'Confirmed',
+              paymentStatus: 'Paid via UPI ✓',
+              consultMode: 'online'
+            }
+          },
+          {
+            invoiceNo: 'INV-2026-9101',
+            token: 'MED-550182',
+            serviceName: 'Pharmacy Outpatient Dispensed Medication (3 Items)',
+            date: 'Yesterday',
+            time: '04:45 PM',
+            paymentMode: 'Credit Card (HDFC)',
+            amount: 640.00,
+            status: 'PAID',
+            rawBooking: null
+          },
+          {
+            invoiceNo: 'INV-2026-9098',
+            token: 'LAB-291044',
+            serviceName: 'Complete Blood Count (CBC) & Fasting Lipid Profile',
+            date: '14-Oct-2026',
+            time: '09:15 AM',
+            paymentMode: 'Counter Verified',
+            amount: 1100.00,
+            status: 'PAID',
+            rawBooking: null
+          }
+        ];
+      }
+
+      window.cachedBillingItems = bills;
+
+      const totalAmount = bills.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
+      const paidAmount = bills.filter(b => b.status === 'PAID').reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
+      const pendingAmount = bills.filter(b => b.status !== 'PAID').reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
+
+      const elTotal = document.getElementById('billTotalAmount');
+      const elPaid = document.getElementById('billPaidAmount');
+      const elPending = document.getElementById('billPendingAmount');
+      const elInvCount = document.getElementById('billTotalInvoices');
+
+      if (elTotal) elTotal.textContent = `₹ ${totalAmount.toFixed(2)}`;
+      if (elPaid) elPaid.textContent = `₹ ${paidAmount.toFixed(2)}`;
+      if (elPending) elPending.textContent = `₹ ${pendingAmount.toFixed(2)}`;
+      if (elInvCount) elInvCount.textContent = bills.length;
+
+      applyBillingFilter();
+    };
+
+    window.filterBilling = function(filterType, btnEl) {
+      window.activeBillingFilter = filterType;
+      document.querySelectorAll('.bill-tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--ink)';
+        b.style.fontWeight = '600';
+      });
+      if (btnEl) {
+        btnEl.classList.add('active');
+        btnEl.style.background = 'var(--blue-900)';
+        btnEl.style.color = '#fff';
+        btnEl.style.fontWeight = '700';
+      }
+      applyBillingFilter();
+    };
+
+    window.searchBillingList = function() {
+      applyBillingFilter();
+    };
+
+    function applyBillingFilter() {
+      const tbody = document.getElementById('tbodyPatientBilling');
+      if (!tbody) return;
+
+      let list = window.cachedBillingItems || [];
+      const filter = window.activeBillingFilter || 'all';
+      const query = (document.getElementById('inputSearchBills')?.value || '').toLowerCase().trim();
+
+      if (filter === 'paid') {
+        list = list.filter(b => b.status === 'PAID');
+      } else if (filter === 'pending') {
+        list = list.filter(b => b.status !== 'PAID');
+      }
+
+      if (query) {
+        list = list.filter(b => 
+          (b.invoiceNo || '').toLowerCase().includes(query) ||
+          (b.serviceName || '').toLowerCase().includes(query) ||
+          (b.token || '').toLowerCase().includes(query)
+        );
+      }
+
+      const allCount = (window.cachedBillingItems || []).length;
+      const paidCount = (window.cachedBillingItems || []).filter(b => b.status === 'PAID').length;
+      const pendingCount = (window.cachedBillingItems || []).filter(b => b.status !== 'PAID').length;
+
+      const btnAll = document.getElementById('btnBillAll');
+      const btnPaid = document.getElementById('btnBillPaid');
+      const btnPending = document.getElementById('btnBillPending');
+      if (btnAll) btnAll.textContent = `All Bills (${allCount})`;
+      if (btnPaid) btnPaid.textContent = `✅ Paid (${paidCount})`;
+      if (btnPending) btnPending.textContent = `⏳ Pending (${pendingCount})`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; padding:36px; color:var(--ink-soft);">
+              <div style="font-size:2rem; margin-bottom:8px;">🧾</div>
+              <div style="font-weight:700; color:var(--blue-900); font-size:1rem; margin-bottom:4px;">No invoices found</div>
+              <div style="font-size:0.82rem;">All your consultations and medical bills will be listed here with instant tax receipts.</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = list.map(b => {
+        const isPaid = b.status === 'PAID';
+        const statusBadge = isPaid
+          ? `<span class="status-pill ok" style="background:#D1E7DD; color:#0F5132; font-weight:700; font-size:0.75rem;">PAID ✓</span>`
+          : `<span class="status-pill wait" style="background:#FEF3C7; color:#B45309; font-weight:700; font-size:0.75rem;">PENDING ⏳</span>`;
+
+        const payBtn = !isPaid
+          ? `<button class="btn btn-teal btn-sm" onclick='payPendingBill("${escapeHtmlSafe(b.token)}", ${b.amount})' style="padding:4px 10px; font-size:0.75rem; font-weight:700;">💳 Pay Now</button>`
+          : '';
+
+        const invoiceBtn = `<button class="btn btn-ghost btn-sm" onclick='showFullInvoice("${escapeHtmlSafe(b.invoiceNo)}")' style="border:1px solid #CBD5E1; padding:4px 10px; font-size:0.75rem; font-weight:600; border-radius:6px;">📄 Invoice</button>`;
+        const printBtn = `<button class="btn btn-ghost btn-sm" onclick='printDirectReceipt("${escapeHtmlSafe(b.invoiceNo)}")' style="border:1px solid #CBD5E1; padding:4px 8px; font-size:0.75rem; border-radius:6px;" title="Print Official Tax Receipt">🖨️</button>`;
+
+        return `
+          <tr style="border-bottom:1px solid var(--line);">
+            <td style="padding:12px 14px; font-family:'Courier Prime',monospace; font-weight:800; color:var(--blue-900);">${escapeHtmlSafe(b.invoiceNo)}</td>
+            <td style="padding:12px 14px;">
+              <div style="font-weight:700; color:var(--blue-900);">${escapeHtmlSafe(b.serviceName)}</div>
+              <div style="font-size:0.75rem; color:var(--ink-soft);">Reference: ${escapeHtmlSafe(b.token)}</div>
+            </td>
+            <td style="padding:12px 14px; font-size:0.85rem; color:var(--ink);">${escapeHtmlSafe(b.date)}</td>
+            <td style="padding:12px 14px; font-size:0.8rem; font-weight:600;">${escapeHtmlSafe(b.paymentMode)}</td>
+            <td style="padding:12px 14px; font-weight:800; color:var(--blue-900); font-family:'Sora';">₹ ${(parseFloat(b.amount)||0).toFixed(2)}</td>
+            <td style="padding:12px 14px;">${statusBadge}</td>
+            <td style="padding:12px 14px; text-align:right;">
+              <div style="display:flex; justify-content:flex-end; gap:6px; flex-wrap:wrap;">
+                ${payBtn}
+                ${invoiceBtn}
+                ${printBtn}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.showFullInvoice = function(invNo) {
+      const list = window.cachedBillingItems || [];
+      const item = list.find(b => b.invoiceNo === invNo) || list[0];
+      if (item && item.rawBooking && typeof openInvoiceModal === 'function') {
+        openInvoiceModal(item.rawBooking);
+      } else if (item && typeof openInvoiceModal === 'function') {
+        openInvoiceModal({
+          token: item.token,
+          patient: savedName,
+          patientId: savedPatientId,
+          docName: 'Niramaya Healthcare',
+          dept: 'Hospital Services',
+          date: item.date,
+          time: item.time || '10:00 AM',
+          fee: `₹ ${item.amount}`,
+          status: 'Confirmed',
+          paymentStatus: item.status === 'PAID' ? `Paid via ${item.paymentMode} ✓` : 'Payment Pending',
+          consultMode: 'in_person'
+        });
+      }
+    };
+
+    window.printDirectReceipt = function(invNo) {
+      showFullInvoice(invNo);
+      setTimeout(() => {
+        window.print();
+      }, 400);
+    };
+
+    window.payPendingBill = function(token, amount) {
+      showToast(`💳 Opening payment gateway for ${token} (₹ ${amount})...`);
+      const payModal = document.getElementById('paymentGatewayModal');
+      if (payModal) {
+        document.getElementById('ticketToken').textContent = token;
+        document.getElementById('ticketFee').textContent = `₹ ${amount}`;
+        payModal.classList.add('show');
       }
     };
 
