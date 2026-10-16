@@ -741,13 +741,17 @@ public class Server {
             Map<String, String> fields = parseJsonFlat(body);
 
             String doctorId = fields.getOrDefault("doctorId", "").trim();
+            String email = fields.getOrDefault("email", "").trim();
             if (doctorId.isEmpty()) {
-                doctorId = fields.getOrDefault("email", "").trim();
+                doctorId = email;
+            }
+            if (email.isEmpty()) {
+                email = doctorId;
             }
             String status = fields.getOrDefault("status", "Offline").trim();
             String acceptAppointments = fields.getOrDefault("acceptAppointments", "No").trim();
 
-            boolean ok = doctorDAO.updateAvailability(doctorId, status, acceptAppointments);
+            boolean ok = doctorDAO.updateAvailability(doctorId, email, status, acceptAppointments);
             String json = String.format("{\"success\":%b,\"status\":\"%s\",\"acceptAppointments\":\"%s\"}", ok,
                     escape(status), escape(acceptAppointments));
             send(exchange, 200, "application/json", json);
@@ -796,9 +800,16 @@ public class Server {
 
                 String apptId = fields.getOrDefault("appointmentId", "TK-" + (100000 + new Random().nextInt(900000)));
                 String pId = fields.getOrDefault("patientId", "");
-                String docId = fields.getOrDefault("doctorId", "DOC1001");
-                String dName = fields.getOrDefault("doctorName", "Dr. Ananya Rao");
-                String dept = fields.getOrDefault("department", "Cardiology");
+                String docId = fields.getOrDefault("doctorId", "");
+                String dName = fields.getOrDefault("doctorName", "");
+                if (dName.isEmpty() && !docId.isEmpty()) {
+                    try {
+                        com.hospital.model.Doctor d = doctorDAO.getDoctorById(docId);
+                        if (d != null && d.getName() != null) dName = d.getName();
+                    } catch (Exception ignored) {}
+                }
+                if (dName.isEmpty()) dName = "Attending Physician";
+                String dept = fields.getOrDefault("department", "General Medicine");
                 String date = fields.getOrDefault("appointmentDate", fields.getOrDefault("date", "Today"));
                 String time = fields.getOrDefault("appointmentTime", fields.getOrDefault("time", "10:00 AM"));
                 String consultationType = fields.getOrDefault("consultationType", "Online Consultation");
@@ -1318,10 +1329,28 @@ public class Server {
                 StringBuilder sb = new StringBuilder("[");
                 for (int i = 0; i < list.size(); i++) {
                     PharmacyOrder o = list.get(i);
+                    String pName = "";
+                    if (o.getPatientId() != null) {
+                        try {
+                            com.hospital.model.Patient pt = patientDAO.getPatientById(o.getPatientId());
+                            if (pt != null && pt.getName() != null) pName = pt.getName();
+                        } catch (Exception ignored) {}
+                    }
+                    if (pName.isEmpty()) pName = "Patient";
+
+                    String dName = "";
+                    if (o.getDoctorId() != null) {
+                        try {
+                            com.hospital.model.Doctor dt = doctorDAO.getDoctorById(o.getDoctorId());
+                            if (dt != null && dt.getName() != null) dName = dt.getName();
+                        } catch (Exception ignored) {}
+                    }
+                    if (dName.isEmpty()) dName = o.getDoctorId() != null ? o.getDoctorId() : "Attending Physician";
+
                     sb.append(String.format(
-                            "{\"orderId\":\"%s\",\"pharmacyToken\":\"%s\",\"patientId\":\"%s\",\"doctorId\":\"%s\",\"prescriptionId\":\"%s\",\"appointmentId\":\"%s\",\"totalAmount\":%.2f,\"paymentStatus\":\"%s\",\"orderStatus\":\"%s\",\"paymentMethod\":\"%s\",\"transactionId\":\"%s\",\"orderDate\":\"%s\"}",
-                            escape(o.getOrderId()), escape(o.getPharmacyToken()), escape(o.getPatientId()),
-                            escape(o.getDoctorId()),
+                            "{\"orderId\":\"%s\",\"pharmacyToken\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"prescriptionId\":\"%s\",\"appointmentId\":\"%s\",\"totalAmount\":%.2f,\"paymentStatus\":\"%s\",\"orderStatus\":\"%s\",\"paymentMethod\":\"%s\",\"transactionId\":\"%s\",\"orderDate\":\"%s\"}",
+                            escape(o.getOrderId()), escape(o.getPharmacyToken()), escape(o.getPatientId()), escape(pName),
+                            escape(o.getDoctorId()), escape(dName),
                             escape(o.getPrescriptionId()), escape(o.getAppointmentId()), o.getTotalAmount(),
                             escape(o.getPaymentStatus()), escape(o.getOrderStatus()), escape(o.getPaymentMethod()),
                             escape(o.getTransactionId()), escape(o.getOrderDate())));
@@ -1448,8 +1477,25 @@ public class Server {
             List<PharmacyOrderItem> items = pharmacyOrderDAO.getOrderItems(orderId);
 
             if (order != null) {
-                com.hospital.service.PDFGenerator.generatePharmacyInvoicePDF(order, items, "Rekha Prasad",
-                        "Dr. Ananya Rao");
+                String patientName = fields.getOrDefault("patientName", "");
+                if (patientName.isEmpty() && order.getPatientId() != null) {
+                    try {
+                        com.hospital.model.Patient p = patientDAO.getPatientById(order.getPatientId());
+                        if (p != null && p.getName() != null) patientName = p.getName();
+                    } catch (Exception ignored) {}
+                }
+                if (patientName.isEmpty()) patientName = "Patient";
+
+                String doctorName = fields.getOrDefault("doctorName", "");
+                if (doctorName.isEmpty() && order.getDoctorId() != null) {
+                    try {
+                        com.hospital.model.Doctor d = doctorDAO.getDoctorById(order.getDoctorId());
+                        if (d != null && d.getName() != null) doctorName = d.getName();
+                    } catch (Exception ignored) {}
+                }
+                if (doctorName.isEmpty()) doctorName = "Attending Physician";
+
+                com.hospital.service.PDFGenerator.generatePharmacyInvoicePDF(order, items, patientName, doctorName);
             }
 
             send(exchange, 200, "application/json", String.format(
@@ -1508,13 +1554,47 @@ public class Server {
             PharmacyOrder order = pharmacyOrderDAO.getOrderById(orderId);
             List<PharmacyOrderItem> items = pharmacyOrderDAO.getOrderItems(orderId);
 
+            String patientName = "";
+            if (query != null && query.contains("patientName=")) {
+                try {
+                    patientName = URLDecoder.decode(query.split("patientName=")[1].split("&")[0], StandardCharsets.UTF_8.name());
+                } catch (Exception ignored) {}
+            }
+            if (patientName.isEmpty() && order != null && order.getPatientId() != null) {
+                try {
+                    com.hospital.model.Patient p = patientDAO.getPatientById(order.getPatientId());
+                    if (p != null && p.getName() != null) patientName = p.getName();
+                } catch (Exception ignored) {}
+            }
+            if (patientName.isEmpty()) patientName = "Patient";
+
+            String doctorName = "";
+            if (query != null && query.contains("doctorName=")) {
+                try {
+                    doctorName = URLDecoder.decode(query.split("doctorName=")[1].split("&")[0], StandardCharsets.UTF_8.name());
+                } catch (Exception ignored) {}
+            }
+            if (doctorName.isEmpty() && order != null && order.getDoctorId() != null) {
+                try {
+                    com.hospital.model.Doctor d = doctorDAO.getDoctorById(order.getDoctorId());
+                    if (d != null && d.getName() != null) doctorName = d.getName();
+                } catch (Exception ignored) {}
+            }
+            if (doctorName.isEmpty()) doctorName = (order != null && order.getDoctorId() != null) ? order.getDoctorId() : "Attending Physician";
+
             if (order == null) {
-                order = new PharmacyOrder("ORD-100841", "PHA-2026-00125", "PT100842", "DOC10084", "RX-908124",
-                        "TK-1001", 640.50, "Paid", "Dispensed", "UPI", "TXN981241", "2026-07-29 10:15");
+                double totalAmt = 0.0;
+                if (query != null && query.contains("totalAmount=")) {
+                    try { totalAmt = Double.parseDouble(query.split("totalAmount=")[1].split("&")[0]); } catch (Exception ignored) {}
+                }
+                String token = orderId.startsWith("PHARM-") || orderId.startsWith("PHA-") ? orderId : ("PHA-" + orderId);
+                String now = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+                order = new PharmacyOrder(orderId, token, "PT1001", doctorName, "RX-DIRECT", "APT-DIRECT", totalAmt, "Paid", "Completed", "UPI", "TXN-" + System.currentTimeMillis(), now);
+                items = new ArrayList<>();
             }
 
-            File pdfFile = com.hospital.service.PDFGenerator.generatePharmacyInvoicePDF(order, items, "Rekha Prasad",
-                    "Dr. Ananya Rao");
+            File pdfFile = com.hospital.service.PDFGenerator.generatePharmacyInvoicePDF(order, items, patientName,
+                    doctorName);
             String pdfFileName = pdfFile != null ? pdfFile.getName()
                     : "PharmacyInvoice_" + order.getPharmacyToken() + ".pdf";
 
@@ -1688,7 +1768,13 @@ public class Server {
 
             com.hospital.service.StockManager stockMgr = new com.hospital.service.StockManager();
             boolean ok = stockMgr.updateStock(medicineId, actionType, quantity, reason, remarks);
-            send(exchange, 200, "application/json", String.format("{\"success\":%b}", ok));
+            Medicine updatedMed = medicineDAO.getMedicineById(medicineId);
+            if (updatedMed == null) {
+                updatedMed = medicineDAO.getMedicineByName(medicineId);
+            }
+            int remainingStock = updatedMed != null ? updatedMed.getStockQuantity() : 0;
+            String status = updatedMed != null ? updatedMed.getStatus() : "";
+            send(exchange, 200, "application/json", String.format("{\"success\":%b,\"newStock\":%d,\"status\":\"%s\"}", ok, remainingStock, escape(status)));
         }
     }
 
@@ -1772,13 +1858,20 @@ public class Server {
                 Map<String, String> fields = parseJsonFlat(body);
 
                 String bookingId = fields.getOrDefault("bookingId", "LAB-" + (100000 + new Random().nextInt(900000)));
-                String pId = fields.getOrDefault("patientId", "PT100842");
-                String pName = fields.getOrDefault("patientName", "Rekha Prasad");
-                String pAge = fields.getOrDefault("patientAge", "28 Yrs");
-                String pGender = fields.getOrDefault("patientGender", "Female");
-                String docId = fields.getOrDefault("doctorId", "DOC1001");
-                String docName = fields.getOrDefault("doctorName", fields.getOrDefault("docName", "Dr. Srivatsan R"));
-                String dept = fields.getOrDefault("department", "Neurology");
+                String pId = fields.getOrDefault("patientId", "");
+                String pName = fields.getOrDefault("patientName", "Patient");
+                String pAge = fields.getOrDefault("patientAge", "");
+                String pGender = fields.getOrDefault("patientGender", "");
+                String docId = fields.getOrDefault("doctorId", "");
+                String docName = fields.getOrDefault("doctorName", fields.getOrDefault("docName", ""));
+                if (docName.isEmpty() && !docId.isEmpty()) {
+                    try {
+                        com.hospital.model.Doctor d = doctorDAO.getDoctorById(docId);
+                        if (d != null && d.getName() != null) docName = d.getName();
+                    } catch (Exception ignored) {}
+                }
+                if (docName.isEmpty()) docName = "Attending Physician";
+                String dept = fields.getOrDefault("department", "General Medicine");
                 String rxId = fields.getOrDefault("prescriptionId", "RX-1001");
                 String testName = fields.getOrDefault("testName", "Routine Lab Panel");
                 String date = fields.getOrDefault("bookingDate", "Today");
@@ -1891,12 +1984,42 @@ public class Server {
 
                 String repId = fields.getOrDefault("reportId", "REP-" + (100000 + new Random().nextInt(900000)));
                 String bookId = fields.getOrDefault("bookingId", "LAB-1001");
-                String pId = fields.getOrDefault("patientId", "PT100842");
-                String pName = fields.getOrDefault("patientName", "Rekha Prasad");
-                String pAge = fields.getOrDefault("patientAge", "28 Yrs");
-                String pGender = fields.getOrDefault("patientGender", "Female");
-                String docId = fields.getOrDefault("doctorId", "DOC1001");
-                String docName = fields.getOrDefault("doctorName", fields.getOrDefault("docName", "Dr. Srivatsan R"));
+                String pId = fields.getOrDefault("patientId", "");
+                String pName = fields.getOrDefault("patientName", "Patient");
+                String pAge = fields.getOrDefault("patientAge", "");
+                String pGender = fields.getOrDefault("patientGender", "");
+
+                // Ensure the real patient name is resolved from DB or lab booking
+                if ((pName.isEmpty() || "Patient".equalsIgnoreCase(pName) || pName.toLowerCase().startsWith("rekha")) && !pId.isEmpty()) {
+                    try {
+                        com.hospital.model.Patient pat = patientDAO.getPatientById(pId);
+                        if (pat != null && pat.getName() != null && !pat.getName().isEmpty()) {
+                            pName = pat.getName();
+                            if (pAge.isEmpty() && pat.getAge() > 0) pAge = String.valueOf(pat.getAge());
+                            if (pGender.isEmpty() && pat.getGender() != null) pGender = pat.getGender();
+                        }
+                    } catch (Exception ignored) {}
+                }
+                if ((pName.isEmpty() || "Patient".equalsIgnoreCase(pName) || pName.toLowerCase().startsWith("rekha")) && !bookId.isEmpty()) {
+                    try {
+                        com.hospital.model.LabBooking bk = labBookingDAO.getBookingById(bookId);
+                        if (bk != null && bk.getPatientName() != null && !bk.getPatientName().isEmpty()) {
+                            pName = bk.getPatientName();
+                            if (pAge.isEmpty() && bk.getPatientAge() != null) pAge = bk.getPatientAge();
+                            if (pGender.isEmpty() && bk.getPatientGender() != null) pGender = bk.getPatientGender();
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                String docId = fields.getOrDefault("doctorId", "");
+                String docName = fields.getOrDefault("doctorName", fields.getOrDefault("docName", ""));
+                if (docName.isEmpty() && !docId.isEmpty()) {
+                    try {
+                        com.hospital.model.Doctor d = doctorDAO.getDoctorById(docId);
+                        if (d != null && d.getName() != null) docName = d.getName();
+                    } catch (Exception ignored) {}
+                }
+                if (docName.isEmpty()) docName = "Attending Physician";
                 String dept = fields.getOrDefault("department", "General Medicine");
                 String testName = fields.getOrDefault("testName", "Complete Blood Count (CBC)");
                 String result = fields.getOrDefault("result", "Normal Clinical Limits");
@@ -2454,13 +2577,8 @@ public class Server {
                 OnlineConsultation c = onlineConsultationDAO.getConsultationByMeetingId(meetingId);
 
                 if (c == null) {
-                    c = new OnlineConsultation(
-                            "CNS-100841", "TK-100842", "PT100842", "DOC1001", "Dr. Ananya Rao", "Cardiology",
-                            "MTG-782914", "Niramaya-Room-782914", "/telemedicine.html?meetingId=MTG-782914",
-                            "TOK-889124", "1234", "Online Consultation", "Scheduled", "Today", "10:30 AM",
-                            "", "", 0, new Date().toString());
-                    c.setScheduledStart(formatScheduledTime("Today", "10:30 AM", 0));
-                    c.setScheduledEnd(formatScheduledTime("Today", "10:30 AM", 30));
+                    send(exchange, 200, "application/json", "{\"success\":false,\"canJoin\":false,\"joinMessage\":\"Online consultation room not found or link has expired.\"}");
+                    return;
                 }
 
                 // Check temporal and participant access control
@@ -2636,7 +2754,7 @@ public class Server {
                         fields.getOrDefault("consultationId", "CNS-100841"),
                         fields.getOrDefault("meetingId", "MTG-782914"),
                         fields.getOrDefault("senderId", "DOC1001"),
-                        fields.getOrDefault("senderName", "Dr. Ananya Rao"),
+                        fields.getOrDefault("senderName", "User"),
                         fields.getOrDefault("senderRole", "Doctor"),
                         fields.getOrDefault("message", "Hello! Welcome to the consultation."),
                         new java.text.SimpleDateFormat("HH:mm:ss").format(new Date()));
@@ -3546,7 +3664,7 @@ public class Server {
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                 Map<String, String> f = parseJsonFlat(body);
                 String alertId = f.get("alertId");
-                String resolvedBy = f.getOrDefault("resolvedBy", "Dr. Ananya Rao");
+                String resolvedBy = f.getOrDefault("resolvedBy", "Attending Physician");
                 boolean ok = nurseDAO.resolveEmergencyAlert(alertId, resolvedBy);
                 send(exchange, 200, "application/json", String.format("{\"success\":%b,\"message\":\"%s\"}", ok, ok ? "Emergency alert marked resolved!" : "Failed to resolve alert."));
             } else {
@@ -3633,7 +3751,7 @@ public class Server {
 
             String role = fields.getOrDefault("senderRole", fields.getOrDefault("role", "Doctor")).trim();
             String senderId = fields.getOrDefault("senderId", fields.getOrDefault("userId", "DOC10084")).trim();
-            String senderName = fields.getOrDefault("senderName", fields.getOrDefault("name", "Dr. Ananya Rao")).trim();
+            String senderName = fields.getOrDefault("senderName", fields.getOrDefault("name", "Medical Officer")).trim();
             String department = fields.getOrDefault("department", "Cardiology").trim();
             String reportDate = fields.getOrDefault("reportDate", fields.getOrDefault("date", new SimpleDateFormat("yyyy-MM-dd").format(new Date()))).trim();
             String summaryNotes = fields.getOrDefault("summaryNotes", fields.getOrDefault("notes", "All daily tasks completed successfully.")).trim();
@@ -3766,9 +3884,27 @@ public class Server {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < list.size(); i++) {
             PharmacyOrder p = list.get(i);
+            String pName = "";
+            if (p.getPatientId() != null) {
+                try {
+                    com.hospital.model.Patient pt = patientDAO.getPatientById(p.getPatientId());
+                    if (pt != null && pt.getName() != null) pName = pt.getName();
+                } catch(Exception ignored){}
+            }
+            if (pName.isEmpty()) pName = "Patient";
+
+            String dName = "";
+            if (p.getDoctorId() != null) {
+                try {
+                    com.hospital.model.Doctor dt = doctorDAO.getDoctorById(p.getDoctorId());
+                    if (dt != null && dt.getName() != null) dName = dt.getName();
+                } catch(Exception ignored){}
+            }
+            if (dName.isEmpty()) dName = p.getDoctorId() != null ? p.getDoctorId() : "Attending Physician";
+
             sb.append(String.format(
-                "{\"orderId\":\"%s\",\"pharmacyToken\":\"%s\",\"patientId\":\"%s\",\"doctorId\":\"%s\",\"prescriptionId\":\"%s\",\"appointmentId\":\"%s\",\"totalAmount\":%.2f,\"paymentStatus\":\"%s\",\"orderStatus\":\"%s\",\"paymentMethod\":\"%s\",\"transactionId\":\"%s\",\"orderDate\":\"%s\"}",
-                escape(p.getOrderId()), escape(p.getPharmacyToken()), escape(p.getPatientId()), escape(p.getDoctorId()),
+                "{\"orderId\":\"%s\",\"pharmacyToken\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"prescriptionId\":\"%s\",\"appointmentId\":\"%s\",\"totalAmount\":%.2f,\"paymentStatus\":\"%s\",\"orderStatus\":\"%s\",\"paymentMethod\":\"%s\",\"transactionId\":\"%s\",\"orderDate\":\"%s\"}",
+                escape(p.getOrderId()), escape(p.getPharmacyToken()), escape(p.getPatientId()), escape(pName), escape(p.getDoctorId()), escape(dName),
                 escape(p.getPrescriptionId()), escape(p.getAppointmentId()), p.getTotalAmount(), escape(p.getPaymentStatus()),
                 escape(p.getOrderStatus()), escape(p.getPaymentMethod()), escape(p.getTransactionId()), escape(p.getOrderDate())
             ));
@@ -4117,7 +4253,7 @@ public class Server {
                 String patientId = m.getOrDefault("patientId", "PT100842").trim();
                 String patientName = m.getOrDefault("patientName", "Patient").trim();
                 String surgeonId = m.getOrDefault("surgeonId", "DOC10084").trim();
-                String surgeonName = m.getOrDefault("surgeonName", "Dr. Ananya Rao").trim();
+                String surgeonName = m.getOrDefault("surgeonName", "Attending Surgeon").trim();
                 String anesthetistName = m.getOrDefault("anesthetistName", "Dr. S. Nair").trim();
                 String procedureName = m.getOrDefault("procedureName", "Surgical Procedure").trim();
                 String otRoom = m.getOrDefault("otRoom", "OT Suite 1 - General").trim();
@@ -4326,7 +4462,7 @@ public class Server {
                 String wardType = m.getOrDefault("wardType", "General Ward").trim();
                 String roomNumber = m.getOrDefault("roomNumber", "A-101").trim();
                 String bedNumber = m.getOrDefault("bedNumber", "Bed 2").trim();
-                String attendingDoctor = m.getOrDefault("attendingDoctor", "Dr. Ananya Rao").trim();
+                String attendingDoctor = m.getOrDefault("attendingDoctor", "Attending Physician").trim();
                 String admissionDate = m.getOrDefault("admissionDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
                 String expectedDischargeDate = m.getOrDefault("expectedDischargeDate", "").trim();
                 String diagnosis = m.getOrDefault("diagnosis", "Observation and treatment").trim();

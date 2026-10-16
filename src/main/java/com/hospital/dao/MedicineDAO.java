@@ -102,7 +102,7 @@ public class MedicineDAO {
                 return m;
             }
         }
-        return new Medicine("MED-000999", name, "500mg", 80.0, 100, "Niramaya Pharmacy", "2028-12-31");
+        return null;
     }
 
     public synchronized String generateAutoMedicineId() {

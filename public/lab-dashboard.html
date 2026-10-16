@@ -194,6 +194,9 @@
       z-index: 1000;
       padding: 20px;
     }
+    .modal-overlay.show, .modal-overlay.active {
+      display: flex !important;
+    }
     .modal-box {
       background: #FFFFFF;
       width: 840px;
@@ -358,6 +361,23 @@
         </div>
       </div>
 
+      <!-- On-Duty & Available Doctors Live Monitor for Laboratory Suite -->
+      <div class="card" style="margin-bottom:20px; border-left:4px solid #00C853; background:#F0FDF4; padding:14px 18px; border-radius:12px; box-shadow:0 2px 8px rgba(0,200,83,0.08);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.3rem;">🩺</span>
+            <div>
+              <b style="color:#166534; font-size:0.95rem;">On-Duty & Available Physicians Live Monitor</b>
+              <span class="badge" id="labOnlineDocsCardBadge" style="background:#DCFCE7; color:#15803D; font-weight:700; margin-left:8px; padding:3px 8px; border-radius:10px; font-size:0.75rem;">0 Online</span>
+              <div style="font-size:0.78rem; color:#64748B; margin-top:2px;">Currently logged in doctors accepting appointments and diagnostic orders.</div>
+            </div>
+          </div>
+          <div id="labLiveDoctorsPills" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <!-- Populated with online doctor pills -->
+          </div>
+        </div>
+      </div>
+
       <!-- Tab: Dashboard / Pending -->
       <div id="viewQueue" class="table-card">
         <div class="table-header">
@@ -506,14 +526,14 @@
       <div class="readonly-box">
         <div style="font-weight:700; color:var(--primary); margin-bottom:10px; font-family:'Sora',sans-serif;">READ-ONLY PATIENT & BOOKING INFORMATION</div>
         <div class="grid-3">
-          <div><label>Patient Unique ID</label><div id="lblPatientId">PT100842</div></div>
-          <div><label>Patient Name</label><div id="lblPatientName">Rekha Prasad</div></div>
-          <div><label>Age / Gender</label><div id="lblAgeGender">28 Yrs / Female</div></div>
-          <div><label>Doctor Name</label><div id="lblDoctorName">Dr. Ananya Rao</div></div>
-          <div><label>Department</label><div id="lblDepartment">Cardiology</div></div>
-          <div><label>Booking ID</label><div id="lblBookingId">LAB-100842</div></div>
-          <div><label>Diagnostic Test</label><div id="lblTestName" style="color:var(--primary); font-weight:700;">Complete Blood Count (CBC)</div></div>
-          <div><label>Report Date</label><div id="lblReportDate">2026-07-30</div></div>
+          <div><label>Patient Unique ID</label><div id="lblPatientId">-</div></div>
+          <div><label>Patient Name</label><div id="lblPatientName">-</div></div>
+          <div><label>Age / Gender</label><div id="lblAgeGender">-</div></div>
+          <div><label>Doctor Name</label><div id="lblDoctorName">-</div></div>
+          <div><label>Department</label><div id="lblDepartment">-</div></div>
+          <div><label>Booking ID</label><div id="lblBookingId">-</div></div>
+          <div><label>Diagnostic Test</label><div id="lblTestName" style="color:var(--primary); font-weight:700;">-</div></div>
+          <div><label>Report Date</label><div id="lblReportDate">-</div></div>
           <div><label>Status</label><div style="color:var(--accent); font-weight:700;">In Progress</div></div>
         </div>
       </div>
@@ -721,15 +741,15 @@
     let currentBooking = null;
 
     const DEFAULT_BOOKING = {
-      bookingId: 'LAB-100842',
-      patientId: 'PT100842',
-      patientName: 'Rekha Prasad',
-      patientAge: '28 Yrs',
-      patientGender: 'Female',
-      doctorId: 'DOC1001',
-      doctorName: 'Dr. Ananya Rao',
-      department: 'Cardiology',
-      testName: 'Complete Blood Count (CBC)',
+      bookingId: '',
+      patientId: '',
+      patientName: 'Patient',
+      patientAge: '',
+      patientGender: '',
+      doctorId: '',
+      doctorName: 'Attending Physician',
+      department: 'General Medicine',
+      testName: 'Diagnostic Test',
       bookingDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       paymentStatus: 'Paid',
       status: 'Pending'
@@ -761,12 +781,12 @@
         if (b.bookingId) {
           if (mergedMap.has(b.bookingId)) {
             const existing = mergedMap.get(b.bookingId);
-            const validDoc = (b.doctorName && b.doctorName !== 'null' && !b.doctorName.includes('Attending')) ? b.doctorName : (existing.doctorName || 'Dr. Srivatsan R');
+            const validDoc = (b.doctorName && b.doctorName !== 'null' && !b.doctorName.includes('Attending')) ? b.doctorName : (existing.doctorName || 'Attending Physician');
             mergedMap.set(b.bookingId, {
               ...existing,
               ...b,
               doctorName: validDoc,
-              patientName: b.patientName || existing.patientName || 'Rekha Prasad',
+              patientName: b.patientName || existing.patientName || 'Patient',
               department: b.department || existing.department || 'General Medicine'
             });
           } else {
@@ -811,14 +831,14 @@
             if (foundLocal && foundLocal.doctorName) docName = foundLocal.doctorName;
           } catch(e){}
         }
-        if (!docName || docName.includes('Attending')) docName = 'Dr. Srivatsan R';
+        if (!docName || docName.includes('Attending')) docName = 'Attending Physician';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${b.bookingId}</strong></td>
           <td>${b.patientId || '-'}</td>
           <td>${b.patientName || '-'}</td>
-          <td>${b.patientAge || '28 Yrs'} / ${b.patientGender || 'Female'}</td>
+          <td>${b.patientAge || '-'} / ${b.patientGender || '-'}</td>
           <td><strong style="color:#0F2A4A;">${docName}</strong></td>
           <td>${b.department || 'General Medicine'}</td>
           <td><strong style="color:var(--primary);">${b.testName}</strong></td>
@@ -964,7 +984,7 @@
 
       // Ensure exact doctor attribution is pulled from booking or local storage
       let docName = currentBooking.doctorName;
-      if (!docName || docName.includes('Attending') || docName === 'Dr. Priya Sharma' || docName === 'null') {
+      if (!docName || docName.includes('Attending') || docName === 'null') {
         try {
           const localB = JSON.parse(localStorage.getItem('niramaya_lab_bookings') || '[]');
           const foundLocal = localB.find(x => x.bookingId === bId);
@@ -976,7 +996,7 @@
         } catch(e){}
       }
       if (!docName || docName.includes('Attending')) {
-        docName = 'Dr. Srivatsan R';
+        docName = currentBooking.doctorName || 'Attending Physician';
         currentBooking.doctorName = docName;
       }
 
@@ -985,15 +1005,15 @@
 
     function openGenerateModal() {
       if (!currentBooking) currentBooking = DEFAULT_BOOKING;
-      const resolvedDoc = currentBooking.doctorName || 'Dr. Srivatsan R';
+      const resolvedDoc = currentBooking.doctorName || 'Attending Physician';
 
-      document.getElementById('lblPatientId').textContent = currentBooking.patientId || 'PT100842';
-      document.getElementById('lblPatientName').textContent = currentBooking.patientName || 'Rekha Prasad';
-      document.getElementById('lblAgeGender').textContent = (currentBooking.patientAge || '28 Yrs') + ' / ' + (currentBooking.patientGender || 'Female');
+      document.getElementById('lblPatientId').textContent = currentBooking.patientId || '-';
+      document.getElementById('lblPatientName').textContent = currentBooking.patientName || '-';
+      document.getElementById('lblAgeGender').textContent = (currentBooking.patientAge ? currentBooking.patientAge + ' / ' + (currentBooking.patientGender || '') : '-');
       document.getElementById('lblDoctorName').textContent = resolvedDoc;
       document.getElementById('lblDepartment').textContent = currentBooking.department || 'General Medicine';
-      document.getElementById('lblBookingId').textContent = currentBooking.bookingId || 'LAB-100842';
-      document.getElementById('lblTestName').textContent = currentBooking.testName || 'Complete Blood Count (CBC)';
+      document.getElementById('lblBookingId').textContent = currentBooking.bookingId || '-';
+      document.getElementById('lblTestName').textContent = currentBooking.testName || 'Diagnostic Test';
       document.getElementById('lblReportDate').textContent = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
       renderDynamicFields(currentBooking.testName);
@@ -1097,15 +1117,15 @@
       const remEle = document.getElementById('fld_remarks');
       const resEle = document.getElementById('fld_hb') || document.getElementById('fld_fbs') || document.getElementById('fld_res');
 
-      const resolvedDocName = document.getElementById('lblDoctorName')?.textContent || b.doctorName || 'Dr. Srivatsan R';
+      const resolvedDocName = document.getElementById('lblDoctorName')?.textContent || b.doctorName || 'Attending Physician';
       const resolvedDept = document.getElementById('lblDepartment')?.textContent || b.department || 'General Medicine';
 
       return {
         reportId: repId,
         bookingId: b.bookingId,
-        patientId: b.patientId || 'PT100842',
-        patientName: b.patientName || 'Rekha Prasad',
-        patientAge: b.patientAge || '28 Yrs',
+        patientId: b.patientId || '-',
+        patientName: b.patientName || 'Patient',
+        patientAge: b.patientAge || '-',
         patientGender: b.patientGender || 'Female',
         doctorId: b.doctorId || 'DOC1001',
         doctorName: resolvedDocName,
@@ -1210,7 +1230,7 @@
           <td><strong>${r.reportId}</strong></td>
           <td>${r.bookingId}</td>
           <td>${r.patientId}</td>
-          <td>${r.patientName || 'Rekha Prasad'}</td>
+          <td>${r.patientName || 'Patient'}</td>
           <td>${r.testName}</td>
           <td>${r.reportDate}</td>
           <td><span class="badge badge-completed">${r.status || 'Ready'}</span></td>
@@ -1292,8 +1312,33 @@
 
         const countText = document.getElementById('labOnlineDocsCountText');
         const badge = document.getElementById('labOnlineDocsBadge');
+        const cardBadge = document.getElementById('labOnlineDocsCardBadge');
+        const pills = document.getElementById('labLiveDoctorsPills');
+
         if (countText) countText.textContent = `${availableDocs.length} Available Doctors`;
         if (badge) badge.style.background = availableDocs.length > 0 ? '#DCFCE7' : '#F1F5F9';
+        if (cardBadge) {
+          cardBadge.textContent = `${availableDocs.length} Online`;
+          cardBadge.style.background = availableDocs.length > 0 ? '#DCFCE7' : '#E2E8F0';
+          cardBadge.style.color = availableDocs.length > 0 ? '#15803D' : '#64748B';
+        }
+
+        if (pills) {
+          if (availableDocs.length === 0) {
+            pills.innerHTML = '<span style="color:#64748B; font-size:0.8rem;">No physicians currently online. Emergency diagnostic orders handled on-call.</span>';
+          } else {
+            pills.innerHTML = availableDocs.map(d => {
+              const name = d.doctorName || d.name || 'Doctor';
+              const dept = d.department || d.dept || 'General';
+              return `
+                <span style="background:#fff; border:1px solid #86EFAC; color:#15803D; font-weight:700; font-size:0.75rem; padding:4px 10px; border-radius:20px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                  <span style="width:7px; height:7px; border-radius:50%; background:#22C55E; display:inline-block;"></span>
+                  ${name} <span style="font-weight:400; color:#0D9488;">(${dept})</span>
+                </span>
+              `;
+            }).join('');
+          }
+        }
 
         // Keep dropdown updated if modal is currently open
         const modal = document.getElementById('labInvoiceModal');
@@ -1352,12 +1397,20 @@
         return (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
       });
 
-      if (availableDocs.length === 0) {
-        sel.innerHTML = '<option value="" disabled selected>⚠️ No doctors currently online & accepting appointments</option>';
+      let optionsHtml = '';
+      if (selectedDocName && !availableDocs.some(d => (d.name||'').toLowerCase().includes(selectedDocName.toLowerCase()))) {
+        optionsHtml += `<option value="${selectedDocName}" selected>${selectedDocName} (Assigned Doctor)</option>`;
+      }
+
+      if (availableDocs.length === 0 && !selectedDocName) {
+        sel.innerHTML = '<option value="">-- Select Attending Doctor --</option>' + 
+          (Array.isArray(dbDocs) && dbDocs.length > 0 
+            ? dbDocs.map(d => `<option value="${d.name}" data-dept="${d.department || 'General Medicine'}">${d.name} (${d.department || 'General Medicine'})</option>`).join('')
+            : '<option value="Attending Physician">Attending Physician</option>');
         return;
       }
 
-      sel.innerHTML = '<option value="">-- Choose Available Online Doctor --</option>' + availableDocs.map(d => {
+      sel.innerHTML = (selectedDocName ? '' : '<option value="">-- Choose Available Online Doctor --</option>') + optionsHtml + availableDocs.map(d => {
         const name = d.doctorName || d.name || 'Doctor';
         const dept = d.department || d.dept || d.category || 'General Medicine';
         const isMatch = selectedDocName && name.toLowerCase().includes(selectedDocName.toLowerCase()) ? 'selected' : '';
@@ -1365,7 +1418,7 @@
       }).join('');
     }
 
-    function openLabInvoiceModal(bookingIdOrInvoiceNo) {
+    async function openLabInvoiceModal(bookingIdOrInvoiceNo) {
       const modal = document.getElementById('labInvoiceModal');
       if (!modal) return;
 
@@ -1378,14 +1431,14 @@
       }
 
       let booking = null;
-      if (bookingIdOrInvoiceNo && allBookings) {
-        booking = allBookings.find(b => b.bookingId === bookingIdOrInvoiceNo);
+      if (bookingIdOrInvoiceNo && Array.isArray(allBookings)) {
+        booking = allBookings.find(b => b.bookingId === bookingIdOrInvoiceNo || b.bookingId === existingInvoice?.bookingId);
       }
 
       const invNo = existingInvoice ? existingInvoice.invoiceNo : ('LAB-INV-' + Math.floor(100000 + Math.random() * 900000));
       const bId = existingInvoice ? existingInvoice.bookingId : (booking ? booking.bookingId : ('LAB-' + Math.floor(100000 + Math.random() * 900000)));
-      const pId = existingInvoice ? existingInvoice.patientId : (booking ? (booking.patientId || 'PT100842') : 'PT100842');
-      const pName = existingInvoice ? existingInvoice.patientName : (booking ? (booking.patientName || 'Rekha Prasad') : 'Rekha Prasad');
+      const pId = existingInvoice ? existingInvoice.patientId : (booking ? (booking.patientId || 'PT100000') : 'PT100000');
+      const pName = existingInvoice ? existingInvoice.patientName : (booking ? (booking.patientName || 'Patient') : (sessionStorage.getItem('niramaya_name') || 'Patient'));
       const ageGen = existingInvoice ? existingInvoice.ageGender : (booking ? `${booking.patientAge || '28 Yrs'} / ${booking.patientGender || 'Female'}` : '28 Yrs / Female');
       const phone = existingInvoice ? existingInvoice.phone : '+91 98765 43210';
       const docName = existingInvoice ? existingInvoice.doctorName : (booking ? (booking.doctorName || '') : '');
@@ -1406,7 +1459,7 @@
       document.getElementById('labInvPayMode').value = payMode;
       document.getElementById('labInvTxnId').value = txnId;
 
-      populateLabInvoiceDoctorSelect(docName);
+      await populateLabInvoiceDoctorSelect(docName);
 
       const itemsBody = document.getElementById('labInvoiceItemsBody');
       itemsBody.innerHTML = '';
@@ -1423,12 +1476,16 @@
       }
 
       calcLabInvoiceTotals();
+      modal.style.display = 'flex';
       modal.classList.add('show');
     }
 
     function closeLabInvoiceModal() {
       const modal = document.getElementById('labInvoiceModal');
-      if (modal) modal.classList.remove('show');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+      }
     }
 
     function addLabInvoiceLineItem(name = '', dept = 'Pathology', fee = 650, disc = 0, tax = 5) {
@@ -1630,20 +1687,8 @@
       try { invoices = JSON.parse(localStorage.getItem('niramaya_lab_invoices') || '[]'); } catch(e){}
 
       if (invoices.length === 0) {
-        // Pre-populate with default real invoice
-        invoices = [{
-          invoiceNo: 'LAB-INV-100842',
-          bookingId: 'LAB-100842',
-          patientId: 'PT100842',
-          patientName: 'Rekha Prasad',
-          doctorName: 'Dr. Ananya Rao',
-          items: [{ name: 'Complete Blood Count (CBC)', dept: 'Hematology', fee: 650, total: 682.50 }],
-          totalAmount: 682.50,
-          paymentStatus: 'Paid',
-          paymentMode: 'UPI',
-          date: '2026-07-30'
-        }];
-        localStorage.setItem('niramaya_lab_invoices', JSON.stringify(invoices));
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--ink-soft);">No laboratory invoices generated yet. Use "+ Generate Diagnostic Invoice" to issue a new bill.</td></tr>';
+        return;
       }
 
       tbody.innerHTML = invoices.map(inv => {
@@ -1685,11 +1730,11 @@
       if (!inv && invoices.length > 0) inv = invoices[0];
       if (!inv) {
         inv = {
-          invoiceNo: document.getElementById('labInvNumber')?.value || 'LAB-INV-100842',
+          invoiceNo: document.getElementById('labInvNumber')?.value || ('LAB-INV-' + Math.floor(100000 + Math.random() * 900000)),
           bookingId: document.getElementById('labInvBookingId')?.value || 'LAB-100842',
           patientId: document.getElementById('labInvPatientId')?.value || 'PT100842',
-          patientName: document.getElementById('labInvPatientName')?.value || 'Rekha Prasad',
-          doctorName: document.getElementById('labInvDoctorSelect')?.value || 'Dr. Ananya Rao',
+          patientName: document.getElementById('labInvPatientName')?.value || 'Patient',
+          doctorName: document.getElementById('labInvDoctorSelect')?.value || 'Attending Physician',
           totalAmount: parseFloat(document.getElementById('lblLabInvTotal')?.textContent?.replace('₹','') || '682.50'),
           paymentStatus: document.getElementById('labInvPayStatus')?.value || 'Paid',
           paymentMode: document.getElementById('labInvPayMode')?.value || 'UPI',
@@ -1783,6 +1828,35 @@
       const labDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
       labDocChannel.onmessage = (msg) => {
         console.log('⚡ [Lab Console] Live doctor status update:', msg.data);
+        if (msg.data && (msg.data.doctorId || msg.data.email || msg.data.name)) {
+          try {
+            let reg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]');
+            let doc = reg.find(d => (d.email && d.email === msg.data.email) || (d.doctorId && d.doctorId === msg.data.doctorId) || (d.name && d.name === msg.data.name));
+            if (doc) {
+              doc.status = msg.data.status;
+              doc.availableStatus = msg.data.status;
+              doc.isAvailable = Boolean(msg.data.isAvailable);
+              doc.acceptAppointments = msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No');
+              doc.appointmentAvailable = Boolean(msg.data.isAvailable);
+              doc.updatedAt = Date.now();
+            } else {
+              reg.unshift({
+                doctorId: msg.data.doctorId,
+                email: msg.data.email,
+                name: msg.data.name,
+                doctorName: msg.data.name,
+                dept: msg.data.dept,
+                status: msg.data.status,
+                availableStatus: msg.data.status,
+                isAvailable: Boolean(msg.data.isAvailable),
+                acceptAppointments: msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No'),
+                appointmentAvailable: Boolean(msg.data.isAvailable),
+                updatedAt: Date.now()
+              });
+            }
+            localStorage.setItem('niramaya_doctors_registry', JSON.stringify(reg));
+          } catch(e){}
+        }
         loadLabOnlineDoctors();
         if (msg.data && msg.data.isAvailable) {
           showToast(`🩺 ${msg.data.name || 'A Doctor'} is now Online & Accepting Appointments!`);

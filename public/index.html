@@ -847,61 +847,10 @@
       <p>Consult with renowned medical practitioners available for both in-person and online video appointments.</p>
     </div>
 
-    <div class="grid-3" style="grid-template-columns: repeat(4, 1fr);">
-      <!-- Doctor 1 -->
-      <div class="doctor-card-v2">
-        <div class="doctor-img-box">
-          <img src="assets/doctor_arun.png" alt="Dr. Arun Kumar">
-          <span class="doctor-status-badge">🟢 Available</span>
-        </div>
-        <div style="padding:20px;">
-          <h4 style="font-size:1.1rem; margin-bottom:4px;">Dr. Arun Kumar</h4>
-          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Cardiology Specialist</div>
-          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 15 Years Experience</div>
-          <a href="login.html" class="btn btn-ghost btn-block btn-sm">Book Appointment</a>
-        </div>
-      </div>
-
-      <!-- Doctor 2 -->
-      <div class="doctor-card-v2">
-        <div class="doctor-img-box">
-          <img src="assets/doctor_ananya.png" alt="Dr. Ananya Rao">
-          <span class="doctor-status-badge">🟢 Available</span>
-        </div>
-        <div style="padding:20px;">
-          <h4 style="font-size:1.1rem; margin-bottom:4px;">Dr. Ananya Rao</h4>
-          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Chief Cardiologist (MD, DM)</div>
-          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 14 Years Experience</div>
-          <a href="login.html" class="btn btn-ghost btn-block btn-sm">Book Appointment</a>
-        </div>
-      </div>
-
-      <!-- Doctor 3 -->
-      <div class="doctor-card-v2">
-        <div class="doctor-img-box">
-          <img src="assets/service_doctor.png" alt="Dr. Vikram Nair">
-          <span class="doctor-status-badge">🟢 Available</span>
-        </div>
-        <div style="padding:20px;">
-          <h4 style="font-size:1.1rem; margin-bottom:4px;">Dr. Vikram Nair</h4>
-          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Neurology Consultant</div>
-          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 12 Years Experience</div>
-          <a href="login.html" class="btn btn-ghost btn-block btn-sm">Book Appointment</a>
-        </div>
-      </div>
-
-      <!-- Doctor 4 -->
-      <div class="doctor-card-v2">
-        <div class="doctor-img-box">
-          <img src="assets/service_nurse.png" alt="Nurse Priya Sharma">
-          <span class="doctor-status-badge">🟢 Available</span>
-        </div>
-        <div style="padding:20px;">
-          <h4 style="font-size:1.1rem; margin-bottom:4px;">Priya Sharma</h4>
-          <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">Lead ICU Nurse Specialist</div>
-          <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> 8 Years Experience</div>
-          <a href="login.html" class="btn btn-ghost btn-block btn-sm">View Care Roster</a>
-        </div>
+    <div class="grid-3" id="homeDoctorsGrid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:20px;">
+      <!-- Real database registered doctors loaded dynamically -->
+      <div style="grid-column: 1 / -1; text-align:center; padding:30px; color:var(--ink-soft);">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading real-time medical specialists from hospital database...
       </div>
     </div>
   </div>
@@ -995,7 +944,7 @@
         <div class="testi-who">
           <div class="avatar" style="background:linear-gradient(135deg,#0A4DA6,#0AB2A7);">RP</div>
           <div>
-            <b>Rekha Prasad</b><br>
+            <b>Ramesh Patel</b><br>
             <span>Patient (Cardiology Care)</span>
           </div>
         </div>
@@ -1237,5 +1186,54 @@ async function handlePublicContactSubmit(e) {
 </script>
 
 <script src="assets/js/mobile-responsive.js"></script>
+  <script>
+    async function loadLiveDoctorsForHome() {
+      const container = document.getElementById('homeDoctorsGrid');
+      if (!container) return;
+
+      try {
+        const res = await fetch('/api/doctors');
+        const docs = await res.json();
+
+        if (Array.isArray(docs) && docs.length > 0) {
+          const defaultImgs = [
+            'assets/doctor_ananya.png',
+            'assets/doctor_arun.png',
+            'assets/service_doctor.png'
+          ];
+          container.innerHTML = docs.map((d, idx) => {
+            const isOnline = d.appointmentAvailable === true || (d.status || '').toLowerCase().includes('online');
+            const statusBadge = isOnline 
+              ? '<span class="doctor-status-badge" style="background:#16A34A; color:#fff;">🟢 Online & Accepting</span>'
+              : '<span class="doctor-status-badge" style="background:#64748B; color:#fff;">⚪ Offline</span>';
+            const img = defaultImgs[idx % defaultImgs.length];
+
+            return `
+              <div class="doctor-card-v2">
+                <div class="doctor-img-box">
+                  <img src="${img}" alt="${d.name || 'Doctor'}">
+                  ${statusBadge}
+                </div>
+                <div style="padding:20px;">
+                  <h4 style="font-size:1.1rem; margin-bottom:4px;">${d.name || 'Medical Specialist'}</h4>
+                  <div style="color:var(--teal-500); font-weight:700; font-size:0.82rem; margin-bottom:8px;">${d.department || 'General Medicine'} Specialist</div>
+                  <div style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;"><i class="fa-solid fa-award"></i> Consultation Fee: ₹${d.fee || '800'}</div>
+                  <a href="login.html" class="btn btn-ghost btn-block btn-sm">Book Appointment</a>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch(e) {
+        console.warn('Could not load real-time doctors:', e);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', loadLiveDoctorsForHome);
+    try {
+      const homeDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
+      homeDocChannel.onmessage = () => loadLiveDoctorsForHome();
+    } catch(e){}
+  </script>
 </body>
 </html>

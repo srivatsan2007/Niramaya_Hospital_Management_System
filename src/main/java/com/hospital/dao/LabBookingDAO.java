@@ -48,6 +48,23 @@ public class LabBookingDAO {
         }
     }
 
+    public LabBooking getBookingById(String bookingId) {
+        if (bookingId == null || bookingId.trim().isEmpty()) return null;
+        String sql = "SELECT * FROM lab_bookings WHERE booking_id = ? LIMIT 1";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, bookingId.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSet(rs);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching lab booking by ID: " + e.getMessage());
+        }
+        return null;
+    }
+
     public List<LabBooking> getBookingsByPatient(String patientId) {
         if (patientId == null || patientId.trim().isEmpty()) return new ArrayList<>();
         List<LabBooking> list = new ArrayList<>();

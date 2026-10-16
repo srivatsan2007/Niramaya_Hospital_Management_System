@@ -196,10 +196,11 @@ public class PDFGenerator {
     }
 
     public static String buildPharmacyInvoiceHTML(com.hospital.model.PharmacyOrder order, java.util.List<com.hospital.model.PharmacyOrderItem> items, String patientName, String doctorName) {
-        String token = order.getPharmacyToken();
-        String invNo = "INV-" + (order.getOrderId() != null ? order.getOrderId().replace("PHA-", "") : "10084");
-        if (patientName == null || patientName.isEmpty()) patientName = "Rekha Prasad";
-        if (doctorName == null || doctorName.isEmpty()) doctorName = "Dr. Ananya Rao";
+        String token = order.getPharmacyToken() != null ? order.getPharmacyToken() : "PHA-10084";
+        String ordId = order.getOrderId() != null ? order.getOrderId() : "10084";
+        String invNo = ordId.startsWith("INV-") || ordId.startsWith("PHARM-") ? ordId : ("INV-" + ordId.replace("PHA-", ""));
+        if (patientName == null || patientName.isEmpty()) patientName = "Patient";
+        if (doctorName == null || doctorName.isEmpty()) doctorName = "Attending Physician";
 
         if (items == null || items.isEmpty()) {
             try {
@@ -290,7 +291,7 @@ public class PDFGenerator {
                "          <div style=\"font-size: 16px; font-weight: 800; color: #06306B;\">PHARMACY TAX INVOICE</div>\n" +
                "          <div style=\"font-size: 12px; color: #475569;\">Invoice No: <b>" + invNo + "</b></div>\n" +
                "          <div style=\"font-size: 12px; color: #475569;\">Pharmacy Token: <b>" + token + "</b></div>\n" +
-               "          <div style=\"font-size: 12px; color: #475569;\">Invoice Date: <b>" + (order.getOrderDate() != null ? order.getOrderDate() : new java.util.Date().toString()) + "</b></div>\n" +
+               "          <div style=\"font-size: 12px; color: #475569;\">Invoice Date: <b>" + (order.getOrderDate() != null ? order.getOrderDate() : new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date())) + "</b></div>\n" +
                "        </td>\n" +
                "      </tr>\n" +
                "    </table>\n" +

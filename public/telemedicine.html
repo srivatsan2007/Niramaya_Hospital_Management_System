@@ -482,7 +482,7 @@
                     <video id="doctorVideoFeed" autoplay muted playsinline style="display:none;"></video>
                     <div class="video-avatar" id="doctorAvatar">DR</div>
                     <div class="video-overlay">
-                        <span>👨‍⚕️</span> <strong id="doctorOverlayName">Dr. Ananya Rao</strong> (Cardiology)
+                        <span>👨‍⚕️</span> <strong id="doctorOverlayName">Doctor</strong> (Cardiology)
                     </div>
                 </div>
 
@@ -491,7 +491,7 @@
                     <video id="patientVideoFeed" autoplay playsinline style="display:none;"></video>
                     <div class="video-avatar" id="patientAvatar" style="background: linear-gradient(135deg, #10b981, #0d9488);">PT</div>
                     <div class="video-overlay">
-                        <span>👤</span> <strong id="patientOverlayName">Rekha Prasad</strong> (Patient ID: PT100842)
+                        <span>👤</span> <strong id="patientOverlayName">Patient</strong> (Patient ID: <span id="telePatientIdDisplay">-</span>)
                     </div>
                 </div>
             </div>
@@ -531,7 +531,7 @@
                         </div>
                         <div class="form-group">
                             <label>Doctor Name</label>
-                            <input type="text" id="rxDoctorName" class="form-control" value="Dr. Ananya Rao" readonly>
+                            <input type="text" id="rxDoctorName" class="form-control" value="Doctor" readonly>
                         </div>
                     </div>
 
@@ -686,7 +686,7 @@
                     
                     <div class="chat-box" id="chatMessages">
                         <div class="chat-msg doctor">
-                            <div class="sender">Dr. Ananya Rao</div>
+                            <div class="sender">Doctor</div>
                             Hello! I can hear you clearly. How are you feeling today?
                         </div>
                     </div>
@@ -740,8 +740,8 @@
                 if (data.success) {
                     document.getElementById('roomSubtitle').innerText = `Room: ${data.meetingRoom || meetingId}`;
                     document.getElementById('rxPatientId').value = data.patientId || 'PT100842';
-                    document.getElementById('rxDoctorName').value = data.doctorName || 'Dr. Ananya Rao';
-                    document.getElementById('doctorOverlayName').innerText = data.doctorName || 'Dr. Ananya Rao';
+                    document.getElementById('rxDoctorName').value = data.doctorName || (userRole === 'doctor' ? (sessionStorage.getItem('niramaya_name') || 'Doctor') : 'Doctor');
+                    document.getElementById('doctorOverlayName').innerText = data.doctorName || (userRole === 'doctor' ? (sessionStorage.getItem('niramaya_name') || 'Doctor') : 'Doctor');
                     document.getElementById('statusText').innerText = (data.meetingStatus || 'LIVE CONSULTATION').toUpperCase();
 
                     // Log join or start
@@ -1031,7 +1031,7 @@
                 consultationId: consultationData?.consultationId || 'CNS-100841',
                 meetingId: meetingId,
                 senderId: userRole === 'doctor' ? 'DOC1001' : 'PT100842',
-                senderName: userRole === 'doctor' ? 'Dr. Ananya Rao' : 'Rekha Prasad',
+                senderName: userRole === 'doctor' ? (sessionStorage.getItem('niramaya_name') || 'Doctor') : (sessionStorage.getItem('niramaya_name') || 'Patient'),
                 senderRole: userRole === 'doctor' ? 'Doctor' : 'Patient',
                 message: txt
             };

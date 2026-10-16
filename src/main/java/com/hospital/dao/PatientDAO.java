@@ -64,6 +64,10 @@ public class PatientDAO {
         }
     }
 
+    public Patient getPatientById(String identifier) {
+        return getPatientByIdOrEmail(identifier);
+    }
+
     public Patient getPatientByIdOrEmail(String identifier) {
         String sql = "SELECT * FROM patients WHERE patient_id = ? OR email = ?";
         try (Connection conn = DBConnection.getConnection();

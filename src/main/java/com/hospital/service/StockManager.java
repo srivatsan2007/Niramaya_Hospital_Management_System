@@ -129,9 +129,14 @@ public class StockManager {
      * Update Stock (Increase, Decrease, Adjust).
      */
     public boolean updateStock(String medicineId, String actionType, int quantity, String reason, String remarks) {
-        Medicine med = medicineDAO.getMedicineById(medicineId);
+        if (medicineId == null || medicineId.trim().isEmpty()) return false;
+        Medicine med = medicineDAO.getMedicineById(medicineId.trim());
+        if (med == null) {
+            med = medicineDAO.getMedicineByName(medicineId.trim());
+        }
         if (med == null) return false;
 
+        String actualMedId = med.getMedicineId();
         int currentStock = med.getStockQuantity();
         int newStock = currentStock;
 
@@ -144,6 +149,6 @@ public class StockManager {
         }
 
         String newStatus = calculateStatus(newStock, med.getMinimumStock(), med.getExpiryDate());
-        return medicineDAO.updateStockAndStatus(medicineId, newStock, newStatus);
+        return medicineDAO.updateStockAndStatus(actualMedId, newStock, newStatus);
     }
 }

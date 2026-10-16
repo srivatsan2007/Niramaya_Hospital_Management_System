@@ -98,7 +98,7 @@
       </div>
 
       <!-- ONLINE TELEMEDICINE CONSULTATION BANNER -->
-      <div id="telemedicinePatientBanner" class="panel" style="margin-bottom:24px; background: linear-gradient(135deg, #0d6efd 0%, #0d9488 100%); color:#fff; border:none; padding:20px 24px; border-radius:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; box-shadow:0 8px 24px rgba(13,110,253,0.3);">
+      <div id="telemedicinePatientBanner" class="panel" style="display:none; margin-bottom:24px; background: linear-gradient(135deg, #0d6efd 0%, #0d9488 100%); color:#fff; border:none; padding:20px 24px; border-radius:16px; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; box-shadow:0 8px 24px rgba(13,110,253,0.3);">
         <div style="display:flex; align-items:center; gap:16px;">
           <div style="width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:1.8rem;">
             🎥
@@ -106,10 +106,10 @@
           <div>
             <div style="display:flex; align-items:center; gap:10px;">
               <h3 style="font-size:1.2rem; font-family:'Sora'; margin:0; color:#fff;">Upcoming Online Video Consultation</h3>
-              <span style="background:rgba(255,255,255,0.25); color:#fff; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:12px;">Live Token: TOK-889124</span>
+              <span style="background:rgba(255,255,255,0.25); color:#fff; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:12px;">Active Consultation</span>
             </div>
             <p style="font-size:0.88rem; margin:4px 0 0; color:rgba(255,255,255,0.9);" id="teleBannerDetails">
-              Doctor: <strong>Dr. Ananya Rao</strong> (Cardiology) &nbsp;·&nbsp; Scheduled Today at <strong>10:30 AM</strong>
+              Doctor: <strong>-</strong> &nbsp;·&nbsp; Scheduled <strong>Today</strong>
             </p>
           </div>
         </div>
@@ -433,6 +433,18 @@
           <button type="button" class="btn btn-ghost btn-sm dept-btn" data-dept="Pediatrics">👶 Pediatrics</button>
           <button type="button" class="btn btn-ghost btn-sm dept-btn" data-dept="Orthopedics">🦴 Orthopedics</button>
           <button type="button" class="btn btn-ghost btn-sm dept-btn" data-dept="Obstetrics and Gynecology">🩺 Obstetrics & Gynecology</button>
+        </div>
+      </div>
+
+      <!-- LIVE ON-DUTY DOCTORS STATUS BAR -->
+      <div id="patientLiveOnlineDoctorsBar" style="background:#F0FDF4; border:1.5px solid #86EFAC; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 8px rgba(34,197,94,0.08);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#22C55E; box-shadow:0 0 10px #22C55E;"></span>
+          <b style="color:#15803D; font-size:0.92rem;">🩺 Live On-Duty Doctors (Online & Accepting Appointments)</b>
+          <span id="patientOnlineDoctorsCountBadge" style="background:#DCFCE7; color:#15803D; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:10px;">0 Online</span>
+        </div>
+        <div id="patientOnlineDoctorsPills" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <!-- Dynamically populated online doctor pills -->
         </div>
       </div>
 
@@ -1259,16 +1271,16 @@
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px dashed rgba(255,255,255,0.25); padding-bottom:8px;">
         <div>
           <span style="font-size:0.68rem; letter-spacing:1.5px; opacity:0.75; text-transform:uppercase;">TOKEN NUMBER</span>
-          <b style="font-size:1.15rem; display:block; font-family:'Sora';" id="ticketToken">TOKEN #TK-108</b>
+          <b style="font-size:1.15rem; display:block; font-family:'Sora';" id="ticketToken">TOKEN #-</b>
         </div>
         <span class="status-pill ok" style="background:#0AB2A7; color:#fff; font-size:0.75rem;">Token Reserved</span>
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.84rem;">
-        <div><span style="opacity:0.75; font-size:0.72rem;">DOCTOR</span><b style="display:block;" id="ticketDoc">Dr. Ananya Rao</b></div>
-        <div><span style="opacity:0.75; font-size:0.72rem;">DEPARTMENT</span><b style="display:block;" id="ticketDept">Cardiology</b></div>
-        <div><span style="opacity:0.75; font-size:0.72rem;">DATE & TIME</span><b style="display:block;" id="ticketDateTime">Today · 10:30 AM</b></div>
-        <div><span style="opacity:0.75; font-size:0.72rem;">FEE PAYABLE</span><b style="display:block; color:#5FD6CC; font-family:'Sora'; font-size:1.05rem;" id="ticketFee">₹800</b></div>
+        <div><span style="opacity:0.75; font-size:0.72rem;">DOCTOR</span><b style="display:block;" id="ticketDoc">-</b></div>
+        <div><span style="opacity:0.75; font-size:0.72rem;">DEPARTMENT</span><b style="display:block;" id="ticketDept">-</b></div>
+        <div><span style="opacity:0.75; font-size:0.72rem;">DATE & TIME</span><b style="display:block;" id="ticketDateTime">-</b></div>
+        <div><span style="opacity:0.75; font-size:0.72rem;">FEE PAYABLE</span><b style="display:block; color:#5FD6CC; font-family:'Sora'; font-size:1.05rem;" id="ticketFee">₹0</b></div>
       </div>
     </div>
 
@@ -1451,9 +1463,9 @@
           <div><b>Phone Number &nbsp;:</b> <span id="invPhone">+91 9876543210</span></div>
         </div>
         <div>
-          <div><b>Doctor Name &nbsp;&nbsp;:</b> <span id="invDoctor" style="font-weight:700;">Dr. Priya Sharma</span></div>
-          <div><b>Department &nbsp;&nbsp;&nbsp;:</b> <span id="invDept">General Medicine</span></div>
-          <div><b>Blood Group &nbsp;&nbsp;:</b> <span id="invBlood">O+</span></div>
+          <div><b>Doctor Name &nbsp;&nbsp;:</b> <span id="invDoctor" style="font-weight:700;">-</span></div>
+          <div><b>Department &nbsp;&nbsp;&nbsp;:</b> <span id="invDept">-</span></div>
+          <div><b>Blood Group &nbsp;&nbsp;:</b> <span id="invBlood">-</span></div>
         </div>
       </div>
 
@@ -1659,7 +1671,7 @@
           DR
         </div>
         <div>
-          <b style="font-size:1rem; display:block;" id="chatDoctorTitle">Dr. Priya Sharma</b>
+          <b style="font-size:1rem; display:block;" id="chatDoctorTitle">Attending Doctor</b>
           <span style="font-size:0.75rem; opacity:0.85;">Online Medical Consultant · Senior Physician</span>
         </div>
       </div>
@@ -1697,8 +1709,8 @@
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:var(--bg); padding:12px; border-radius:8px; margin-bottom:14px;">
         <div><b>Patient Name:</b> <span id="rxPatientName" style="font-weight:700;">Patient</span> (20 Y/M)</div>
         <div><b>Rx Date:</b> <span id="rxDate">Today (Latest Consultation)</span></div>
-        <div><b>Doctor Name:</b> <span id="rxDocName">Dr. Priya Sharma</span></div>
-        <div><b>Department:</b> <span id="rxDept">General Medicine</span></div>
+        <div><b>Doctor Name:</b> <span id="rxDocName">-</span></div>
+        <div><b>Department:</b> <span id="rxDept">-</span></div>
       </div>
 
       <b style="display:block; font-size:0.9rem; color:var(--blue-900); margin-bottom:8px;">Rx Medication Advice (Latest Prescription):</b>
@@ -1709,15 +1721,7 @@
           </tr>
         </thead>
         <tbody id="tbodyPrescriptionMeds">
-          <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:6px; font-weight:700;">Paracetamol 500mg</td><td>1 Tablet</td><td>1-0-1 (After Food)</td><td>5 Days</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:6px; font-weight:700;">Amoxicillin 250mg</td><td>1 Capsule</td><td>1-0-1 (After Food)</td><td>3 Days</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:6px; font-weight:700;">Vitamin D3 60K</td><td>1 Capsule</td><td>Once Weekly</td><td>4 Weeks</td>
-          </tr>
+          <tr><td colspan="4" style="text-align:center; padding:12px; color:var(--ink-soft);">No prescription medications loaded yet.</td></tr>
         </tbody>
       </table>
 
@@ -1821,9 +1825,9 @@
       <!-- Patient Header Info -->
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:14px; background:linear-gradient(135deg, rgba(13,110,253,0.06), rgba(0,200,83,0.06)); padding:12px 16px; border-radius:10px; font-size:0.82rem; border:1px solid var(--line);">
         <div><span style="color:var(--ink-soft); font-size:0.75rem; display:block;">PATIENT</span><b id="addRxPatientName">Patient Name</b></div>
-        <div><span style="color:var(--ink-soft); font-size:0.75rem; display:block;">TOKEN ID</span><b id="addRxToken">#TK-101</b></div>
-        <div><span style="color:var(--ink-soft); font-size:0.75rem; display:block;">ATTENDING DOCTOR</span><b id="addRxDocName">Dr. Priya Sharma</b></div>
-        <div><span style="color:var(--ink-soft); font-size:0.75rem; display:block;">DEPARTMENT</span><b id="addRxDept">General OPD</b></div>
+        <div><span style="color:var(--ink-soft); font-size:0.75rem; display:block;">TOKEN ID</span><b id="addRxToken">-</b></div>
+        <div><span style="color:var(--ink-soft); font-size:0.75rem; display:block;">ATTENDING DOCTOR</span><b id="addRxDocName">-</b></div>
+        <div><span style="color:var(--ink-soft); font-size:0.75rem; display:block;">DEPARTMENT</span><b id="addRxDept">-</b></div>
       </div>
 
       <!-- DUAL MEDICINE ENTRY TABS & FORMS -->
@@ -2037,22 +2041,22 @@
       <!-- Prescription Letterhead Content -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0D6EFD; padding-bottom: 14px; margin-bottom: 18px;">
         <div>
-          <h3 style="margin: 0; font-family: 'Sora'; color: #0F2A4A; font-size: 1.2rem;" id="rxModalDocName">Dr. Ananya Rao</h3>
-          <p style="margin: 3px 0 0 0; font-size: 0.85rem; color: #0D6EFD; font-weight: 600;" id="rxModalDocDept">Consultant Specialist · MD</p>
-          <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: #64748B;">Niramaya Hospitals · Reg No: MC-948201</p>
+          <h3 style="margin: 0; font-family: 'Sora'; color: #0F2A4A; font-size: 1.2rem;" id="rxModalDocName">-</h3>
+          <p style="margin: 3px 0 0 0; font-size: 0.85rem; color: #0D6EFD; font-weight: 600;" id="rxModalDocDept">-</p>
+          <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: #64748B;">Niramaya Hospitals · Licensed Medical Practitioner</p>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">PRESCRIPTION ID</div>
-          <div style="font-size: 1.1rem; font-weight: 800; color: #0F2A4A; font-family: monospace;" id="rxModalRxId">RX-100842</div>
-          <div style="font-size: 0.8rem; color: #64748B; margin-top: 4px;" id="rxModalDate">Date: 29 Jul 2026</div>
+          <div style="font-size: 1.1rem; font-weight: 800; color: #0F2A4A; font-family: monospace;" id="rxModalRxId">-</div>
+          <div style="font-size: 0.8rem; color: #64748B; margin-top: 4px;" id="rxModalDate">-</div>
         </div>
       </div>
 
       <!-- Patient Info Grid -->
       <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 18px; font-size: 0.88rem;">
-        <div><span style="color:#64748B; font-size:0.72rem; display:block;">PATIENT NAME</span><b id="rxModalPatientName" style="color:#0F2A4A; font-size:0.98rem;">Patient User</b></div>
-        <div><span style="color:#64748B; font-size:0.72rem; display:block;">PATIENT ID</span><b id="rxModalPatientId" style="color:#0D6EFD; font-family:monospace;">PT100842</b></div>
-        <div><span style="color:#64748B; font-size:0.72rem; display:block;">AGE / GENDER / BLOOD</span><b id="rxModalAgeGender">28 Yrs / Female (O+)</b></div>
+        <div><span style="color:#64748B; font-size:0.72rem; display:block;">PATIENT NAME</span><b id="rxModalPatientName" style="color:#0F2A4A; font-size:0.98rem;">-</b></div>
+        <div><span style="color:#64748B; font-size:0.72rem; display:block;">PATIENT ID</span><b id="rxModalPatientId" style="color:#0D6EFD; font-family:monospace;">-</b></div>
+        <div><span style="color:#64748B; font-size:0.72rem; display:block;">AGE / GENDER / BLOOD</span><b id="rxModalAgeGender">-</b></div>
       </div>
 
       <!-- Primary Diagnosis -->
@@ -2126,15 +2130,11 @@
 
     <form id="formBookLabTest" onsubmit="handleBookLabSubmit(event)">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 0.82rem; color: #166534;">
-        <div style="margin-bottom: 6px;"><b>Patient ID:</b> <span id="labModalPatientId">PT100842</span> &nbsp;|&nbsp; <b>Patient Name:</b> <span id="labModalPatientName">Rekha Prasad</span> &nbsp;|&nbsp; <b>Prescription Ref:</b> <span id="labModalRxId">RX-100842</span></div>
+        <div style="margin-bottom: 6px;"><b>Patient ID:</b> <span id="labModalPatientId">-</span> &nbsp;|&nbsp; <b>Patient Name:</b> <span id="labModalPatientName">-</span> &nbsp;|&nbsp; <b>Prescription Ref:</b> <span id="labModalRxId">-</span></div>
         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
           <label for="selectLabDoctor" style="font-weight: 700; white-space: nowrap; margin: 0;">Recommending Doctor:</label>
           <select id="selectLabDoctor" style="flex: 1; padding: 6px 10px; border-radius: 8px; border: 1px solid #166534; background: #ffffff; font-weight: 700; color: #166534; font-size: 0.82rem; cursor: pointer; outline: none;">
-            <option value="DOC1001" data-docname="Dr. Priya Sharma" data-docdept="General Medicine">Dr. Priya Sharma (General Medicine)</option>
-            <option value="DOC1002" data-docname="Dr. Rajesh Kumar" data-docdept="Cardiology">Dr. Rajesh Kumar (Cardiology)</option>
-            <option value="DOC1003" data-docname="Dr. Ananya Rao" data-docdept="Cardiology">Dr. Ananya Rao (Cardiology)</option>
-            <option value="DOC1004" data-docname="Dr. Srivatsan R" data-docdept="Neurology">Dr. Srivatsan R (Neurology)</option>
-            <option value="DOC1005" data-docname="Dr. Meera Nambiar" data-docdept="Pediatrics">Dr. Meera Nambiar (Pediatrics)</option>
+            <option value="">-- Choose Available Online Doctor --</option>
           </select>
         </div>
       </div>
@@ -2269,7 +2269,7 @@
     <!-- Patient & Doctor Metadata -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; background: #F8FAFC; padding: 14px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 20px; font-size: 0.82rem;">
       <div>
-        <div><b>Patient Name:</b> <span id="repModalPatientName">Rekha Prasad</span></div>
+        <div><b>Patient Name:</b> <span id="repModalPatientName">-</span></div>
         <div><b>Patient ID:</b> <span id="repModalPatientId">PT100842</span></div>
         <div><b>Age / Gender:</b> <span id="repModalMeta">28 Yrs / Female</span></div>
       </div>
@@ -2691,7 +2691,7 @@
     if (!modal) return;
 
     const rxIdStr = rx.rxId || rx.id || 'RX-100842';
-    const docNameStr = fallbackDocName || rx.docName || 'Dr. Ananya Rao';
+    const docNameStr = fallbackDocName || rx.docName || getSelectedOrAttendingDoctorName() || 'Attending Physician';
     const docDeptStr = fallbackDocDept || rx.docDept || 'Consultant Specialist · MD';
     const patientNameStr = rx.pName || rx.patientName || savedName;
     const patientIdStr = rx.pId || rx.patientId || savedPatientId;
@@ -2865,8 +2865,8 @@ ${adviceStr}
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:16px;">
           <div>
             <span class="status-pill ok" style="font-family:monospace; font-weight:800; margin-bottom:6px; display:inline-block;">${p.rxId || p.id || 'RX-' + idx}</span>
-            <h3 style="font-size:1.15rem; color:var(--blue-900); margin:0;">${p.docName || 'Dr. Ananya Rao'}</h3>
-            <span style="font-size:0.8rem; color:var(--ink-soft);">${p.docDept || 'Cardiology'} · Issued on ${p.date || 'Today'}</span>
+            <h3 style="font-size:1.15rem; color:var(--blue-900); margin:0;">${p.docName || 'Attending Physician'}</h3>
+            <span style="font-size:0.8rem; color:var(--ink-soft);">${p.docDept || 'General Medicine'} · Issued on ${p.date || 'Today'}</span>
           </div>
           <button type="button" class="btn btn-ghost btn-sm btn-open-rx-modal" data-idx="${idx}" style="font-weight:700; color:var(--teal-500); border: 1px solid var(--teal-500);">
             📥 View & Download / Print PDF
@@ -3707,6 +3707,38 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     const liveDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
     liveDocChannel.onmessage = (msg) => {
       console.log('⚡ [Patient Portal] Real-time doctor availability update:', msg.data);
+      if (msg.data && (msg.data.doctorId || msg.data.email || msg.data.name)) {
+        try {
+          let reg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]');
+          let doc = reg.find(d => (d.email && d.email === msg.data.email) || (d.doctorId && d.doctorId === msg.data.doctorId) || (d.name && d.name === msg.data.name));
+          if (doc) {
+            doc.status = msg.data.status;
+            doc.availableStatus = msg.data.status;
+            doc.isAvailable = Boolean(msg.data.isAvailable);
+            doc.acceptAppointments = msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No');
+            doc.appointmentAvailable = Boolean(msg.data.isAvailable);
+            doc.updatedAt = Date.now();
+          } else {
+            reg.unshift({
+              id: msg.data.doctorId || 'DOC10084',
+              doctorId: msg.data.doctorId || 'DOC10084',
+              email: msg.data.email || '',
+              name: msg.data.name || 'Dr. Doctor',
+              doctorName: msg.data.name || 'Dr. Doctor',
+              dept: msg.data.dept || 'General Medicine',
+              role: `${msg.data.dept || 'General Medicine'} Specialist`,
+              fee: 800,
+              status: msg.data.status || 'Online & Accepting Appointments',
+              availableStatus: msg.data.status || 'Online & Accepting Appointments',
+              isAvailable: Boolean(msg.data.isAvailable),
+              acceptAppointments: msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No'),
+              appointmentAvailable: Boolean(msg.data.isAvailable),
+              updatedAt: Date.now()
+            });
+          }
+          localStorage.setItem('niramaya_doctors_registry', JSON.stringify(reg));
+        } catch(e){}
+      }
       renderDoctors();
       if (typeof populateLabDoctorDropdown === 'function') populateLabDoctorDropdown();
       if (msg.data && msg.data.isAvailable) {
@@ -3720,14 +3752,47 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     renderDoctors();
   }, 5000);
 
+  function renderLiveOnlineDoctorsTicker(docsList) {
+    const bar = document.getElementById('patientLiveOnlineDoctorsBar');
+    const badge = document.getElementById('patientOnlineDoctorsCountBadge');
+    const pills = document.getElementById('patientOnlineDoctorsPills');
+    if (!bar || !pills) return;
+
+    const onlineDocs = (docsList || []).filter(d => d.isAvailable);
+    if (badge) badge.textContent = `${onlineDocs.length} Online`;
+
+    if (onlineDocs.length === 0) {
+      pills.innerHTML = '<span style="color:#64748B; font-size:0.8rem;">No doctors currently online. Offline booking available for tomorrow.</span>';
+      return;
+    }
+
+    pills.innerHTML = onlineDocs.map(d => `
+      <span style="background:#fff; border:1px solid #86EFAC; color:#15803D; font-weight:700; font-size:0.75rem; padding:4px 10px; border-radius:20px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.05); cursor:pointer;" onclick="quickSelectDoctor('${d.id}')" title="Click to view appointment slots">
+        <span style="width:7px; height:7px; border-radius:50%; background:#22C55E; display:inline-block;"></span>
+        ${d.name} <span style="font-weight:400; color:#0D9488;">(${d.dept})</span>
+      </span>
+    `).join('');
+  }
+
+  function quickSelectDoctor(docId) {
+    const card = document.querySelector(`.doc-card button[data-docid="${docId}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.focus();
+    }
+  }
+
   // Render Doctor Cards from Neon PostgreSQL Database
   async function renderDoctors() {
     const grid = document.getElementById('doctorCardsGrid');
     if (!grid) return;
 
-    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--teal-500); font-weight:700;"><div class="spinner" style="display:inline-block; margin-bottom:10px;">⏳</div><br>Loading active doctors from Neon PostgreSQL database...</div>';
+    if (grid.children.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--teal-500); font-weight:700;"><div class="spinner" style="display:inline-block; margin-bottom:10px;">⏳</div><br>Loading active doctors from Neon PostgreSQL database...</div>';
+    }
 
     const activeDocsList = await getActiveDoctorsList();
+    renderLiveOnlineDoctorsTicker(activeDocsList);
     grid.innerHTML = '';
 
     const selectedDateObj = selectedBookingDay === 'today' ? todayDateObj : tomorrowDateObj;
@@ -3741,7 +3806,11 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         if (!docDept.includes(selDept) && !selDept.includes(docDept)) return false;
       }
 
-      // 2. Registered Working Day Filter
+      // 2. Registered Working Day Filter:
+      // If doctor is online & accepting appointments right now, always show on Today!
+      if (selectedBookingDay === 'today' && d.isAvailable) {
+        return true;
+      }
       if (!isDoctorWorkingOnDay(d.days, selectedDateObj)) {
         return false;
       }
@@ -3762,13 +3831,6 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     // Get all user booked slots to block them in real-time
     const userBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
     const bookedKeys = new Set(userBookings.map(b => `${b.docName}|${b.date}|${b.time}`));
-
-    // Pre-populate a few booked slots so the user immediately sees 20-min blocked slots
-    if (userBookings.length === 0 && savedEmail === 'patient@niramaya.health') {
-      bookedKeys.add(`Dr. Ananya Rao|${dateTodayStr}|10:20 AM`);
-      bookedKeys.add(`Dr. Rajesh Kumar|${dateTodayStr}|09:20 AM`);
-      bookedKeys.add(`Dr. Meera Iyer|${dateTodayStr}|11:20 AM`);
-    }
 
     filteredDocs.forEach(doc => {
       const todayAvailable = doc.todaySlots.filter(time => !bookedKeys.has(`${doc.name}|${dateTodayStr}|${time}`)).length;
@@ -4222,7 +4284,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
 
           return {
             token: a.appointmentId,
-            patient: savedName,
+            patient: a.patientName || savedName,
             patientId: a.patientId,
             docName: a.doctorName || 'Doctor',
             dept: a.department || 'General Medicine',
@@ -4234,6 +4296,22 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
             isPaid: isPaid
           };
         });
+
+        // Synchronize local storage with real server records
+        try {
+          let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
+          userBookings.forEach(sb => {
+            const lb = localBookings.find(x => x.token === sb.token || x.id === sb.token);
+            if (lb) {
+              lb.paymentStatus = sb.paymentStatus;
+              lb.status = sb.status;
+              lb.isPaid = sb.isPaid;
+            } else {
+              localBookings.unshift(sb);
+            }
+          });
+          localStorage.setItem(userBookingsKey, JSON.stringify(localBookings));
+        } catch(e){}
       }
     } catch(e) {
       console.warn("Could not fetch server appointments, using local fallback", e);
@@ -4241,6 +4319,18 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
 
     if (userBookings.length === 0) {
       let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
+      let allA = [];
+      try { allA = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]'); } catch(e){}
+      localBookings.forEach(b => {
+        const found = allA.find(x => x.appointmentId === b.token || x.token === b.token);
+        if (found && (found.paymentStatus || '').toLowerCase().includes('paid')) {
+          b.paymentStatus = 'Paid';
+          b.status = 'Confirmed & Paid ✓';
+          b.isPaid = true;
+        }
+      });
+      try { localStorage.setItem(userBookingsKey, JSON.stringify(localBookings)); } catch(e){}
+
       if (activePatientApptsTab === 'today') {
         userBookings = localBookings.filter(b => !b.status?.toLowerCase().includes('completed') && !b.status?.toLowerCase().includes('cancelled'));
       } else {
@@ -4383,25 +4473,25 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
           matchedRx = pRxList[0];
         }
 
-        // Fallback demo prescription object if doctor hasn't written a prescription yet
-        if (!matchedRx) {
+        // Fallback prescription object if doctor hasn't written a prescription yet
+        if (!matchedRx && booking) {
           matchedRx = {
             rxId: 'RX-' + Math.floor(100000 + Math.random() * 900000),
             date: booking ? booking.date : 'Today',
-            docName: targetDocName || 'Dr. Ananya Rao',
-            docDept: targetDept ? (targetDept + ' Specialist · MD') : 'General Medicine Specialist',
+            docName: targetDocName || booking.docName || 'Attending Physician',
+            docDept: targetDept ? (targetDept + ' Specialist · MD') : (booking.dept || 'General Medicine Specialist'),
             pId: pid,
             pName: booking ? booking.patient : savedName,
-            diagnosis: 'Routine Clinical Checkup & Follow-up Consultation',
-            advice: 'Follow recommended lifestyle guidelines, stay hydrated, and report if any symptoms develop.',
-            meds: [
-              { name: 'Multi-Vitamin & Mineral Supplement', m: 1, a: 0, n: 0, timing: 'After Breakfast', days: 15 },
-              { name: 'Hydration Solution / ORS', m: 1, a: 1, n: 0, timing: 'As Needed', days: 5 }
-            ]
+            diagnosis: 'Clinical Consultation',
+            advice: 'Follow recommended lifestyle guidelines and stay hydrated.',
+            meds: []
           };
+        } else if (!matchedRx) {
+          alert('No prescription recorded yet for this appointment.');
+          return;
         }
 
-        const docNameToDisplay = targetDocName || matchedRx.docName || 'Dr. Ananya Rao';
+        const docNameToDisplay = targetDocName || (booking ? booking.docName : '') || (matchedRx ? matchedRx.docName : '') || 'Attending Physician';
         const docDeptToDisplay = targetDept ? (targetDept + ' Specialist · MD') : (matchedRx.docDept || 'Consultant Specialist · MD');
 
         openPrescriptionPdfModal(matchedRx, docNameToDisplay, docDeptToDisplay);
@@ -4552,9 +4642,9 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     const userBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
     let latest = userBookings.length > 0 ? userBookings[0] : null;
 
-    if (rxName) rxName.textContent = (latest && latest.patient) ? latest.patient : (savedName || 'Guest Patient');
-    if (rxDoc) rxDoc.textContent = (latest && latest.docName) ? latest.docName : 'Dr. Priya Sharma';
-    if (rxDept) rxDept.textContent = (latest && latest.dept) ? latest.dept : 'General Medicine';
+    if (rxName) rxName.textContent = (latest && latest.patient) ? latest.patient : (savedName || 'Patient');
+    if (rxDoc) rxDoc.textContent = (latest && latest.docName) ? latest.docName : (getSelectedOrAttendingDoctorName() || 'Attending Physician');
+    if (rxDept) rxDept.textContent = (latest && latest.dept) ? latest.dept : 'General OPD';
     if (rxDate) rxDate.textContent = (latest && latest.date) ? `${latest.date} · ${latest.time}` : 'Today (Active Rx)';
 
     if (tbodyMeds) {
@@ -4590,20 +4680,10 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         `).join('');
       } else {
         tbodyMeds.innerHTML = `
-          <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:8px; font-weight:700; color:var(--blue-900);">Paracetamol 650mg</td><td>650mg</td><td>1-0-1 (After Food)</td><td>5 Days</td>
-            <td><span class="badge" style="background:#D1E7DD; color:#0F5132; font-weight:700;">Hospital Pharmacy</span></td>
-            <td style="padding:8px; font-size:0.75rem; color:#0F5132; font-weight:600;">Available at Niramaya Pharmacy</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:8px; font-weight:700; color:var(--blue-900);">Amoxicillin 500mg</td><td>500mg</td><td>1-0-1 (After Food)</td><td>5 Days</td>
-            <td><span class="badge" style="background:#D1E7DD; color:#0F5132; font-weight:700;">Hospital Pharmacy</span></td>
-            <td style="padding:8px; font-size:0.75rem; color:#0F5132; font-weight:600;">Available at Niramaya Pharmacy</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:8px; font-weight:700; color:var(--blue-900);">Herbal Liver Syrup</td><td>100ml</td><td>1-0-1 (Before Meals)</td><td>7 Days</td>
-            <td><span class="badge" style="background:#E2D9F3; color:#59359A; font-weight:700;">External Medicine</span></td>
-            <td style="padding:8px; font-size:0.75rem; color:#59359A; font-weight:600;">Purchase from any licensed pharmacy.</td>
+          <tr>
+            <td colspan="6" style="text-align:center; padding:20px; color:var(--ink-soft);">
+              No active prescription medications recorded yet for this appointment.
+            </td>
           </tr>
         `;
       }
@@ -4963,18 +5043,22 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
   // Download Prescription File
   document.getElementById('btnDownloadRx')?.addEventListener('click', () => {
     const userBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
-    const latest = userBookings.length > 0 ? userBookings[0] : { docName: 'Dr. Priya Sharma', dept: 'General Medicine', date: '28-Jul-2026', token: '#TK-101', patient: savedName || 'Patient' };
+    const latest = userBookings.length > 0 ? userBookings[0] : null;
+    if (!latest) {
+      alert('No active appointment or prescription available to download.');
+      return;
+    }
     const pName = latest.patient || savedName || 'Patient';
 
     const medSection = (latest && latest.prescription && latest.prescription.medications)
       ? latest.prescription.medications
-      : `1. Paracetamol 500mg     | Dosage: 1 Tablet  | Frequency: 1-0-1 (After Food) | Duration: 5 Days
-2. Amoxicillin 250mg     | Dosage: 1 Capsule | Frequency: 1-0-1 (After Food) | Duration: 3 Days
-3. Vitamin D3 60K        | Dosage: 1 Capsule | Frequency: Once Weekly        | Duration: 4 Weeks`;
+      : (latest.prescription && Array.isArray(latest.prescription.items) && latest.prescription.items.length > 0
+          ? latest.prescription.items.map((it, i) => `${i+1}. ${it.medicineName} (${it.strength}) | Dosage: ${it.morning}-${it.afternoon}-${it.night} | Duration: ${it.duration}`).join('\n')
+          : 'Consultation completed. Routine rest and hydration advised.');
 
     const notesSection = (latest && latest.prescription && latest.prescription.notes)
       ? latest.prescription.notes
-      : `Drink plenty of warm water. Rest for 2 days. Follow up in OPD after 5 days.`;
+      : 'Follow up if symptoms persist.';
 
     const rxContent = `================================================================================
                          NIRAMAYA HOSPITALS
@@ -5089,9 +5173,10 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
     chatBody.scrollTop = chatBody.scrollHeight;
 
     setTimeout(() => {
+      const respondingDoc = (userBookings.length > 0 && userBookings[0].docName) ? userBookings[0].docName : (getSelectedOrAttendingDoctorName() || 'Your attending doctor');
       const docReplyHTML = `
         <div style="align-self:flex-start; background:#fff; border:1px solid var(--line); border-radius:12px 12px 12px 2px; padding:12px 14px; max-width:82%; font-size:0.88rem; box-shadow:var(--shadow-sm);">
-          Thank you for sharing. Dr. Priya Sharma has received your query regarding "<b>${msgText}</b>". Our team will advise you shortly. Please stay hydrated and rest well.
+          Thank you for sharing. ${respondingDoc} has received your query regarding "<b>${msgText}</b>". Our medical team will advise you shortly.
           <div style="font-size:0.7rem; color:var(--ink-soft); margin-top:4px; text-align:right;">Just now</div>
         </div>
       `;
@@ -5612,12 +5697,14 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
 
       pendingBookingPayload = {
         bookingId,
-        patientId: savedPatientId || 'PT100842',
-        patientName: savedName || 'Rekha Prasad',
+        patientId: savedPatientId || sessionStorage.getItem('niramaya_patient_id') || currentUserProfile.patientId || ('PT' + Math.floor(100000 + Math.random() * 900000)),
+        patientName: savedName || sessionStorage.getItem('niramaya_name') || currentUserProfile.name || 'Patient',
+        patientAge: savedAge || '28 Yrs',
+        patientGender: savedGender || 'Female',
         doctorId: chosenDocId,
         doctorName: chosenDocName,
         department: chosenDept,
-        prescriptionId: document.getElementById('labModalRxId')?.textContent || 'RX-100842',
+        prescriptionId: document.getElementById('labModalRxId')?.textContent || ('RX-' + Math.floor(100000 + Math.random() * 900000)),
         testName: testNamesStr,
         selectedTests,
         bookingDate: dateVal,
@@ -5820,7 +5907,7 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
         return activeDocsList[0].name;
       }
 
-      return 'Dr. Priya Sharma';
+      return 'Attending Physician';
     }
 
     function renderLabReports() {
@@ -5831,30 +5918,14 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       const fallbackDocName = getSelectedOrAttendingDoctorName();
 
       if (currentLabReports.length === 0) {
-        currentLabReports = [
-          {
-            reportId: 'REP-100842',
-            patientId: savedPatientId || 'PT100842',
-            patientName: savedName || 'Rekha Prasad',
-            doctorName: fallbackDocName,
-            testName: 'Complete Blood Count (CBC)',
-            uploadedBy: 'Senior Tech',
-            reportDate: 'Today',
-            status: 'Verified Ready',
-            reportFile: `LabReport_${savedPatientId || 'PT100842'}_REP-100842.pdf`
-          },
-          {
-            reportId: 'REP-100845',
-            patientId: savedPatientId || 'PT100842',
-            patientName: savedName || 'Rekha Prasad',
-            doctorName: fallbackDocName,
-            testName: 'Lipid & Blood Sugar Profile',
-            uploadedBy: 'Senior Tech',
-            reportDate: 'Yesterday',
-            status: 'Verified Ready',
-            reportFile: `LabReport_${savedPatientId || 'PT100842'}_REP-100845.pdf`
-          }
-        ];
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; padding:28px; color:var(--ink-soft);">
+              No diagnostic laboratory reports issued yet.
+            </td>
+          </tr>
+        `;
+        return;
       }
 
       currentLabReports.forEach(r => {
@@ -5982,6 +6053,30 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       const pdfUrl = `/Reports/LabReport_${pId}_${repId}.pdf`;
       window.open(pdfUrl, '_blank');
     };
+
+    // Live Payment Status Sync across tabs when Admin marks Pay at Counter as Paid
+    try {
+      const payChannel = new BroadcastChannel('niramaya_payment_status_channel');
+      payChannel.onmessage = (msg) => {
+        if (msg.data && msg.data.type === 'APPOINTMENT_PAID') {
+          console.log('⚡ [Patient Portal] Counter payment verified:', msg.data);
+          try {
+            let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
+            localBookings.forEach(b => {
+              if (b.token === msg.data.appointmentId || b.id === msg.data.appointmentId || b.appointmentId === msg.data.appointmentId) {
+                b.paymentStatus = 'Paid';
+                b.status = 'Confirmed & Paid ✓';
+                b.isPaid = true;
+              }
+            });
+            localStorage.setItem(userBookingsKey, JSON.stringify(localBookings));
+          } catch(e){}
+          renderUserBookings();
+          if (typeof renderPatientBilling === 'function') renderPatientBilling();
+          showToast(`✅ Payment verified at counter for Appointment ${msg.data.appointmentId}! Tax invoice unlocked.`);
+        }
+      };
+    } catch(e){}
 
     // Instant real-time sync when Doctor profile is updated in another tab/window
     window.addEventListener('storage', (e) => {
@@ -6336,7 +6431,7 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
               appointmentId: b.token || b.id || 'TOK-100842',
               patient: b.patient || savedName,
               patientId: b.patientId || savedPatientId,
-              docName: b.docName || 'Dr. Ananya Rao',
+              docName: b.docName || 'Attending Physician',
               dept: b.dept || 'General Medicine',
               date: b.date || 'Today',
               time: b.time || '10:00 AM',
@@ -6349,41 +6444,6 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
           }
         });
       } catch (e) {}
-
-      if (consultations.length === 0) {
-        consultations = [
-          {
-            token: 'TOK-889124',
-            appointmentId: 'TOK-889124',
-            patient: savedName || 'Patient',
-            patientId: savedPatientId || 'PT100842',
-            docName: 'Dr. Ananya Rao',
-            dept: 'Cardiology',
-            date: new Date().toISOString().split('T')[0],
-            time: '10:30 AM',
-            fee: '₹800',
-            status: 'Confirmed',
-            paymentStatus: 'Paid via UPI ✓',
-            consultMode: 'online',
-            meetLink: '/telemedicine.html?role=patient&meetingId=MTG-782914'
-          },
-          {
-            token: 'TOK-772109',
-            appointmentId: 'TOK-772109',
-            patient: savedName || 'Patient',
-            patientId: savedPatientId || 'PT100842',
-            docName: 'Dr. Rajesh Kumar',
-            dept: 'Neurology',
-            date: 'Yesterday',
-            time: '04:15 PM',
-            fee: '₹950',
-            status: 'Completed',
-            paymentStatus: 'Paid via UPI ✓',
-            consultMode: 'in_person',
-            meetLink: ''
-          }
-        ];
-      }
 
       window.cachedConsultations = consultations;
       applyConsultationFilter();
@@ -6578,57 +6638,8 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
         });
       } catch(e) {}
 
-      if (bills.length === 0) {
-        bills = [
-          {
-            invoiceNo: 'INV-2026-9102',
-            token: 'TOK-889124',
-            serviceName: 'Cardiology Specialist Video Consultation (Dr. Ananya Rao)',
-            date: new Date().toISOString().split('T')[0],
-            time: '10:30 AM',
-            paymentMode: 'UPI (GPay)',
-            amount: 800.00,
-            status: 'PAID',
-            rawBooking: {
-              token: 'TOK-889124',
-              patient: savedName,
-              patientId: savedPatientId,
-              docName: 'Dr. Ananya Rao',
-              dept: 'Cardiology',
-              date: 'Today',
-              time: '10:30 AM',
-              fee: '₹800',
-              status: 'Confirmed',
-              paymentStatus: 'Paid via UPI ✓',
-              consultMode: 'online'
-            }
-          },
-          {
-            invoiceNo: 'INV-2026-9101',
-            token: 'MED-550182',
-            serviceName: 'Pharmacy Outpatient Dispensed Medication (3 Items)',
-            date: 'Yesterday',
-            time: '04:45 PM',
-            paymentMode: 'Credit Card (HDFC)',
-            amount: 640.00,
-            status: 'PAID',
-            rawBooking: null
-          },
-          {
-            invoiceNo: 'INV-2026-9098',
-            token: 'LAB-291044',
-            serviceName: 'Complete Blood Count (CBC) & Fasting Lipid Profile',
-            date: '14-Oct-2026',
-            time: '09:15 AM',
-            paymentMode: 'Counter Verified',
-            amount: 1100.00,
-            status: 'PAID',
-            rawBooking: null
-          }
-        ];
-      }
-
       window.cachedBillingItems = bills;
+      renderBillingTable(window.cachedBillingItems);
 
       const totalAmount = bills.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
       const paidAmount = bills.filter(b => b.status === 'PAID').reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);

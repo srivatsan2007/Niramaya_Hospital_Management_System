@@ -189,14 +189,18 @@
   .pharm-modal {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(4px);
     display: none;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 10000;
   }
-  .pharm-modal.show { display: flex; }
+  .pharm-modal.show, .pharm-modal[style*="display: flex"] {
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
   .pharm-modal-box {
     background: white;
     border-radius: 20px;
@@ -277,6 +281,35 @@
       padding: 16px !important;
     }
   }
+
+  @media print {
+    body * {
+      visibility: hidden !important;
+    }
+    #pharmReceiptPrintModal, #pharmReceiptPrintModal * {
+      visibility: visible !important;
+    }
+    #pharmReceiptPrintModal {
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+      display: block !important;
+      background: white !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    #pharmReceiptPrintModal .pharm-modal-box {
+      box-shadow: none !important;
+      border: none !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 0 !important;
+    }
+    #pharmReceiptPrintModal button, #pharmReceiptPrintModal .btn, #pharmReceiptPrintModal .no-print {
+      display: none !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -298,9 +331,16 @@
       <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#22C55E; box-shadow:0 0 8px #22C55E;"></span>
       <span id="pharmOnlineDocsCountText">Loading online doctors...</span>
     </div>
+
+    <!-- LIVE MEDICINE INVENTORY STOCK HEALTH INDICATOR -->
+    <div id="pharmStockStatusBadge" onclick="switchMainTab('inventory')" style="display:flex; align-items:center; gap:8px; background:#EFF6FF; padding:6px 14px; border-radius:30px; font-size:0.8rem; font-weight:700; color:#1E40AF; border:1px solid #BFDBFE; cursor:pointer;" title="Click to view medicine inventory stock">
+      <span id="pharmStockStatusDot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2563EB;"></span>
+      <span id="pharmStockStatusText">Checking inventory...</span>
+    </div>
+
     <button class="btn btn-primary" onclick="openPharmacyInvoiceModal()" style="font-size:0.8rem; padding:6px 14px; background:#2563EB; border:none; font-weight:700; box-shadow:0 4px 12px rgba(37,99,235,0.3);">🧾 + Generate Pharmacy Bill</button>
     <div style="text-align:right;">
-      <b id="staffName" style="display:block; font-size:0.95rem;">Priya Sharma</b>
+      <b id="staffName" style="display:block; font-size:0.95rem;">Pharmacist Staff</b>
       <span style="font-size:0.75rem; color:#5FD6CC; font-weight:800; font-family:monospace;" id="staffEmpCode">EMP-000003</span>
     </div>
     <button class="btn btn-primary" onclick="openPharmacyDailyReportModal()" style="font-size:0.8rem; padding:6px 14px; background:#059669; border:none; font-weight:700; box-shadow:0 4px 12px rgba(5,150,105,0.3);">📩 Send Daily Report</button>
@@ -315,7 +355,7 @@
   <button class="tab-btn active" id="btnTabOrders" onclick="switchMainTab('orders')">⚡ Today's Active Prescriptions Queue</button>
   <button class="tab-btn" id="btnTabInvoices" onclick="switchMainTab('invoices')">🧾 Invoices & Billing</button>
   <button class="tab-btn" id="btnTabHistory" onclick="switchMainTab('history')">📜 Completed Orders History</button>
-  <button class="tab-btn" id="btnTabInventory" onclick="switchMainTab('inventory')">📦 Medicine Inventory</button>
+  <button class="tab-btn" id="btnTabInventory" onclick="switchMainTab('inventory')">📦 Medicine Inventory <span id="inventoryAlertBadge" style="display:none; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:800; margin-left:6px;"></span></button>
 </div>
 
 <!-- STATS CARDS -->
@@ -352,6 +392,26 @@
 
 <!-- MAIN CONTENT WRAPPER -->
 <div class="main-content">
+
+  <!-- DYNAMIC REAL-TIME STOCK & OUT-OF-STOCK ALERT BANNER -->
+  <div id="pharmacyStockAlertBanner" style="display:none; margin-bottom:20px; border-radius:12px; padding:16px 20px; box-shadow:0 4px 14px rgba(0,0,0,0.06); transition:all 0.3s ease;"></div>
+
+  <!-- On-Duty & Available Doctors Live Monitor for Central Pharmacy -->
+  <div class="pharm-panel" style="margin-bottom:20px; border-left:4px solid #10B981; background:#F0FDF4; padding:14px 18px; border-radius:12px; box-shadow:0 2px 8px rgba(16,185,129,0.08);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:1.3rem;">🩺</span>
+        <div>
+          <b style="color:#065F46; font-size:0.95rem;">On-Duty & Available Physicians Live Monitor</b>
+          <span class="badge" id="pharmOnlineDocsCardBadge" style="background:#DCFCE7; color:#15803D; font-weight:700; margin-left:8px; padding:3px 8px; border-radius:10px; font-size:0.75rem;">0 Online</span>
+          <div style="font-size:0.78rem; color:#64748B; margin-top:2px;">Currently logged in doctors accepting prescriptions and digital dispensing.</div>
+        </div>
+      </div>
+      <div id="pharmLiveDoctorsPills" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <!-- Populated with online doctor pills -->
+      </div>
+    </div>
+  </div>
 
   <!-- TAB 1: PHARMACY ORDERS QUEUE -->
   <div id="viewOrders" class="view-tab active">
@@ -761,6 +821,8 @@
       </div>
     </form>
   </div>
+</div>
+
 <!-- MODAL: VIEW ORDER ITEMS -->
 <div class="pharm-modal" id="itemsModal">
   <div class="pharm-modal-box" style="max-width:720px;">
@@ -883,7 +945,10 @@
       <!-- MEDICINE LINE ITEMS TABLE -->
       <div style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <span style="font-weight:700; font-size:0.9rem; color:var(--pharm-navy);">💊 Prescribed Medicines & Consumables</span>
+          <div>
+            <span style="font-weight:700; font-size:0.9rem; color:var(--pharm-navy);">💊 Prescribed Medicines & Inventory Dispensing</span>
+            <div style="font-size:0.75rem; color:#64748B;">Recommendation shows available tablets from inventory with live stock quantities. Stock reduces automatically after billing.</div>
+          </div>
           <button type="button" class="btn btn-teal" onclick="addPharmInvoiceLineItem()" style="padding:6px 12px; font-size:0.8rem; background:var(--pharm-emerald); color:#fff; border:none; border-radius:8px; cursor:pointer;">
             ➕ Add Medicine Line Item
           </button>
@@ -893,10 +958,10 @@
           <table class="pharm-table" style="margin:0;">
             <thead>
               <tr style="background:#F1F5F9;">
-                <th style="min-width:180px;">Medicine Name</th>
+                <th style="min-width:250px;">Select Tablet / Medicine & Stock</th>
                 <th style="min-width:110px;">Dosage/Category</th>
                 <th style="min-width:90px;">Unit Price (₹)</th>
-                <th style="min-width:70px;">Qty</th>
+                <th style="min-width:85px;">Qty & Limit</th>
                 <th style="min-width:70px;">Disc (%)</th>
                 <th style="min-width:70px;">GST (%)</th>
                 <th style="min-width:100px;">Net Subtotal (₹)</th>
@@ -949,9 +1014,10 @@
   <div class="pharm-modal-box" style="max-width:720px; background:white; padding:24px;">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:16px;">
       <h3 style="margin:0; font-family:'Sora'; color:var(--pharm-navy); font-size:1.15rem;">🖨️ Official Hospital Pharmacy Receipt</h3>
-      <div>
-        <button class="btn btn-primary" onclick="window.print()" style="padding:6px 14px; font-size:0.8rem; background:#0F172A; margin-right:8px;">Print 🖨️</button>
-        <button class="btn btn-ghost" onclick="closeModal('pharmReceiptPrintModal')" style="padding:6px 12px; font-size:0.8rem;">✕ Close</button>
+      <div style="display:flex; gap:8px;" class="no-print">
+        <button class="btn btn-primary" onclick="downloadCurrentReceiptPDF()" style="padding:6px 14px; font-size:0.8rem; background:#0F172A; cursor:pointer;">Print 🖨️</button>
+        <button class="btn btn-teal" onclick="downloadCurrentReceiptPDF()" style="padding:6px 14px; font-size:0.8rem; background:var(--pharm-emerald); color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">⬇️ Download PDF</button>
+        <button class="btn btn-ghost" onclick="closeModal('pharmReceiptPrintModal')" style="padding:6px 12px; font-size:0.8rem; cursor:pointer;">✕ Close</button>
       </div>
     </div>
     <div id="pharmReceiptContent" style="padding:10px; background:white;">
@@ -968,6 +1034,17 @@
   let allMedicines = [];
 
   window.addEventListener('DOMContentLoaded', () => {
+    // Sanitize any stale mock invoices from previous test sessions
+    try {
+      let storedInvs = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]');
+      if (Array.isArray(storedInvs)) {
+        const cleaned = storedInvs.filter(i => !(i.patientName === 'Rekha Prasad' && (i.totalAmount === 185 || !i.totalAmount)));
+        if (cleaned.length !== storedInvs.length) {
+          localStorage.setItem('niramaya_pharmacy_invoices', JSON.stringify(cleaned));
+        }
+      }
+    } catch(e){}
+
     loadPharmacyOrders();
     loadInventoryTable();
     loadPharmOnlineDoctors();
@@ -1019,9 +1096,9 @@
       if (Array.isArray(list) && list.length > 0) {
         tbody.innerHTML = list.map(o => `
           <tr>
-            <td><b>${o.orderId || 'ORD-101'}</b></td>
-            <td><span class="mono" style="font-weight:700; color:var(--pharm-navy);">${o.pharmacyToken || o.token || 'TK-1001'}</span></td>
-            <td>${o.patientId || 'PT100842'}</td>
+            <td><b>${o.orderId || '-'}</b></td>
+            <td><span class="mono" style="font-weight:700; color:var(--pharm-navy);">${o.pharmacyToken || o.token || '-'}</span></td>
+            <td>${o.patientId || '-'}</td>
             <td><b>₹${(o.totalAmount || 0).toFixed(2)}</b></td>
             <td><span class="status-pill ok" style="font-size:0.75rem; background:#DCFCE7; color:#15803D; padding:4px 8px; border-radius:10px;">${o.paymentStatus || 'Paid'}</span></td>
             <td><span class="status-pill ok" style="font-size:0.75rem; background:#E0F2FE; color:#0369A1; padding:4px 8px; border-radius:10px; font-weight:700;">Dispensed ✓</span></td>
@@ -1280,6 +1357,10 @@
       const res = await fetch('/api/pharmacy/medicines');
       allMedicines = await res.json();
       renderInventoryTable(allMedicines);
+      checkAndRenderStockAlerts();
+      const inStockCount = (allMedicines || []).filter(m => (m.stockQuantity || 0) > 0).length;
+      const statMedEl = document.getElementById('statMedicines');
+      if (statMedEl) statMedEl.textContent = inStockCount;
     } catch (e) {
       showToast('⚠️ Could not load inventory catalog.');
     }
@@ -1480,13 +1561,17 @@
     const medId = directMedId || getSelectedMedicineId();
     if (!medId) return;
 
-    const med = allMedicines.find(m => m.medicineId === medId);
+    const med = (allMedicines || []).find(m => m.medicineId === medId);
     if (!med) return;
 
     document.getElementById('stockMedId').value = med.medicineId;
     document.getElementById('stockMedNameStr').textContent = `${med.medicineName} (${med.strength || ''}) — Current Stock: ${med.stockQuantity}`;
     document.getElementById('stockQtyInput').value = 10;
-    document.getElementById('stockModal').classList.add('show');
+    const modal = document.getElementById('stockModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('show');
+    }
   }
 
   async function submitStockUpdate(e) {
@@ -1508,6 +1593,7 @@
         showToast('✅ Stock level updated successfully.');
         closeModal('stockModal');
         await loadInventoryTable();
+        checkAndRenderStockAlerts();
       } else {
         showToast('⚠️ ' + (data.message || 'Stock update failed.'));
       }
@@ -1573,7 +1659,7 @@
     } catch (e) {
       openStaffIdCardModal({
         employeeCode: empCode,
-        fullName: 'Priya Sharma',
+        fullName: sessionStorage.getItem('user_name') || sessionStorage.getItem('niramaya_name') || 'Pharmacist Staff',
         role: 'Pharmacist',
         department: 'Pharmacy & Inventory',
         designation: 'Senior Pharmacist Specialist',
@@ -1601,7 +1687,11 @@
   }
 
   function closeModal(id) {
-    document.getElementById(id).classList.remove('show');
+    const m = document.getElementById(id);
+    if (m) {
+      m.classList.remove('show');
+      m.style.display = 'none';
+    }
   }
 
   function logout() {
@@ -1723,8 +1813,33 @@
 
       const countText = document.getElementById('pharmOnlineDocsCountText');
       const badge = document.getElementById('pharmOnlineDocsBadge');
+      const cardBadge = document.getElementById('pharmOnlineDocsCardBadge');
+      const pills = document.getElementById('pharmLiveDoctorsPills');
+
       if (countText) countText.textContent = `${availableDocs.length} Available Doctors`;
       if (badge) badge.style.background = availableDocs.length > 0 ? '#DCFCE7' : '#F1F5F9';
+      if (cardBadge) {
+        cardBadge.textContent = `${availableDocs.length} Online`;
+        cardBadge.style.background = availableDocs.length > 0 ? '#DCFCE7' : '#E2E8F0';
+        cardBadge.style.color = availableDocs.length > 0 ? '#15803D' : '#64748B';
+      }
+
+      if (pills) {
+        if (availableDocs.length === 0) {
+          pills.innerHTML = '<span style="color:#64748B; font-size:0.8rem;">No physicians currently online. Emergency prescriptions handled on-call.</span>';
+        } else {
+          pills.innerHTML = availableDocs.map(d => {
+            const name = d.doctorName || d.name || 'Doctor';
+            const dept = d.department || d.dept || 'General';
+            return `
+              <span style="background:#fff; border:1px solid #86EFAC; color:#15803D; font-weight:700; font-size:0.75rem; padding:4px 10px; border-radius:20px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <span style="width:7px; height:7px; border-radius:50%; background:#22C55E; display:inline-block;"></span>
+                ${name} <span style="font-weight:400; color:#0D9488;">(${dept})</span>
+              </span>
+            `;
+          }).join('');
+        }
+      }
 
       // Keep dropdown synchronized if invoice modal is currently open
       const modal = document.getElementById('pharmacyInvoiceModal');
@@ -1783,12 +1898,20 @@
       return (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
     });
 
-    if (availableDocs.length === 0) {
-      sel.innerHTML = '<option value="" disabled selected>⚠️ No doctors currently online & accepting appointments</option>';
+    let optionsHtml = '';
+    if (selectedDocName && !availableDocs.some(d => (d.name||'').toLowerCase().includes(selectedDocName.toLowerCase()))) {
+      optionsHtml += `<option value="${selectedDocName}" selected>${selectedDocName} (Assigned Doctor)</option>`;
+    }
+
+    if (availableDocs.length === 0 && !selectedDocName) {
+      sel.innerHTML = '<option value="">-- Select Attending Doctor --</option>' + 
+        (Array.isArray(dbDocs) && dbDocs.length > 0 
+          ? dbDocs.map(d => `<option value="${d.name}" data-dept="${d.department || 'General Medicine'}">${d.name} (${d.department || 'General Medicine'})</option>`).join('')
+          : '<option value="Attending Physician">Attending Physician</option>');
       return;
     }
 
-    sel.innerHTML = '<option value="">-- Choose Available Online Doctor --</option>' + availableDocs.map(d => {
+    sel.innerHTML = (selectedDocName ? '' : '<option value="">-- Choose Available Online Doctor --</option>') + optionsHtml + availableDocs.map(d => {
       const name = d.doctorName || d.name || 'Doctor';
       const dept = d.department || d.dept || d.category || 'General Medicine';
       const isMatch = selectedDocName && name.toLowerCase().includes(selectedDocName.toLowerCase()) ? 'selected' : '';
@@ -1800,93 +1923,163 @@
     const modal = document.getElementById('pharmacyInvoiceModal');
     if (!modal) return;
 
-    let existingInvoice = null;
-    let invoices = [];
-    try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
-
-    if (orderIdOrInvoiceNo) {
-      existingInvoice = invoices.find(inv => inv.invoiceNo === orderIdOrInvoiceNo || inv.orderRef === orderIdOrInvoiceNo || inv.orderId === orderIdOrInvoiceNo || inv.pharmacyToken === orderIdOrInvoiceNo);
-    }
-
-    let order = null;
-    if (orderIdOrInvoiceNo && allOrders) {
-      order = allOrders.find(o => o.orderId === orderIdOrInvoiceNo || o.pharmacyToken === orderIdOrInvoiceNo);
-    }
-
-    const invNo = existingInvoice ? existingInvoice.invoiceNo : ('PHARM-INV-' + Math.floor(100000 + Math.random() * 900000));
-    const ordRef = existingInvoice ? (existingInvoice.orderRef || existingInvoice.orderId || '') : (order ? (order.pharmacyToken || order.orderId || '') : ('ORD-' + Math.floor(100000 + Math.random() * 900000)));
-    const pId = existingInvoice ? existingInvoice.patientId : (order ? (order.patientId || 'PT100842') : 'PT100842');
-    const pName = existingInvoice ? existingInvoice.patientName : (order ? (order.patientName || 'Rajesh Sharma') : 'Rajesh Sharma');
-    const ageGen = existingInvoice ? existingInvoice.ageGender : '35 Yrs / Male';
-    const phone = existingInvoice ? existingInvoice.phone : '+91 98765 43210';
-    const docName = existingInvoice ? existingInvoice.doctorName : (order ? (order.doctorName || order.doctorId || '') : '');
-    const payStatus = existingInvoice ? existingInvoice.paymentStatus : (order ? (order.paymentStatus || 'Paid') : 'Paid');
-    const payMode = existingInvoice ? (existingInvoice.paymentMode || 'UPI') : 'UPI';
-    const txnId = existingInvoice ? (existingInvoice.txnId || 'TXN-' + Date.now().toString().slice(-6)) : ('TXN-' + Date.now().toString().slice(-6));
-    const invDate = existingInvoice ? (existingInvoice.date?.split('T')[0] || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
-
-    document.getElementById('pharmInvoiceModalTitle').textContent = existingInvoice ? `✏️ Edit Pharmacy Invoice — ${invNo}` : `🧾 Generate New Pharmacy Bill`;
-    document.getElementById('pharmInvNumber').value = invNo;
-    document.getElementById('pharmInvOrderRef').value = ordRef;
-    document.getElementById('pharmInvDate').value = invDate;
-    document.getElementById('pharmInvPatientId').value = pId;
-    document.getElementById('pharmInvPatientName').value = pName;
-    document.getElementById('pharmInvAgeGender').value = ageGen;
-    document.getElementById('pharmInvPhone').value = phone;
-    document.getElementById('pharmInvPayStatus').value = payStatus;
-    document.getElementById('pharmInvPayMode').value = payMode;
-    document.getElementById('pharmInvTxnId').value = txnId;
-
-    populatePharmInvoiceDoctorSelect(docName);
-
-    const itemsBody = document.getElementById('pharmInvoiceItemsBody');
-    itemsBody.innerHTML = '';
-
-    if (existingInvoice && Array.isArray(existingInvoice.items) && existingInvoice.items.length > 0) {
-      existingInvoice.items.forEach(it => {
-        addPharmInvoiceLineItem(it.name, it.category || it.dosage, it.price, it.qty, it.disc, it.tax);
-      });
-    } else if (order && order.orderId) {
-      let fetchedItems = [];
-      try {
-        const res = await fetch(`/api/pharmacy/order-items?orderId=${encodeURIComponent(order.orderId)}`);
-        if (res.ok) fetchedItems = await res.json();
-      } catch(e){}
-
-      if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
-        fetchedItems.forEach(it => {
-          addPharmInvoiceLineItem(it.medicineName || it.name, it.dosageForm || 'Tablet', it.unitPrice || 45, it.quantity || 10, 0, 12);
-        });
-      } else {
-        addPharmInvoiceLineItem('Paracetamol 650mg', 'Tablet', 45.00, 10, 0, 12);
-        addPharmInvoiceLineItem('Amoxicillin 500mg', 'Capsule', 120.00, 6, 5, 12);
-      }
-    } else {
-      addPharmInvoiceLineItem('Paracetamol 650mg', 'Tablet', 45.00, 10, 0, 12);
-      addPharmInvoiceLineItem('Pantoprazole 40mg', 'Tablet', 85.00, 10, 0, 12);
-      addPharmInvoiceLineItem('Cetirizine 10mg', 'Tablet', 35.00, 10, 0, 12);
-    }
-
-    calcPharmInvoiceTotals();
+    // Show modal immediately so user sees instant response
+    modal.style.display = 'flex';
     modal.classList.add('show');
+
+    try {
+      let existingInvoice = null;
+      let invoices = [];
+      try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
+
+      if (orderIdOrInvoiceNo) {
+        existingInvoice = invoices.find(inv => inv.invoiceNo === orderIdOrInvoiceNo || inv.orderRef === orderIdOrInvoiceNo || inv.orderId === orderIdOrInvoiceNo || inv.pharmacyToken === orderIdOrInvoiceNo);
+      }
+
+      let order = null;
+      if (orderIdOrInvoiceNo && allOrders) {
+        order = allOrders.find(o => o.orderId === orderIdOrInvoiceNo || o.pharmacyToken === orderIdOrInvoiceNo);
+      }
+
+      const invNo = existingInvoice ? existingInvoice.invoiceNo : ('PHARM-INV-' + Math.floor(100000 + Math.random() * 900000));
+      const ordRef = existingInvoice ? (existingInvoice.orderRef || existingInvoice.orderId || '') : (order ? (order.pharmacyToken || order.orderId || '') : ('ORD-' + Math.floor(100000 + Math.random() * 900000)));
+      const pId = existingInvoice ? existingInvoice.patientId : (order ? (order.patientId || 'PT100000') : 'PT100000');
+      const pName = existingInvoice ? existingInvoice.patientName : (order ? (order.patientName || 'Patient') : (sessionStorage.getItem('niramaya_name') || 'Patient'));
+      const ageGen = existingInvoice ? existingInvoice.ageGender : (order ? (order.patientAge ? `${order.patientAge} / ${order.patientGender || ''}` : '30 Yrs / Adult') : '30 Yrs / Adult');
+      const phone = existingInvoice ? existingInvoice.phone : '+91 98765 43210';
+      const docName = existingInvoice ? existingInvoice.doctorName : (order ? (order.doctorName || order.doctorId || '') : '');
+      const payStatus = existingInvoice ? existingInvoice.paymentStatus : (order ? (order.paymentStatus || 'Paid') : 'Paid');
+      const payMode = existingInvoice ? (existingInvoice.paymentMode || 'UPI') : 'UPI';
+      const txnId = existingInvoice ? (existingInvoice.txnId || 'TXN-' + Date.now().toString().slice(-6)) : ('TXN-' + Date.now().toString().slice(-6));
+      const invDate = existingInvoice ? (existingInvoice.date?.split('T')[0] || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+
+      const titleEl = document.getElementById('pharmInvoiceModalTitle');
+      if (titleEl) titleEl.textContent = existingInvoice ? `✏️ Edit Pharmacy Invoice — ${invNo}` : `🧾 Generate New Pharmacy Bill`;
+      
+      const numEl = document.getElementById('pharmInvNumber'); if (numEl) numEl.value = invNo;
+      const refEl = document.getElementById('pharmInvOrderRef'); if (refEl) refEl.value = ordRef;
+      const dateEl = document.getElementById('pharmInvDate'); if (dateEl) dateEl.value = invDate;
+      const pidEl = document.getElementById('pharmInvPatientId'); if (pidEl) pidEl.value = pId;
+      const pnameEl = document.getElementById('pharmInvPatientName'); if (pnameEl) pnameEl.value = pName;
+      const ageEl = document.getElementById('pharmInvAgeGender'); if (ageEl) ageEl.value = ageGen;
+      const phoneEl = document.getElementById('pharmInvPhone'); if (phoneEl) phoneEl.value = phone;
+      const payStEl = document.getElementById('pharmInvPayStatus'); if (payStEl) payStEl.value = payStatus;
+      const payMdEl = document.getElementById('pharmInvPayMode'); if (payMdEl) payMdEl.value = payMode;
+      const txnEl = document.getElementById('pharmInvTxnId'); if (txnEl) txnEl.value = txnId;
+
+      const itemsBody = document.getElementById('pharmInvoiceItemsBody');
+      if (itemsBody) {
+        itemsBody.innerHTML = '';
+
+        if (existingInvoice && Array.isArray(existingInvoice.items) && existingInvoice.items.length > 0) {
+          existingInvoice.items.forEach(it => {
+            addPharmInvoiceLineItem(it.name, it.category || it.dosage, it.price, it.qty, it.disc, it.tax, it.medicineId);
+          });
+        } else if (order && order.orderId) {
+          const inStockList = (allMedicines || []).filter(m => (m.stockQuantity || 0) > 0);
+          if (inStockList.length > 0) {
+            addPharmInvoiceLineItem(inStockList[0].medicineName, inStockList[0].dosageForm || 'Tablet', inStockList[0].sellingPrice, 1, 0, inStockList[0].gstPercentage || 12, inStockList[0].medicineId);
+          } else {
+            addPharmInvoiceLineItem('', 'Tablet', 40.00, 1, 0, 12);
+          }
+        } else {
+          // Recommend ONLY available tablets from inventory with positive stock
+          const inStockList = (allMedicines || []).filter(m => (m.stockQuantity || 0) > 0);
+          if (inStockList.length >= 2) {
+            addPharmInvoiceLineItem(inStockList[0].medicineName, inStockList[0].dosageForm || 'Tablet', inStockList[0].sellingPrice, 1, 0, inStockList[0].gstPercentage || 12, inStockList[0].medicineId);
+            addPharmInvoiceLineItem(inStockList[1].medicineName, inStockList[1].dosageForm || 'Tablet', inStockList[1].sellingPrice, 1, 0, inStockList[1].gstPercentage || 12, inStockList[1].medicineId);
+          } else if (inStockList.length === 1) {
+            addPharmInvoiceLineItem(inStockList[0].medicineName, inStockList[0].dosageForm || 'Tablet', inStockList[0].sellingPrice, 1, 0, inStockList[0].gstPercentage || 12, inStockList[0].medicineId);
+          } else {
+            addPharmInvoiceLineItem('', 'Tablet', 40.00, 1, 0, 12);
+          }
+        }
+      }
+
+      calcPharmInvoiceTotals();
+
+      // Populate doctor select asynchronously without blocking modal visibility
+      populatePharmInvoiceDoctorSelect(docName).catch(e => console.error('Error populating doctors:', e));
+
+      if (order && order.orderId) {
+        fetch(`/api/pharmacy/order-items?orderId=${encodeURIComponent(order.orderId)}`)
+          .then(r => r.ok ? r.json() : [])
+          .then(fetchedItems => {
+            if (Array.isArray(fetchedItems) && fetchedItems.length > 0 && itemsBody) {
+              itemsBody.innerHTML = '';
+              fetchedItems.forEach(it => {
+                addPharmInvoiceLineItem(it.medicineName || it.name, it.dosageForm || 'Tablet', it.unitPrice || 45, it.quantity || 10, 0, 12);
+              });
+              calcPharmInvoiceTotals();
+            }
+          })
+          .catch(()=>{});
+      }
+    } catch(err) {
+      console.error('Error in openPharmacyInvoiceModal:', err);
+    }
   }
 
   function closePharmacyInvoiceModal() {
     const modal = document.getElementById('pharmacyInvoiceModal');
-    if (modal) modal.classList.remove('show');
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+    }
   }
 
-  function addPharmInvoiceLineItem(name = '', cat = 'Tablet', price = 50.00, qty = 1, disc = 0, tax = 12) {
+  function addPharmInvoiceLineItem(name = '', cat = 'Tablet', price = 40.00, qty = 1, disc = 0, tax = 12, medId = '') {
     const tbody = document.getElementById('pharmInvoiceItemsBody');
     if (!tbody) return;
+
+    // Filter available medicines from inventory that have stock > 0 and not expired
+    const availableMeds = (allMedicines || []).filter(m => (m.stockQuantity || 0) > 0 && m.status !== 'Expired');
+
+    // Attempt to match
+    let matchedMed = null;
+    if (medId) {
+      matchedMed = (allMedicines || []).find(m => m.medicineId === medId);
+    } else if (name) {
+      matchedMed = (allMedicines || []).find(m => m.medicineName.toLowerCase() === name.toLowerCase());
+    }
+
+    if (matchedMed) {
+      if (!price || price === 50.00 || price === 45.00) price = matchedMed.sellingPrice || matchedMed.unitPrice || price;
+      if (!cat || cat === 'Tablet') cat = matchedMed.dosageForm || matchedMed.category || cat;
+      if (matchedMed.gstPercentage) tax = matchedMed.gstPercentage;
+    }
+
+    const currentStock = matchedMed ? matchedMed.stockQuantity : null;
+    const currentMedId = matchedMed ? matchedMed.medicineId : (medId || '');
 
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid #F1F5F9';
     tr.innerHTML = `
-      <td>
-        <input type="text" class="inv-item-name" value="${name || 'Medicine'}" placeholder="e.g. Paracetamol 650mg" style="width:100%; padding:6px 10px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem;" required>
+      <td style="min-width:250px; vertical-align:top; padding:8px 6px;">
+        <!-- RECOMMENDATION DROPDOWN (ONLY AVAILABLE TABLETS FROM INVENTORY WITH QUANTITY) -->
+        <select class="inv-item-select" onchange="onPharmInvoiceMedSelected(this)" style="width:100%; padding:6px 8px; border:1.5px solid #2563EB; border-radius:6px; font-size:0.82rem; font-weight:600; margin-bottom:5px; background:#EFF6FF; color:#1E3A8A; cursor:pointer;">
+          <option value="">-- 🔍 Choose Available Tablet / Medicine (${availableMeds.length} in stock) --</option>
+          ${availableMeds.map(m => {
+            const isSel = (currentMedId && m.medicineId === currentMedId) || (name && m.medicineName.toLowerCase() === name.toLowerCase());
+            const isLow = (m.stockQuantity <= (m.minimumStock || 15));
+            const pillIcon = isLow ? '🟡 Low Stock' : '🟢 In Stock';
+            return `<option value="${m.medicineId}" data-name="${m.medicineName}" data-form="${m.dosageForm || m.category || 'Tablet'}" data-price="${m.sellingPrice || m.unitPrice || 40}" data-stock="${m.stockQuantity}" data-tax="${m.gstPercentage || 12}" data-min="${m.minimumStock || 15}" ${isSel ? 'selected' : ''}>
+              ${m.medicineName} (${m.dosageForm || 'Tablet'}) — ${pillIcon}: ${m.stockQuantity} available (₹${(m.sellingPrice||40).toFixed(2)})
+            </option>`;
+          }).join('')}
+        </select>
+
+        <input type="text" class="inv-item-name" value="${matchedMed ? matchedMed.medicineName : (name || '')}" placeholder="Or type medicine name..." oninput="onPharmInvoiceMedNameInput(this)" style="width:100%; padding:5px 8px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.82rem;" required>
+        <input type="hidden" class="inv-item-med-id" value="${currentMedId}">
+
+        <div class="inv-stock-indicator" style="font-size:0.75rem; font-weight:700; margin-top:3px; display:flex; align-items:center; gap:4px;">
+          ${currentStock !== null 
+            ? `<span style="color:${currentStock <= 15 ? '#D97706' : '#15803D'};">📦 Available Stock: <b>${currentStock}</b> units</span>`
+            : `<span style="color:#64748B;">ℹ️ Select from dropdown to link stock</span>`
+          }
+        </div>
       </td>
-      <td>
+      <td style="vertical-align:top; padding:8px 6px;">
         <select class="inv-item-cat" style="width:100%; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.82rem;">
           <option value="Tablet" ${cat === 'Tablet' ? 'selected' : ''}>Tablet</option>
           <option value="Capsule" ${cat === 'Capsule' ? 'selected' : ''}>Capsule</option>
@@ -1897,27 +2090,143 @@
           <option value="Consumable" ${cat === 'Consumable' ? 'selected' : ''}>Consumable</option>
         </select>
       </td>
-      <td>
+      <td style="vertical-align:top; padding:8px 6px;">
         <input type="number" step="0.01" class="inv-item-price" value="${price}" oninput="calcPharmInvoiceTotals()" style="width:85px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:right;" required>
       </td>
-      <td>
-        <input type="number" min="1" step="1" class="inv-item-qty" value="${qty}" oninput="calcPharmInvoiceTotals()" style="width:65px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:center;" required>
+      <td style="vertical-align:top; padding:8px 6px;">
+        <input type="number" min="1" ${currentStock ? `max="${currentStock}"` : ''} step="1" class="inv-item-qty" value="${qty}" oninput="onPharmInvoiceQtyChange(this)" style="width:75px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:center; font-weight:700;" required>
+        <div class="qty-stock-msg" style="font-size:0.7rem; margin-top:2px;"></div>
       </td>
-      <td>
+      <td style="vertical-align:top; padding:8px 6px;">
         <input type="number" min="0" max="100" step="0.1" class="inv-item-disc" value="${disc}" oninput="calcPharmInvoiceTotals()" style="width:65px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:center;">
       </td>
-      <td>
+      <td style="vertical-align:top; padding:8px 6px;">
         <input type="number" min="0" max="28" step="0.1" class="inv-item-tax" value="${tax}" oninput="calcPharmInvoiceTotals()" style="width:65px; padding:6px; border:1px solid #CBD5E1; border-radius:6px; font-size:0.85rem; text-align:center;">
       </td>
-      <td style="text-align:right; font-weight:700; color:var(--pharm-navy); font-size:0.9rem;">
+      <td style="vertical-align:top; padding:8px 6px; text-align:right; font-weight:700; color:var(--pharm-navy); font-size:0.9rem;">
         <span class="inv-item-subtotal">₹0.00</span>
       </td>
-      <td style="text-align:center;">
+      <td style="vertical-align:top; padding:8px 6px; text-align:center;">
         <button type="button" onclick="this.closest('tr').remove(); calcPharmInvoiceTotals();" style="background:none; border:none; color:#EF4444; font-size:1.1rem; cursor:pointer;" title="Remove Line">🗑️</button>
       </td>
     `;
     tbody.appendChild(tr);
+
+    const qtyInp = tr.querySelector('.inv-item-qty');
+    if (qtyInp) onPharmInvoiceQtyChange(qtyInp);
     calcPharmInvoiceTotals();
+  }
+
+  function onPharmInvoiceMedSelected(sel) {
+    const tr = sel.closest('tr');
+    if (!tr) return;
+
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) {
+      tr.querySelector('.inv-item-med-id').value = '';
+      tr.querySelector('.inv-stock-indicator').innerHTML = '<span style="color:#64748B;">ℹ️ Select from dropdown to link stock</span>';
+      const qtyInp = tr.querySelector('.inv-item-qty');
+      qtyInp.removeAttribute('max');
+      tr.querySelector('.qty-stock-msg').innerHTML = '';
+      calcPharmInvoiceTotals();
+      return;
+    }
+
+    const medId = opt.value;
+    const name = opt.getAttribute('data-name');
+    const form = opt.getAttribute('data-form');
+    const price = parseFloat(opt.getAttribute('data-price') || 40);
+    const stock = parseInt(opt.getAttribute('data-stock') || 0);
+    const tax = parseFloat(opt.getAttribute('data-tax') || 12);
+    const min = parseInt(opt.getAttribute('data-min') || 15);
+
+    tr.querySelector('.inv-item-name').value = name;
+    tr.querySelector('.inv-item-med-id').value = medId;
+
+    const catSelect = tr.querySelector('.inv-item-cat');
+    if (catSelect) {
+      for (let o of catSelect.options) {
+        if (o.value.toLowerCase() === (form || '').toLowerCase()) {
+          o.selected = true;
+          break;
+        }
+      }
+    }
+
+    const priceInput = tr.querySelector('.inv-item-price');
+    if (priceInput) priceInput.value = price.toFixed(2);
+
+    const taxInput = tr.querySelector('.inv-item-tax');
+    if (taxInput) taxInput.value = tax;
+
+    const qtyInput = tr.querySelector('.inv-item-qty');
+    if (qtyInput) {
+      qtyInput.max = stock;
+      if (parseInt(qtyInput.value) > stock) {
+        qtyInput.value = stock;
+      }
+    }
+
+    const isLow = stock <= min;
+    const stockIndicator = tr.querySelector('.inv-stock-indicator');
+    if (stockIndicator) {
+      stockIndicator.innerHTML = `
+        <span style="color:${isLow ? '#D97706' : '#15803D'}; font-weight:700;">
+          📦 Available Stock: <b>${stock}</b> ${form}s ${isLow ? '⚠️ Low Stock!' : '✓ In Stock'}
+        </span>
+      `;
+    }
+
+    onPharmInvoiceQtyChange(qtyInput);
+    calcPharmInvoiceTotals();
+  }
+
+  function onPharmInvoiceQtyChange(qtyInput) {
+    const tr = qtyInput.closest('tr');
+    if (!tr) return;
+
+    const qty = parseInt(qtyInput.value) || 0;
+    const maxStock = qtyInput.hasAttribute('max') ? parseInt(qtyInput.getAttribute('max')) : null;
+    const msgEl = tr.querySelector('.qty-stock-msg');
+
+    if (maxStock !== null) {
+      if (qty > maxStock) {
+        qtyInput.style.borderColor = '#EF4444';
+        qtyInput.style.background = '#FEF2F2';
+        if (msgEl) msgEl.innerHTML = `<b style="color:#DC2626;">⚠️ Exceeds ${maxStock} in stock!</b>`;
+      } else if (qty <= 0) {
+        qtyInput.style.borderColor = '#EF4444';
+        qtyInput.style.background = '#FEF2F2';
+        if (msgEl) msgEl.innerHTML = `<b style="color:#DC2626;">Min quantity is 1</b>`;
+      } else {
+        qtyInput.style.borderColor = '#CBD5E1';
+        qtyInput.style.background = '#FFFFFF';
+        const rem = maxStock - qty;
+        if (msgEl) {
+          msgEl.innerHTML = `<span style="color:${rem <= 10 ? '#D97706' : '#64748B'};">${rem} left after bill</span>`;
+        }
+      }
+    }
+    calcPharmInvoiceTotals();
+  }
+
+  function onPharmInvoiceMedNameInput(input) {
+    const tr = input.closest('tr');
+    if (!tr) return;
+    const q = input.value.trim().toLowerCase();
+    const sel = tr.querySelector('.inv-item-select');
+    if (!sel) return;
+
+    const matched = (allMedicines || []).find(m => m.medicineName.toLowerCase() === q);
+    if (matched) {
+      sel.value = matched.medicineId;
+      onPharmInvoiceMedSelected(sel);
+    } else {
+      tr.querySelector('.inv-item-med-id').value = '';
+      tr.querySelector('.inv-stock-indicator').innerHTML = '<span style="color:#64748B;">Custom Item (No inventory link)</span>';
+      tr.querySelector('.inv-item-qty').removeAttribute('max');
+      tr.querySelector('.qty-stock-msg').innerHTML = '';
+    }
   }
 
   function calcPharmInvoiceTotals() {
@@ -1954,7 +2263,7 @@
     document.getElementById('lblPharmInvTotal').textContent = '₹' + grandTotal.toFixed(2);
   }
 
-  function savePharmacyInvoice(e) {
+  async function savePharmacyInvoice(e) {
     if (e) e.preventDefault();
 
     const invNo = document.getElementById('pharmInvNumber').value.trim();
@@ -1968,18 +2277,30 @@
     }
 
     const items = [];
+    let hasStockExceeded = false;
+    let exceededStockMsg = '';
+
     document.querySelectorAll('#pharmInvoiceItemsBody tr').forEach(tr => {
       const name = tr.querySelector('.inv-item-name')?.value.trim();
       const cat = tr.querySelector('.inv-item-cat')?.value;
       const price = parseFloat(tr.querySelector('.inv-item-price')?.value || 0);
-      const qty = parseFloat(tr.querySelector('.inv-item-qty')?.value || 1);
+      const qty = parseInt(tr.querySelector('.inv-item-qty')?.value || 1);
       const disc = parseFloat(tr.querySelector('.inv-item-disc')?.value || 0);
       const tax = parseFloat(tr.querySelector('.inv-item-tax')?.value || 0);
       const subtotalStr = tr.querySelector('.inv-item-subtotal')?.textContent.replace('₹', '') || '0';
       const subtotal = parseFloat(subtotalStr);
+      const medId = tr.querySelector('.inv-item-med-id')?.value || '';
 
       if (name) {
-        items.push({ name, category: cat, price, qty, disc, tax, subtotal });
+        // Validate against available inventory
+        const matched = (allMedicines || []).find(m => (medId && m.medicineId === medId) || m.medicineName.toLowerCase() === name.toLowerCase());
+        if (matched) {
+          if (qty > matched.stockQuantity) {
+            hasStockExceeded = true;
+            exceededStockMsg += `\n• "${name}": Billed ${qty} units, but only ${matched.stockQuantity} available in inventory!`;
+          }
+        }
+        items.push({ medicineId: matched ? matched.medicineId : medId, name, category: cat, price, qty, disc, tax, subtotal });
       }
     });
 
@@ -1988,13 +2309,21 @@
       return;
     }
 
+    if (hasStockExceeded) {
+      alert(`⚠️ Insufficient Stock in Inventory:${exceededStockMsg}\n\nPlease adjust the billed quantities to match available stock.`);
+      return;
+    }
+
+    const grossTotal = parseFloat(document.getElementById('lblPharmInvGross')?.textContent.replace('₹', '') || '0');
+    const discount = parseFloat(document.getElementById('lblPharmInvDiscount')?.textContent.replace('-₹', '')?.replace('₹', '') || '0');
+    const tax = parseFloat(document.getElementById('lblPharmInvGst')?.textContent.replace('+₹', '')?.replace('₹', '') || '0');
     const netTotalStr = document.getElementById('lblPharmInvTotal')?.textContent.replace('₹', '') || '0';
     const totalAmount = parseFloat(netTotalStr);
 
     const invoiceObj = {
       invoiceNo: invNo,
       orderRef: orderRef,
-      date: document.getElementById('pharmInvDate').value,
+      date: document.getElementById('pharmInvDate').value || new Date().toISOString().split('T')[0],
       patientId: document.getElementById('pharmInvPatientId').value.trim(),
       patientName: document.getElementById('pharmInvPatientName').value.trim(),
       ageGender: document.getElementById('pharmInvAgeGender').value.trim(),
@@ -2004,6 +2333,9 @@
       paymentMode: document.getElementById('pharmInvPayMode').value,
       txnId: document.getElementById('pharmInvTxnId').value.trim(),
       items: items,
+      grossTotal: grossTotal,
+      discount: discount,
+      tax: tax,
       totalAmount: totalAmount,
       updatedAt: new Date().toISOString()
     };
@@ -2044,10 +2376,214 @@
       localStorage.setItem('niramaya_pharmacy_orders', JSON.stringify(localOrders));
     } catch(e){}
 
-    showToast(`✓ Pharmacy Bill ${invNo} saved and synchronized successfully!`);
+    // Sync order & invoice to server backend
+    try {
+      fetch('/api/pharmacy/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderRef.startsWith('ORD') ? orderRef : ('ORD-' + orderRef),
+          patientId: invoiceObj.patientId,
+          patientName: invoiceObj.patientName,
+          doctorId: doctorName,
+          totalAmount: totalAmount,
+          paymentStatus: invoiceObj.paymentStatus,
+          paymentMethod: invoiceObj.paymentMode,
+          orderStatus: invoiceObj.paymentStatus === 'Paid' ? 'Completed' : 'Pending',
+          medicineName: items.map(it => it.name).join(', '),
+          quantity: items.reduce((s, it) => s + (it.qty || 1), 0)
+        })
+      }).catch(()=>{});
+    } catch(e){}
+
+    // REDUCE SELECTED QUANTITY OF TABLETS FROM INVENTORY IN REAL-TIME!
+    let outOfStockAlerts = [];
+    let lowStockAlerts = [];
+
+    for (const it of items) {
+      const med = (allMedicines || []).find(m => (it.medicineId && m.medicineId === it.medicineId) || m.medicineName.toLowerCase() === it.name.toLowerCase());
+      const medIdToUpdate = med ? med.medicineId : it.medicineId;
+      if (medIdToUpdate) {
+        try {
+          const resp = await fetch('/api/pharmacy/update-stock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              medicineId: medIdToUpdate,
+              actionType: 'Decrease',
+              quantity: it.qty,
+              reason: 'Dispensed',
+              remarks: `Billed on Invoice ${invNo} for patient ${invoiceObj.patientName}`
+            })
+          });
+          const resData = await resp.json();
+          if (resData && resData.newStock !== undefined && med) {
+            med.stockQuantity = resData.newStock;
+            med.status = resData.status || med.status;
+          } else if (med) {
+            med.stockQuantity = Math.max(0, (med.stockQuantity || 0) - it.qty);
+          }
+        } catch(err) {
+          console.error('Error reducing stock for', it.name, err);
+          if (med) med.stockQuantity = Math.max(0, (med.stockQuantity || 0) - it.qty);
+        }
+
+        if (med) {
+          if (med.stockQuantity <= 0) {
+            med.status = 'Out of Stock';
+            outOfStockAlerts.push(med.medicineName);
+          } else if (med.stockQuantity <= (med.minimumStock || 15)) {
+            med.status = 'Low Stock';
+            lowStockAlerts.push(`${med.medicineName} (${med.stockQuantity} remaining)`);
+          }
+        }
+      }
+    }
+
     closePharmacyInvoiceModal();
     renderPharmacyInvoicesTable();
     loadPharmacyOrders();
+
+    // Reload inventory table and update stock alert banners
+    await loadInventoryTable();
+    checkAndRenderStockAlerts();
+
+    // BROADCAST INVENTORY UPDATE ACROSS TABS
+    try {
+      const invChan = new BroadcastChannel('niramaya_inventory_channel');
+      invChan.postMessage({ type: 'INVENTORY_UPDATED', timestamp: Date.now() });
+    } catch(e){}
+
+    // CRITICAL / LOW STOCK ALERTS AFTER BILLING
+    if (outOfStockAlerts.length > 0) {
+      alert(`🚨 CRITICAL INVENTORY ALERT!\n\nThe following tablet(s) are now completely OUT OF STOCK (0 units left in inventory) after billing Invoice ${invNo}:\n• ${outOfStockAlerts.join('\n• ')}\n\n⚠️ Please reorder or restock supplies immediately!`);
+      showToast(`🚨 CRITICAL ALERT: ${outOfStockAlerts.join(', ')} is now OUT OF STOCK!`);
+    } else if (lowStockAlerts.length > 0) {
+      showToast(`⚠️ Stock Warning: ${lowStockAlerts.join(', ')} reached low stock threshold!`);
+    } else {
+      showToast(`✓ Pharmacy Bill ${invNo} saved & inventory deducted successfully!`);
+    }
+  }
+
+  function checkAndRenderStockAlerts() {
+    const banner = document.getElementById('pharmacyStockAlertBanner');
+    const badge = document.getElementById('inventoryAlertBadge');
+    const hdrBadge = document.getElementById('pharmStockStatusBadge');
+    const hdrDot = document.getElementById('pharmStockStatusDot');
+    const hdrText = document.getElementById('pharmStockStatusText');
+
+    if (!Array.isArray(allMedicines) || allMedicines.length === 0) return;
+
+    const outOfStock = allMedicines.filter(m => (m.stockQuantity || 0) <= 0 || m.status === 'Out of Stock');
+    const lowStock = allMedicines.filter(m => (m.stockQuantity || 0) > 0 && ((m.stockQuantity || 0) <= (m.minimumStock || 15) || m.status === 'Low Stock'));
+    const totalAlerts = outOfStock.length + lowStock.length;
+
+    // Update Top Navigation Tab Badge
+    if (badge) {
+      if (totalAlerts > 0) {
+        badge.style.display = 'inline-block';
+        badge.style.background = outOfStock.length > 0 ? '#EF4444' : '#F59E0B';
+        badge.style.color = '#FFFFFF';
+        badge.textContent = outOfStock.length > 0 ? `🚨 ${outOfStock.length} Out of Stock` : `⚠️ ${lowStock.length} Low Stock`;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // Update Header Pill
+    if (hdrBadge && hdrDot && hdrText) {
+      if (outOfStock.length > 0) {
+        hdrBadge.style.background = '#FEE2E2';
+        hdrBadge.style.borderColor = '#FCA5A5';
+        hdrBadge.style.color = '#991B1B';
+        hdrDot.style.background = '#EF4444';
+        hdrText.textContent = `🚨 ${outOfStock.length} Out of Stock!`;
+      } else if (lowStock.length > 0) {
+        hdrBadge.style.background = '#FEF3C7';
+        hdrBadge.style.borderColor = '#FCD34D';
+        hdrBadge.style.color = '#92400E';
+        hdrDot.style.background = '#F59E0B';
+        hdrText.textContent = `⚠️ ${lowStock.length} Tablets Low Stock`;
+      } else {
+        hdrBadge.style.background = '#DCFCE7';
+        hdrBadge.style.borderColor = '#BBF7D0';
+        hdrBadge.style.color = '#166534';
+        hdrDot.style.background = '#22C55E';
+        hdrText.textContent = `🟢 All ${allMedicines.length} Medicines In Stock`;
+      }
+    }
+
+    // Update Main Banner
+    if (!banner) return;
+
+    if (totalAlerts === 0) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    banner.style.display = 'block';
+
+    if (outOfStock.length > 0) {
+      banner.style.background = 'linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%)';
+      banner.style.border = '2px solid #EF4444';
+      banner.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <span style="font-size:1.8rem; line-height:1;">🚨</span>
+            <div>
+              <div style="font-family:'Sora'; font-weight:800; color:#991B1B; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
+                CRITICAL INVENTORY ALERT: ${outOfStock.length} Tablet/Medicine(s) are completely OUT OF STOCK (0 Units Available)!
+                <span style="background:#EF4444; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:700;">Urgent Restock Needed</span>
+              </div>
+              <div style="font-size:0.85rem; color:#7F1D1D; margin:4px 0 10px 0;">
+                These medications cannot be billed or dispensed until a new purchase arrival or stock adjustment is recorded.
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${outOfStock.map(m => `
+                  <span style="background:#FEE2E2; border:1px solid #FCA5A5; color:#991B1B; font-size:0.82rem; font-weight:700; padding:4px 10px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+                    ❌ ${m.medicineName} (0 in stock)
+                    <button type="button" onclick="openUpdateStockModal('${m.medicineId}')" style="background:#DC2626; color:#fff; border:none; padding:2px 6px; border-radius:4px; font-size:0.72rem; cursor:pointer; font-weight:700;">+ Restock</button>
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="switchMainTab('inventory')" style="background:#DC2626; border:none; padding:8px 16px; font-size:0.85rem; font-weight:700; border-radius:8px; color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(220,38,38,0.25);">
+            📦 Go to Inventory & Restock
+          </button>
+        </div>
+      `;
+    } else {
+      banner.style.background = 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)';
+      banner.style.border = '2px solid #F59E0B';
+      banner.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <span style="font-size:1.8rem; line-height:1;">⚠️</span>
+            <div>
+              <div style="font-family:'Sora'; font-weight:800; color:#92400E; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
+                LOW STOCK WARNING: ${lowStock.length} Tablet/Medicine(s) are reaching out-of-stock threshold!
+                <span style="background:#F59E0B; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:700;">Threshold Alert</span>
+              </div>
+              <div style="font-size:0.85rem; color:#78350F; margin:4px 0 10px 0;">
+                These medicines have fallen to or below their minimum reserve limit. Initiate purchase orders before supplies are depleted.
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${lowStock.map(m => `
+                  <span style="background:#FEF3C7; border:1px solid #FCD34D; color:#92400E; font-size:0.82rem; font-weight:700; padding:4px 10px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+                    ⚠️ ${m.medicineName}: only <b>${m.stockQuantity}</b> left (Min: ${m.minimumStock || 15})
+                    <button type="button" onclick="openUpdateStockModal('${m.medicineId}')" style="background:#D97706; color:#fff; border:none; padding:2px 6px; border-radius:4px; font-size:0.72rem; cursor:pointer; font-weight:700;">+ Add Stock</button>
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="switchMainTab('inventory')" style="background:#D97706; border:none; padding:8px 16px; font-size:0.85rem; font-weight:700; border-radius:8px; color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(217,119,6,0.25);">
+            📦 View Inventory & Refill
+          </button>
+        </div>
+      `;
+    }
   }
 
   function renderPharmacyInvoicesTable() {
@@ -2058,31 +2594,8 @@
     try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
 
     if (invoices.length === 0) {
-      invoices = [
-        {
-          invoiceNo: 'PHARM-INV-781042',
-          orderRef: 'TK-1001',
-          patientId: 'PT100842',
-          patientName: 'Rekha Prasad',
-          doctorName: 'Dr. Ananya Rao',
-          items: [{ name: 'Paracetamol 650mg', qty: 10 }, { name: 'Pantoprazole 40mg', qty: 10 }],
-          totalAmount: 185.00,
-          paymentStatus: 'Paid',
-          date: '2026-07-30'
-        },
-        {
-          invoiceNo: 'PHARM-INV-692185',
-          orderRef: 'TK-1002',
-          patientId: 'PT100843',
-          patientName: 'Vikram Malhotra',
-          doctorName: 'Dr. Srivatsan R',
-          items: [{ name: 'Amoxicillin 500mg', qty: 6 }, { name: 'Cetirizine 10mg', qty: 10 }],
-          totalAmount: 245.50,
-          paymentStatus: 'Paid',
-          date: '2026-07-30'
-        }
-      ];
-      localStorage.setItem('niramaya_pharmacy_invoices', JSON.stringify(invoices));
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--ink-soft);">No pharmacy invoices generated yet. Use "+ Generate Pharmacy Invoice" to issue a new bill.</td></tr>';
+      return;
     }
 
     tbody.innerHTML = invoices.map(inv => {
@@ -2118,25 +2631,175 @@
     }).join('');
   }
 
-  function printPharmacyInvoiceReceipt(invNo) {
-    let invoices = [];
-    try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
+  function downloadCurrentReceiptPDF() {
+    const content = document.getElementById('pharmReceiptContent');
+    if (!content) return;
 
-    let inv = invoices.find(i => i.invoiceNo === invNo || i.orderRef === invNo || i.orderId === invNo || i.pharmacyToken === invNo);
-    if (!inv && invoices.length > 0) inv = invoices[0];
-    if (!inv) {
+    const printWin = window.open('', '_blank', 'width=850,height=950');
+    if (!printWin) {
+      window.print();
+      return;
+    }
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>Niramaya Hospitals — Official Pharmacy Tax Receipt</title>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4; margin: 12mm; }
+          body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fff; color: #0F172A; padding: 24px; margin: 0; }
+          .no-print-bar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px; }
+          .btn-print { background: #0F172A; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+          .btn-close { background: #E2E8F0; color: #1E293B; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+          @media print {
+            .no-print-bar { display: none !important; }
+            body { padding: 0 !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print-bar">
+          <button class="btn-print" onclick="window.print()">🖨️ Print / Save PDF</button>
+          <button class="btn-close" onclick="window.close()">✕ Close</button>
+        </div>
+        ${content.innerHTML}
+        <script>
+          window.onload = function() {
+            setTimeout(() => { window.print(); }, 350);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+  }
+
+  async function printPharmacyInvoiceReceipt(invNo) {
+    let inv = null;
+    const invModal = document.getElementById('pharmacyInvoiceModal');
+    const modalInvNo = document.getElementById('pharmInvNumber')?.value;
+    const isModalActive = invModal && (invModal.classList.contains('show') || invModal.style.display === 'flex' || modalInvNo === invNo);
+
+    // 1. If Invoice Generation/Edit modal is currently open, read LIVE input values and table rows directly!
+    if (isModalActive && modalInvNo) {
+      const docSelect = document.getElementById('pharmInvDoctorSelect');
+      let docName = docSelect ? (docSelect.value || (docSelect.selectedIndex > 0 ? docSelect.options[docSelect.selectedIndex].text : '')) : '';
+      if (!docName || docName.startsWith('--')) docName = 'Attending Physician';
+
+      const items = [];
+      document.querySelectorAll('#pharmInvoiceItemsBody tr').forEach(tr => {
+        let name = tr.querySelector('.inv-item-name')?.value.trim();
+        const sel = tr.querySelector('.inv-item-select');
+        if (!name && sel && sel.selectedIndex > 0) {
+          name = sel.options[sel.selectedIndex].getAttribute('data-name') || sel.options[sel.selectedIndex].text.split('(')[0].trim();
+        }
+        const cat = tr.querySelector('.inv-item-cat')?.value || 'Tablet';
+        const price = parseFloat(tr.querySelector('.inv-item-price')?.value || 0);
+        const qty = parseInt(tr.querySelector('.inv-item-qty')?.value || 1);
+        const disc = parseFloat(tr.querySelector('.inv-item-disc')?.value || 0);
+        const tax = parseFloat(tr.querySelector('.inv-item-tax')?.value || 0);
+        let subtotal = parseFloat(tr.querySelector('.inv-item-subtotal')?.textContent.replace('₹', '') || '0');
+        if (!subtotal || subtotal === 0) {
+          const base = price * qty;
+          subtotal = (base - base * (disc / 100)) * (1 + tax / 100);
+        }
+        if (name) {
+          items.push({ name, category: cat, price, qty, disc, tax, subtotal });
+        }
+      });
+
+      const gross = parseFloat(document.getElementById('lblPharmInvGross')?.textContent?.replace('₹', '') || '0');
+      const discount = parseFloat(document.getElementById('lblPharmInvDiscount')?.textContent?.replace('-₹', '')?.replace('₹', '') || '0');
+      const gst = parseFloat(document.getElementById('lblPharmInvGst')?.textContent?.replace('+₹', '')?.replace('₹', '') || '0');
+      const total = parseFloat(document.getElementById('lblPharmInvTotal')?.textContent?.replace('₹', '') || '0');
+
       inv = {
-        invoiceNo: document.getElementById('pharmInvNumber')?.value || 'PHARM-INV-781042',
-        orderRef: document.getElementById('pharmInvOrderRef')?.value || 'TK-1001',
-        patientId: document.getElementById('pharmInvPatientId')?.value || 'PT100842',
-        patientName: document.getElementById('pharmInvPatientName')?.value || 'Rekha Prasad',
-        doctorName: document.getElementById('pharmInvDoctorSelect')?.value || 'Dr. Ananya Rao',
-        totalAmount: parseFloat(document.getElementById('lblPharmInvTotal')?.textContent?.replace('₹','') || '185.00'),
+        invoiceNo: modalInvNo,
+        orderRef: document.getElementById('pharmInvOrderRef')?.value || '-',
+        patientId: document.getElementById('pharmInvPatientId')?.value || '-',
+        patientName: document.getElementById('pharmInvPatientName')?.value || 'Patient',
+        ageGender: document.getElementById('pharmInvAgeGender')?.value || '',
+        phone: document.getElementById('pharmInvPhone')?.value || '',
+        doctorName: docName,
         paymentStatus: document.getElementById('pharmInvPayStatus')?.value || 'Paid',
         paymentMode: document.getElementById('pharmInvPayMode')?.value || 'UPI',
-        date: document.getElementById('pharmInvDate')?.value || '2026-07-30',
-        items: [{ name: 'Paracetamol 650mg', category: 'Tablet', qty: 10, price: 4.5, subtotal: 45.00 }]
+        date: document.getElementById('pharmInvDate')?.value || new Date().toISOString().split('T')[0],
+        grossTotal: gross,
+        discount: discount,
+        tax: gst,
+        totalAmount: total,
+        items: items
       };
+    }
+
+    // 2. Otherwise search saved invoices in localStorage
+    if (!inv) {
+      let invoices = [];
+      try { invoices = JSON.parse(localStorage.getItem('niramaya_pharmacy_invoices') || '[]'); } catch(e){}
+      inv = invoices.find(i => i.invoiceNo === invNo || i.orderRef === invNo || i.orderId === invNo || i.pharmacyToken === invNo);
+      if (inv && Array.isArray(inv.items)) {
+        inv.items.forEach(it => {
+          if (!it.subtotal || it.subtotal === 0) {
+            const p = parseFloat(it.price || 0);
+            const q = parseInt(it.qty || 1);
+            const d = parseFloat(it.disc || 0);
+            const t = parseFloat(it.tax || 0);
+            const b = p * q;
+            it.subtotal = (b - b * (d / 100)) * (1 + t / 100);
+            if (!it.subtotal) it.subtotal = p * q;
+          }
+        });
+      }
+    }
+
+    // 3. Otherwise search orders list
+    if (!inv && typeof allOrders !== 'undefined' && Array.isArray(allOrders)) {
+      const ord = allOrders.find(o => o.orderId === invNo || o.pharmacyToken === invNo);
+      if (ord) {
+        inv = {
+          invoiceNo: 'INV-' + (ord.orderId || ord.pharmacyToken),
+          orderRef: ord.orderId || ord.pharmacyToken,
+          patientId: ord.patientId || '-',
+          patientName: ord.patientName || 'Patient',
+          doctorName: ord.doctorName || ord.doctorId || 'Attending Physician',
+          paymentStatus: ord.paymentStatus || 'Paid',
+          paymentMode: ord.paymentMethod || 'UPI',
+          date: ord.orderDate && !ord.orderDate.toLowerCase().includes('today') ? ord.orderDate.split(' ')[0] : new Date().toISOString().split('T')[0],
+          totalAmount: parseFloat(ord.totalAmount || 0),
+          items: []
+        };
+      }
+    }
+
+    if (!inv) {
+      alert(`⚠️ Receipt details for "${invNo}" could not be found.`);
+      return;
+    }
+
+    // 4. If order has no items, attempt to fetch from server order items API
+    if ((!inv.items || inv.items.length === 0) && (inv.orderRef || inv.invoiceNo)) {
+      const searchRef = (inv.orderRef && inv.orderRef !== '-') ? inv.orderRef : inv.invoiceNo;
+      try {
+        const itemRes = await fetch(`/api/pharmacy/order-items?orderId=${encodeURIComponent(searchRef)}`);
+        if (itemRes.ok) {
+          const fetchedItems = await itemRes.json();
+          if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
+            inv.items = fetchedItems.map(fi => ({
+              name: fi.medicineName || fi.name,
+              category: fi.dosageForm || fi.dosage || 'Tablet',
+              price: parseFloat(fi.unitPrice || 45),
+              qty: parseInt(fi.quantity || 1),
+              subtotal: parseFloat(fi.subtotal || ((fi.unitPrice || 45) * (fi.quantity || 1)) || 45)
+            }));
+            if (!inv.totalAmount || inv.totalAmount === 0) {
+              inv.totalAmount = inv.items.reduce((s, it) => s + (it.subtotal || 0), 0);
+            }
+          }
+        }
+      } catch(e){}
     }
 
     const receiptHtml = `
@@ -2150,20 +2813,20 @@
           <div style="text-align:right;">
             <div style="font-size:1.1rem; font-weight:800; color:var(--pharm-emerald);">PHARMACY RETAIL BILL</div>
             <div style="font-family:monospace; font-weight:700; font-size:0.9rem;">${inv.invoiceNo}</div>
-            <div style="font-size:0.8rem; color:#64748B;">Date: ${inv.date?.split('T')[0] || '2026-07-30'}</div>
+            <div style="font-size:0.8rem; color:#64748B;">Date: ${inv.date?.split('T')[0] || new Date().toISOString().split('T')[0]}</div>
           </div>
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; background:#F8FAFC; padding:12px; border-radius:8px; margin-bottom:16px; font-size:0.85rem;">
           <div>
-            <div><b>Patient ID:</b> ${inv.patientId}</div>
-            <div><b>Patient Name:</b> ${inv.patientName}</div>
+            <div><b>Patient ID:</b> ${inv.patientId || '-'}</div>
+            <div><b>Patient Name:</b> ${inv.patientName || 'Patient'}</div>
             <div><b>Order / Token Ref:</b> ${inv.orderRef || '-'}</div>
           </div>
           <div>
-            <div><b>Prescribing Doctor:</b> <span style="color:var(--pharm-blue); font-weight:700;">${inv.doctorName}</span></div>
+            <div><b>Prescribing Doctor:</b> <span style="color:var(--pharm-blue); font-weight:700;">${inv.doctorName || 'Attending Physician'}</span></div>
             <div><b>Payment Mode:</b> ${inv.paymentMode || 'UPI'} (${inv.paymentStatus || 'Paid'})</div>
-            <div><b>Billing Status:</b> <span style="color:#059669; font-weight:700;">DISPENSED & PAID ✓</span></div>
+            <div><b>Billing Status:</b> <span style="color:${(inv.paymentStatus || '').toLowerCase() === 'paid' ? '#059669' : '#D97706'}; font-weight:700;">${(inv.paymentStatus || 'PAID').toUpperCase()} ✓</span></div>
           </div>
         </div>
 
@@ -2174,24 +2837,44 @@
               <th style="padding:8px;">Medicine / Description</th>
               <th style="padding:8px;">Form</th>
               <th style="padding:8px; text-align:center;">Qty</th>
+              <th style="padding:8px; text-align:right;">Unit Price (₹)</th>
               <th style="padding:8px; text-align:right;">Net Subtotal (₹)</th>
             </tr>
           </thead>
           <tbody>
-            ${(inv.items || [{name:'Prescribed Medicines', category:'Pharma', qty:1, subtotal:inv.totalAmount}]).map((it, idx) => `
+            ${(inv.items && inv.items.length > 0 ? inv.items : [{name:'Prescribed Medication', category:'Tablet', qty:1, price:inv.totalAmount, subtotal:inv.totalAmount}]).map((it, idx) => `
               <tr style="border-bottom:1px solid #E2E8F0;">
                 <td style="padding:8px;">${idx+1}</td>
-                <td style="padding:8px;"><b>${it.name}</b></td>
+                <td style="padding:8px;"><b>${it.name || 'Medicine'}</b></td>
                 <td style="padding:8px;">${it.category || 'Tablet'}</td>
                 <td style="padding:8px; text-align:center;">${it.qty || 1}</td>
-                <td style="padding:8px; text-align:right; font-weight:700;">₹${(it.subtotal || it.total || it.price || 0).toFixed(2)}</td>
+                <td style="padding:8px; text-align:right;">₹${(it.price || 0).toFixed(2)}</td>
+                <td style="padding:8px; text-align:right; font-weight:700; color:var(--pharm-navy);">₹${(it.subtotal || (it.price * it.qty) || 0).toFixed(2)}</td>
               </tr>
             `).join('')}
           </tbody>
           <tfoot>
-            <tr style="border-top:2px solid #0F172A; font-weight:800; font-size:1.05rem;">
-              <td colspan="4" style="padding:10px 8px; text-align:right;">Total Bill Amount:</td>
-              <td style="padding:10px 8px; text-align:right; color:var(--pharm-emerald);">₹${(inv.totalAmount || 0).toFixed(2)}</td>
+            ${inv.grossTotal && inv.grossTotal !== inv.totalAmount ? `
+              <tr>
+                <td colspan="5" style="padding:4px 8px; text-align:right; color:#64748B; font-size:0.85rem;">Items Gross Total:</td>
+                <td style="padding:4px 8px; text-align:right; font-weight:600; color:#334155;">₹${inv.grossTotal.toFixed(2)}</td>
+              </tr>
+            ` : ''}
+            ${inv.discount ? `
+              <tr>
+                <td colspan="5" style="padding:4px 8px; text-align:right; color:#D97706; font-size:0.85rem;">Total Discount:</td>
+                <td style="padding:4px 8px; text-align:right; font-weight:600; color:#D97706;">-₹${inv.discount.toFixed(2)}</td>
+              </tr>
+            ` : ''}
+            ${inv.tax ? `
+              <tr>
+                <td colspan="5" style="padding:4px 8px; text-align:right; color:#64748B; font-size:0.85rem;">GST / Taxes:</td>
+                <td style="padding:4px 8px; text-align:right; font-weight:600; color:#334155;">+₹${inv.tax.toFixed(2)}</td>
+              </tr>
+            ` : ''}
+            <tr style="border-top:2px solid #0F172A; font-weight:800; font-size:1.1rem;">
+              <td colspan="5" style="padding:10px 8px; text-align:right;">Total Bill Amount:</td>
+              <td style="padding:10px 8px; text-align:right; color:var(--pharm-emerald); font-family:'Sora';">₹${(inv.totalAmount || 0).toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
@@ -2212,20 +2895,86 @@
     const contentDiv = document.getElementById('pharmReceiptContent');
     if (contentDiv) contentDiv.innerHTML = receiptHtml;
     const modal = document.getElementById('pharmReceiptPrintModal');
-    if (modal) modal.classList.add('show');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('show');
+    }
   }
 
+  const renderPharmInvoicesTable = renderPharmacyInvoicesTable;
+
   // Real-time synchronization listeners for Pharmacy Portal
+  window.addEventListener('storage', (e) => {
+    loadPharmOnlineDoctors();
+    renderPharmacyInvoicesTable();
+  });
+
   try {
     const pharmDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
     pharmDocChannel.onmessage = (msg) => {
       console.log('⚡ [Pharmacy Console] Live doctor status update:', msg.data);
+      if (msg.data && (msg.data.doctorId || msg.data.email || msg.data.name)) {
+        try {
+          let reg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]');
+          let doc = reg.find(d => (d.email && d.email === msg.data.email) || (d.doctorId && d.doctorId === msg.data.doctorId) || (d.name && d.name === msg.data.name));
+          if (doc) {
+            doc.status = msg.data.status;
+            doc.availableStatus = msg.data.status;
+            doc.isAvailable = Boolean(msg.data.isAvailable);
+            doc.acceptAppointments = msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No');
+            doc.appointmentAvailable = Boolean(msg.data.isAvailable);
+            doc.updatedAt = Date.now();
+          } else {
+            reg.unshift({
+              doctorId: msg.data.doctorId,
+              email: msg.data.email,
+              name: msg.data.name,
+              doctorName: msg.data.name,
+              dept: msg.data.dept,
+              status: msg.data.status,
+              availableStatus: msg.data.status,
+              isAvailable: Boolean(msg.data.isAvailable),
+              acceptAppointments: msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No'),
+              appointmentAvailable: Boolean(msg.data.isAvailable),
+              updatedAt: Date.now()
+            });
+          }
+          localStorage.setItem('niramaya_doctors_registry', JSON.stringify(reg));
+        } catch(e){}
+      }
       loadPharmOnlineDoctors();
       if (msg.data && msg.data.isAvailable) {
         showToast(`🩺 ${msg.data.name || 'A Doctor'} is now Online & Accepting Appointments!`);
       }
     };
   } catch(e){}
+
+  // Listen for inventory updates across tabs
+  try {
+    const invChan = new BroadcastChannel('niramaya_inventory_channel');
+    invChan.onmessage = () => {
+      loadInventoryTable();
+    };
+  } catch(e){}
+
+  // Expose methods to global window scope so HTML onclick handlers are always guaranteed
+  window.openPharmacyInvoiceModal = openPharmacyInvoiceModal;
+  window.closePharmacyInvoiceModal = closePharmacyInvoiceModal;
+  window.savePharmacyInvoice = savePharmacyInvoice;
+  window.printPharmacyInvoiceReceipt = printPharmacyInvoiceReceipt;
+  window.addPharmInvoiceLineItem = addPharmInvoiceLineItem;
+  window.calcPharmInvoiceTotals = calcPharmInvoiceTotals;
+  window.renderPharmacyInvoicesTable = renderPharmacyInvoicesTable;
+  window.renderPharmInvoicesTable = renderPharmacyInvoicesTable;
+  window.closeModal = closeModal;
+  window.switchMainTab = switchMainTab;
+  window.onPharmInvoiceMedSelected = onPharmInvoiceMedSelected;
+  window.onPharmInvoiceQtyChange = onPharmInvoiceQtyChange;
+  window.onPharmInvoiceMedNameInput = onPharmInvoiceMedNameInput;
+  window.checkAndRenderStockAlerts = checkAndRenderStockAlerts;
+  window.openUpdateStockModal = openUpdateStockModal;
+  window.downloadCurrentReceiptPDF = downloadCurrentReceiptPDF;
+  window.downloadInvoice = downloadInvoice;
 </script>
 
 <!-- MODAL: Pharmacy Daily Report -->

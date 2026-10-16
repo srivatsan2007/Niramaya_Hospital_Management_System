@@ -2112,14 +2112,12 @@
           <div class="form-group">
             <label>Lead Surgeon</label>
             <select id="surgSurgeon" required>
-              <option value="Dr. Ananya Rao">Dr. Ananya Rao (Senior Cardiologist / General)</option>
-              <option value="Dr. Rajesh Kumar">Dr. Rajesh Kumar (Emergency Medicine / Trauma)</option>
-              <option value="Dr. Meera Iyer">Dr. Meera Iyer (Pediatrician / Obstetrics)</option>
+              <option value="">-- Choose Surgeon --</option>
             </select>
           </div>
           <div class="form-group">
             <label>Anesthetist Name</label>
-            <input type="text" id="surgAnesthetist" placeholder="Dr. S. Nair" value="Dr. S. Nair">
+            <input type="text" id="surgAnesthetist" placeholder="Attending Anesthetist Name">
           </div>
           <div class="form-group full">
             <label>Surgical Procedure Name</label>
@@ -2261,14 +2259,12 @@
           <div class="form-group">
             <label>Delivering Obstetrician</label>
             <select id="birthDoctor" required>
-              <option value="Dr. Meera Iyer">Dr. Meera Iyer (Obstetrics & Pediatrics)</option>
-              <option value="Dr. Ananya Rao">Dr. Ananya Rao (Senior Consultant)</option>
-              <option value="Dr. Rajesh Kumar">Dr. Rajesh Kumar</option>
+              <option value="">-- Choose Delivering Obstetrician --</option>
             </select>
           </div>
           <div class="form-group">
             <label>Attending Pediatrician</label>
-            <input type="text" id="birthPediatrician" placeholder="Dr. Rajesh Kumar" value="Dr. Rajesh Kumar">
+            <input type="text" id="birthPediatrician" placeholder="Attending Pediatrician Name">
           </div>
           <div class="form-group">
             <label>Baby's Blood Group</label>
@@ -2333,14 +2329,14 @@
 
         <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #CBD5E1; padding-top:20px; margin-top:20px;">
           <div>
-            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certDoctor">Dr. Meera Iyer</div>
+            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certDoctor">-</div>
             <div style="font-size:0.72rem; color:#64748B;">Attending Obstetrician & Gynecologist</div>
           </div>
           <div style="text-align:center;">
             <div style="width:70px; height:70px; border:2px dashed #B45309; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.65rem; color:#B45309; font-weight:700; text-transform:uppercase; padding:4px;">Official Hospital Seal</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certPediatrician">Dr. Rajesh Kumar</div>
+            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certPediatrician">-</div>
             <div style="font-size:0.72rem; color:#64748B;">Senior Consultant Pediatrician</div>
           </div>
         </div>
@@ -2364,7 +2360,7 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Patient ID</label>
-            <input type="text" id="admitPatientId" required placeholder="PT100842" value="PT100842">
+            <input type="text" id="admitPatientId" required placeholder="Patient ID (e.g. PT-1008)">
           </div>
           <div class="form-group">
             <label>Patient Full Name</label>
@@ -2380,11 +2376,11 @@
           </div>
           <div class="form-group">
             <label>Age (Years)</label>
-            <input type="number" id="admitAge" min="1" max="120" value="32" required>
+            <input type="number" id="admitAge" min="1" max="120" placeholder="Age" required>
           </div>
           <div class="form-group">
             <label>Contact Phone</label>
-            <input type="text" id="admitPhone" placeholder="+91 98765 43210" value="+91 98765 43210" required>
+            <input type="text" id="admitPhone" placeholder="+91 Phone Number" required>
           </div>
           <div class="form-group">
             <label>Select Bed (Available Beds Only)</label>
@@ -2395,9 +2391,7 @@
           <div class="form-group">
             <label>Attending Doctor</label>
             <select id="admitDoctor" required>
-              <option value="Dr. Ananya Rao">Dr. Ananya Rao (Senior Cardiologist)</option>
-              <option value="Dr. Rajesh Kumar">Dr. Rajesh Kumar (Emergency Medicine)</option>
-              <option value="Dr. Meera Iyer">Dr. Meera Iyer (Pediatrician)</option>
+              <option value="">-- Choose Attending Doctor --</option>
             </select>
           </div>
           <div class="form-group">
@@ -2778,6 +2772,23 @@
             </tr>
           `;
         }).join('');
+
+        // Also dynamically populate doctor select dropdowns
+        const surgSel = document.getElementById('surgSurgeon');
+        const birthSel = document.getElementById('birthDoctor');
+        const admitSel = document.getElementById('admitDoctor');
+
+        const docOptions = docs.map(d => {
+          const docName = d.doctorName || d.name || 'Doctor';
+          const dept = d.department || d.dept || d.category || 'General';
+          const st = (d.status || d.availableStatus || '').toLowerCase();
+          const isOnline = (d.isAvailable === true || st.includes('online')) && d.acceptAppointments !== 'No';
+          return `<option value="${docName}">${docName} (${dept}) — ${isOnline ? '🟢 Online' : '⚪ Offline'}</option>`;
+        }).join('');
+
+        if (surgSel) surgSel.innerHTML = '<option value="">-- Choose Surgeon --</option>' + docOptions;
+        if (birthSel) birthSel.innerHTML = '<option value="">-- Choose Delivering Obstetrician --</option>' + docOptions;
+        if (admitSel) admitSel.innerHTML = '<option value="">-- Choose Attending Doctor --</option>' + docOptions;
       } catch(e) {
         console.error("Error loading live doctor availability:", e);
       }
@@ -2846,8 +2857,40 @@
       const adminDocChannel = new BroadcastChannel('niramaya_doctor_availability_channel');
       adminDocChannel.onmessage = (msg) => {
         console.log('⚡ [Admin Dashboard] Live doctor status update:', msg.data);
+        if (msg.data && (msg.data.doctorId || msg.data.email || msg.data.name)) {
+          try {
+            let reg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]');
+            let doc = reg.find(d => (d.email && d.email === msg.data.email) || (d.doctorId && d.doctorId === msg.data.doctorId) || (d.name && d.name === msg.data.name));
+            if (doc) {
+              doc.status = msg.data.status;
+              doc.availableStatus = msg.data.status;
+              doc.isAvailable = Boolean(msg.data.isAvailable);
+              doc.acceptAppointments = msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No');
+              doc.appointmentAvailable = Boolean(msg.data.isAvailable);
+              doc.updatedAt = Date.now();
+            } else {
+              reg.unshift({
+                doctorId: msg.data.doctorId,
+                email: msg.data.email,
+                name: msg.data.name,
+                doctorName: msg.data.name,
+                dept: msg.data.dept,
+                status: msg.data.status,
+                availableStatus: msg.data.status,
+                isAvailable: Boolean(msg.data.isAvailable),
+                acceptAppointments: msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No'),
+                appointmentAvailable: Boolean(msg.data.isAvailable),
+                updatedAt: Date.now()
+              });
+            }
+            localStorage.setItem('niramaya_doctors_registry', JSON.stringify(reg));
+          } catch(e){}
+        }
         loadLiveDoctorAvailability();
         filterUserTable();
+        if (msg.data && msg.data.isAvailable) {
+          showAdminToast(`🩺 ${msg.data.name || 'A Doctor'} is now Online & Accepting Appointments!`);
+        }
       };
     } catch(e){}
 
@@ -2910,6 +2953,50 @@
         });
         const data = await res.json();
         if (data.success) {
+          // Broadcast payment status across all open portals (Patient, Doctor, Nurse)
+          try {
+            const payChannel = new BroadcastChannel('niramaya_payment_status_channel');
+            payChannel.postMessage({
+              type: 'APPOINTMENT_PAID',
+              appointmentId: apptId,
+              patientId: patientId,
+              paymentStatus: 'Paid',
+              status: 'Confirmed'
+            });
+          } catch(e){}
+
+          // Sync localStorage across tabs
+          try {
+            let allA = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+            allA.forEach(a => {
+              if (a.appointmentId === apptId || a.token === apptId) {
+                a.paymentStatus = 'Paid';
+                a.status = 'Confirmed';
+                a.isPaid = true;
+              }
+            });
+            localStorage.setItem('niramaya_all_appointments', JSON.stringify(allA));
+
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('niramaya_user_bookings_')) {
+                try {
+                  let ub = JSON.parse(localStorage.getItem(k) || '[]');
+                  let mod = false;
+                  ub.forEach(b => {
+                    if (b.token === apptId || b.id === apptId || b.appointmentId === apptId) {
+                      b.paymentStatus = 'Paid';
+                      b.status = 'Confirmed & Paid ✓';
+                      b.isPaid = true;
+                      mod = true;
+                    }
+                  });
+                  if (mod) localStorage.setItem(k, JSON.stringify(ub));
+                } catch(e){}
+              }
+            }
+          } catch(e){}
+
           alert(`✅ Payment of ${fee} marked as PAID for Patient ${patientId} (${apptId})!\n\nThe booking is now confirmed and the patient's official printable receipt is UNLOCKED.`);
           loadCounterPaymentsTable();
           loadAppointmentsTable();

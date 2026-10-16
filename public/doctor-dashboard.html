@@ -1176,12 +1176,7 @@
               });
             } catch(e){}
 
-            if (reports.length === 0) {
-              reports = [
-                { reportId: 'REP-100842', patientId: 'PT100842', patientName: 'Rekha Prasad', testName: 'Complete Blood Count (CBC)', reportDate: 'Today', status: 'Ready', reportFile: 'LabReport_PT100842_REP-100842.pdf' },
-                { reportId: 'REP-100845', patientId: 'PT100845', patientName: 'Amit Verma', testName: 'Lipid & Blood Sugar Profile', reportDate: 'Yesterday', status: 'Ready', reportFile: 'LabReport_PT100845_REP-100845.pdf' }
-              ];
-            }
+            // Only real laboratory reports from database or bookings
 
             window.cachedDoctorReports = reports;
             renderDoctorReportsList(reports);
@@ -1192,6 +1187,11 @@
             if (!tbody) return;
             tbody.innerHTML = '';
 
+            if (!list || list.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--ink-soft);">No verified laboratory reports found for your patients at this moment.</td></tr>';
+              return;
+            }
+
             list.forEach(r => {
               const pId = r.patientId || 'PT100842';
               const rId = r.reportId || 'REP-100842';
@@ -1200,7 +1200,7 @@
               const tr = document.createElement('tr');
               tr.innerHTML = `
                 <td><b>${rId}</b></td>
-                <td>${r.patientName || 'Rekha Prasad'} (<strong>${pId}</strong>)</td>
+                <td>${r.patientName || 'Patient'} (<strong>${pId}</strong>)</td>
                 <td><strong style="color:#0D6EFD;">${r.testName || 'Laboratory Test'}</strong></td>
                 <td>${r.reportDate || 'Today'}</td>
                 <td><span class="badge-status badge-completed">${r.status || 'Verified'}</span></td>
@@ -1242,7 +1242,7 @@
             </div>
 
             <div style="flex:1; min-width:280px;">
-              <h2 style="font-family:'Sora'; font-size:1.3rem; font-weight:700;" id="profName">Dr. Ananya Rao</h2>
+              <h2 style="font-family:'Sora'; font-size:1.3rem; font-weight:700;" id="profName">Doctor Profile</h2>
               <p style="color:var(--primary); font-weight:600; font-size:0.9rem;" id="profDeptRole">General Medicine Specialist · MD</p>
               
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px;">
@@ -1444,21 +1444,21 @@
             <p style="font-size:0.75rem; color:var(--ink-soft);">Niramaya Healthcare Boulevard, Sector 4, Metro City | Phone: 1800-123-9999</p>
           </div>
           <div style="text-align:right;">
-            <h3 style="font-size:1rem; font-weight:700;" id="printDocName">Dr. Ananya Rao</h3>
+            <h3 style="font-size:1rem; font-weight:700;" id="printDocName">-</h3>
             <p style="font-size:0.8rem; color:var(--ink-soft);" id="printDocDept">General Medicine Specialist</p>
           </div>
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; background:#F8FAFC; padding:12px; border-radius:8px; font-size:0.85rem; margin-bottom:20px;">
-          <div><b>Patient ID:</b> <span id="printPatientId">PT100842</span></div>
-          <div><b>Patient Name:</b> <span id="printPatientName">Rekha Prasad</span></div>
-          <div><b>Age / Gender:</b> <span id="printPatientAge">28 Yrs / Female</span></div>
+          <div><b>Patient ID:</b> <span id="printPatientId">-</span></div>
+          <div><b>Patient Name:</b> <span id="printPatientName">-</span></div>
+          <div><b>Age / Gender:</b> <span id="printPatientAge">-</span></div>
           <div><b>Date:</b> <span id="printDate">Today</span></div>
         </div>
 
         <div style="margin-bottom:20px;">
           <h4 style="font-size:0.9rem; color:var(--primary); font-weight:700;">CLINICAL DIAGNOSIS</h4>
-          <p style="font-size:0.9rem; margin-top:4px;" id="printDiagnosis">Viral Fever & Mild Upper Respiratory Tract Infection</p>
+          <p style="font-size:0.9rem; margin-top:4px;" id="printDiagnosis">-</p>
         </div>
 
         <div style="margin-bottom:20px;">
@@ -1486,7 +1486,7 @@
             <p style="font-size:0.7rem; color:var(--ink-soft); margin-top:4px;">Scan QR to verify Rx Authenticity</p>
           </div>
           <div style="text-align:center;">
-            <div style="font-family:'Sora'; font-weight:700; font-size:1rem; color:var(--primary);" id="printSignName">Dr. Ananya Rao</div>
+            <div style="font-family:'Sora'; font-weight:700; font-size:1rem; color:var(--primary);" id="printSignName">-</div>
             <p style="font-size:0.75rem; color:var(--ink-soft); border-top:1px solid #cbd5e1; padding-top:4px; margin-top:4px;">Authorized Medical Practitioner</p>
           </div>
         </div>
@@ -1527,7 +1527,7 @@
     try { docProfile = JSON.parse(localStorage.getItem(docProfileKey) || '{}'); } catch(e){}
 
     if (!docProfile.name) {
-      let derivedName = sessionStorage.getItem('niramaya_name') || 'Dr. Ananya Rao';
+      let derivedName = sessionStorage.getItem('niramaya_name') || 'Doctor';
       if (!derivedName.toLowerCase().startsWith('dr.')) derivedName = 'Dr. ' + derivedName;
 
       docProfile = {
@@ -1560,6 +1560,45 @@
     const currentDateStrEl = document.getElementById('currentDateStr');
     if (currentDateStrEl) currentDateStrEl.textContent = formattedDate;
     
+    // Sync real doctor details from backend database
+    fetch('/api/doctors')
+      .then(r => r.json())
+      .then(docs => {
+        if (Array.isArray(docs)) {
+          const empCode = sessionStorage.getItem('niramaya_employee_code') || '';
+          const sName = (sessionStorage.getItem('niramaya_name') || '').toLowerCase();
+          const realDoc = docs.find(d => 
+            (d.email && d.email.toLowerCase() === currentUserEmail.toLowerCase()) ||
+            (empCode && (d.doctorId === empCode || d.employeeCode === empCode)) ||
+            (sName && d.name && d.name.toLowerCase().includes(sName.replace(/^dr\.\s*/i, '')))
+          );
+          if (realDoc) {
+            docProfile.doctorId = realDoc.doctorId;
+            docProfile.name = realDoc.name;
+            docProfile.dept = realDoc.department || docProfile.dept;
+            docProfile.fee = realDoc.fee || docProfile.fee;
+            docProfile.phone = realDoc.phone || docProfile.phone;
+            docProfile.status = realDoc.status || docProfile.status;
+            localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
+            if (sideDocNameEl) sideDocNameEl.textContent = docProfile.name;
+            if (topGreetingEl) topGreetingEl.textContent = `Welcome, ${docProfile.name}`;
+            if (profNameEl) profNameEl.textContent = docProfile.name;
+            const pdRole = document.getElementById('profDeptRole');
+            if (pdRole) pdRole.textContent = `${docProfile.dept} Specialist · MD`;
+            const pfMed = document.getElementById('profMedRegInput');
+            if (pfMed && realDoc.regNumber) pfMed.value = realDoc.regNumber;
+            const pfFee = document.getElementById('profFeeInput');
+            if (pfFee && realDoc.fee) pfFee.value = realDoc.fee;
+            const pfPhone = document.getElementById('profPhoneInput');
+            if (pfPhone && realDoc.phone) pfPhone.value = realDoc.phone;
+            const dEmpDisp = document.getElementById('docEmployeeCodeDisplay');
+            if (dEmpDisp) dEmpDisp.textContent = realDoc.doctorId || 'EMP-000001';
+            const pfEmp = document.getElementById('profEmpCodeInput');
+            if (pfEmp) pfEmp.value = realDoc.doctorId || 'EMP-000001';
+          }
+        }
+      }).catch(e => console.warn('Could not sync live doctor from DB:', e));
+
     const initials = (docProfile.name || 'Doctor').replace(/^dr\.\s*/i, '').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'DR';
     const sideDocAvatarEl = document.getElementById('sideDocAvatar');
     if (sideDocAvatarEl) sideDocAvatarEl.textContent = initials;
@@ -1607,7 +1646,60 @@
       });
       localStorage.setItem('niramaya_doctors_registry', JSON.stringify(registry));
     }
+
+    function broadcastLiveAvailability(newStatus, acceptAppointments, isOnlineNow) {
+      const cleanDocId = docProfile.doctorId || 'DOC10084';
+      const cleanEmail = currentUserEmail || 'doctor@niramaya.health';
+      const cleanName = docProfile.name || 'Doctor';
+      const cleanDept = docProfile.dept || 'General Medicine';
+
+      // 1. Post to Neon & SQLite Database API
+      fetch('/api/doctor/toggle-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doctorId: cleanDocId,
+          email: cleanEmail,
+          status: newStatus,
+          acceptAppointments: acceptAppointments
+        })
+      }).catch(e => {});
+
+      // 2. Cross-tab Broadcast Channel for instantaneous 0ms reflection in Patient, Admin, Nurse, and Lab portals
+      try {
+        const ch = new BroadcastChannel('niramaya_doctor_availability_channel');
+        ch.postMessage({
+          doctorId: cleanDocId,
+          email: cleanEmail,
+          name: cleanName,
+          dept: cleanDept,
+          status: docProfile.status,
+          isAvailable: isOnlineNow,
+          acceptAppointments: acceptAppointments,
+          timestamp: Date.now()
+        });
+        setTimeout(() => ch.close(), 600);
+      } catch(e) {}
+
+      // 3. Trigger localStorage storage event fallback
+      localStorage.setItem('niramaya_doctor_availability_broadcast', JSON.stringify({
+        doctorId: cleanDocId,
+        email: cleanEmail,
+        name: cleanName,
+        dept: cleanDept,
+        status: docProfile.status,
+        isAvailable: isOnlineNow,
+        acceptAppointments: acceptAppointments,
+        timestamp: Date.now()
+      }));
+      window.dispatchEvent(new Event('storage'));
+    }
+
     syncRegistry();
+
+    // Broadcast initial presence on doctor login to patient, admin, nurse, and lab dashboards immediately
+    const initIsOnline = docProfile.status ? docProfile.status.includes('Online') : true;
+    broadcastLiveAvailability(initIsOnline ? 'Online & Accepting Appointments' : 'Offline / On Leave', initIsOnline ? 'Yes' : 'No', initIsOnline);
 
     function updateStatusUI() {
       const dot = document.getElementById('statusDot');
@@ -1620,7 +1712,7 @@
         txt.style.color = '#EF4444';
       } else {
         dot.classList.remove('offline');
-        txt.textContent = 'ONLINE [ ON ]';
+        txt.textContent = 'ONLINE & ACCEPTING';
         txt.style.color = '#065F46';
       }
     }
@@ -1671,47 +1763,7 @@
       updateStatusUI();
 
       const isOnlineNow = newStatus === 'Online';
-      const cleanDocId = docProfile.doctorId || 'DOC10084';
-
-      // 1. Post to Neon Database API
-      fetch('/api/doctor/toggle-availability', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          doctorId: cleanDocId,
-          email: currentUserEmail,
-          status: newStatus,
-          acceptAppointments: acceptAppointments
-        })
-      }).catch(e => {});
-
-      // 2. Cross-tab Broadcast Channel
-      try {
-        const ch = new BroadcastChannel('niramaya_doctor_availability_channel');
-        ch.postMessage({
-          doctorId: cleanDocId,
-          email: currentUserEmail,
-          name: docProfile.name,
-          dept: docProfile.dept || 'General Medicine',
-          status: docProfile.status,
-          isAvailable: isOnlineNow,
-          acceptAppointments: acceptAppointments,
-          timestamp: Date.now()
-        });
-        setTimeout(() => ch.close(), 500);
-      } catch(e) {}
-
-      // 3. Trigger localStorage storage event
-      localStorage.setItem('niramaya_doctor_availability_broadcast', JSON.stringify({
-        doctorId: cleanDocId,
-        email: currentUserEmail,
-        name: docProfile.name,
-        dept: docProfile.dept || 'General Medicine',
-        status: docProfile.status,
-        isAvailable: isOnlineNow,
-        timestamp: Date.now()
-      }));
-      window.dispatchEvent(new Event('storage'));
+      broadcastLiveAvailability(docProfile.status, acceptAppointments, isOnlineNow);
 
       showToast(`Status updated: ${docProfile.status}`);
     }
@@ -2038,7 +2090,7 @@
         if (!patientMap.has(pId)) {
           patientMap.set(pId, {
             id: pId,
-            name: a.patientName || 'Rekha Prasad',
+            name: a.patientName || a.name || 'Patient',
             ageGender: (a.age || '28 Yrs') + ' / ' + (a.gender || 'Female'),
             blood: a.blood || 'O+',
             phone: a.phone || '+91 98765 43210',
@@ -2246,7 +2298,7 @@
           const labBookingObj = {
             bookingId: bookingId,
             patientId: pId || 'PT100842',
-            patientName: pName || 'Rekha Prasad',
+            patientName: pName || (sessionStorage.getItem('niramaya_name') || 'Patient'),
             patientAge: pAge,
             patientGender: pGender,
             doctorId: docProfile.doctorId || currentUserEmail,
@@ -2306,7 +2358,7 @@
           orderId: orderId,
           pharmacyToken: phaToken,
           patientId: pId || 'PT100842',
-          patientName: pName || 'Rekha Prasad',
+          patientName: pName || (sessionStorage.getItem('niramaya_name') || 'Patient'),
           doctorId: docProfile.doctorId || currentUserEmail,
           doctorName: docProfile.name,
           prescriptionId: rxId,
@@ -2494,7 +2546,7 @@
       } catch (e) {
         openStaffIdCardModal({
           employeeCode: empCode,
-          fullName: docProfile.name || 'Dr. Ananya Rao',
+          fullName: docProfile.name || sessionStorage.getItem('niramaya_name') || 'Doctor',
           role: 'Doctor',
           department: docProfile.dept || 'Cardiology',
           designation: 'Consultant Cardiologist',
@@ -2771,7 +2823,7 @@
     function openDocRegisterBirthModal() {
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('docBirthDate').value = today;
-      document.getElementById('docBirthDoctor').value = docProfile.name || 'Dr. Ananya Rao';
+      document.getElementById('docBirthDoctor').value = docProfile.name || sessionStorage.getItem('niramaya_name') || '';
       document.getElementById('modalDocRegisterBirth').classList.add('active');
     }
 
@@ -2839,7 +2891,7 @@
       document.getElementById('certBlood').innerText = record.bloodGroup || 'O+';
       document.getElementById('certNotes').innerText = record.complicationsNotes || 'Healthy newborn delivery. Vitals stable.';
       document.getElementById('certDoctor').innerText = record.deliveringDoctor;
-      document.getElementById('certPediatrician').innerText = record.pediatricianName || 'Dr. Rajesh Kumar';
+      document.getElementById('certPediatrician').innerText = record.pediatricianName || '-';
       document.getElementById('modalViewBirthCert').classList.add('active');
     }
 
@@ -3185,7 +3237,7 @@
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label>Attending Pediatrician</label>
-          <input type="text" id="docBirthPediatrician" class="form-control" value="Dr. Rajesh Kumar">
+          <input type="text" id="docBirthPediatrician" class="form-control" placeholder="Attending Pediatrician">
         </div>
         <div class="form-group" style="margin-bottom:16px;">
           <label>Neonatal Clinical Notes / APGAR Score</label>
@@ -3236,14 +3288,14 @@
 
         <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #CBD5E1; padding-top:20px; margin-top:20px;">
           <div>
-            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certDoctor">Dr. Ananya Rao</div>
+            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certDoctor">-</div>
             <div style="font-size:0.72rem; color:#64748B;">Attending Obstetrician & Gynecologist</div>
           </div>
           <div style="text-align:center;">
             <div style="width:70px; height:70px; border:2px dashed #B45309; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.65rem; color:#B45309; font-weight:700; text-transform:uppercase; padding:4px;">Official Hospital Seal</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certPediatrician">Dr. Rajesh Kumar</div>
+            <div style="font-size:0.8rem; font-weight:700; color:#06306B;" id="certPediatrician">-</div>
             <div style="font-size:0.72rem; color:#64748B;">Senior Consultant Pediatrician</div>
           </div>
         </div>

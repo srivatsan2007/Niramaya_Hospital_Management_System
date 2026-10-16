@@ -76,7 +76,7 @@ public class LabBooking {
     public String getDoctorId() { return doctorId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
 
-    public String getDoctorName() { return doctorName != null ? doctorName : "Dr. Srivatsan R"; }
+    public String getDoctorName() { return doctorName != null ? doctorName : "Attending Physician"; }
     public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
 
     public String getDepartment() { return department != null ? department : "General Medicine"; }

@@ -76,27 +76,33 @@ public class DoctorDAO {
         return false;
     }
 
-    public boolean updateAvailability(String doctorIdOrEmail, String status, String acceptAppointments) {
+    public boolean updateAvailability(String doctorId, String email, String status, String acceptAppointments) {
         boolean acceptBool = "Yes".equalsIgnoreCase(acceptAppointments) || "true".equalsIgnoreCase(acceptAppointments) || "1".equals(acceptAppointments);
         String dbStatus = (status != null && status.toLowerCase().contains("online")) ? "Online" : (status != null && status.toLowerCase().contains("offline")) ? "Offline" : status;
         if (dbStatus != null && dbStatus.length() > 20) {
             dbStatus = dbStatus.substring(0, 20);
         }
-        String sql = "UPDATE doctors SET available_status = ?, status = ?, appointment_available = ?, accept_appointments = ? WHERE doctor_id = ? OR LOWER(email) = LOWER(?)";
+        String sql = "UPDATE doctors SET available_status = ?, status = ?, appointment_available = ?, accept_appointments = ? WHERE (doctor_id IS NOT NULL AND doctor_id = ?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, dbStatus);
             ps.setString(2, dbStatus);
             ps.setBoolean(3, acceptBool);
             ps.setString(4, acceptAppointments != null && acceptAppointments.length() > 20 ? acceptAppointments.substring(0, 20) : acceptAppointments);
-            ps.setString(5, doctorIdOrEmail);
-            ps.setString(6, doctorIdOrEmail);
+            String dId = (doctorId != null && !doctorId.trim().isEmpty()) ? doctorId.trim() : (email != null ? email.trim() : "");
+            String em = (email != null && !email.trim().isEmpty()) ? email.trim() : dId;
+            ps.setString(5, dId);
+            ps.setString(6, em);
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Error updating doctor availability: " + e.getMessage());
             return false;
         }
+    }
+
+    public boolean updateAvailability(String doctorIdOrEmail, String status, String acceptAppointments) {
+        return updateAvailability(doctorIdOrEmail, doctorIdOrEmail, status, acceptAppointments);
     }
 
     public boolean updateDoctorDetails(Doctor doc) {
@@ -144,7 +150,7 @@ public class DoctorDAO {
 
     public List<Doctor> getOnlineAvailableDoctors() {
         List<Doctor> list = new ArrayList<>();
-        String sql = "SELECT * FROM doctors WHERE (appointment_available = true OR accept_appointments = 'Yes' OR accept_appointments = '1' OR accept_appointments = 'true') AND (available_status IS NULL OR (LOWER(available_status) NOT LIKE '%offline%' AND LOWER(available_status) NOT LIKE '%leave%' AND LOWER(available_status) NOT LIKE '%inactive%')) AND (status IS NULL OR (LOWER(status) NOT LIKE '%offline%' AND LOWER(status) NOT LIKE '%leave%' AND LOWER(status) NOT LIKE '%inactive%')) ORDER BY doctor_id ASC";
+        String sql = "SELECT * FROM doctors WHERE (appointment_available = 1 OR appointment_available = true OR accept_appointments = 'Yes' OR accept_appointments = '1' OR accept_appointments = 'true') AND (available_status IS NULL OR (LOWER(available_status) NOT LIKE '%offline%' AND LOWER(available_status) NOT LIKE '%leave%' AND LOWER(available_status) NOT LIKE '%inactive%')) AND (status IS NULL OR (LOWER(status) NOT LIKE '%offline%' AND LOWER(status) NOT LIKE '%leave%' AND LOWER(status) NOT LIKE '%inactive%')) ORDER BY doctor_id ASC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -181,6 +187,24 @@ public class DoctorDAO {
             } catch (SQLException ignored) {}
         }
         return list;
+    }
+
+    public Doctor getDoctorById(String identifier) {
+        if (identifier == null || identifier.trim().isEmpty()) return null;
+        String sql = "SELECT * FROM doctors WHERE doctor_id = ? OR LOWER(email) = LOWER(?) LIMIT 1";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, identifier.trim());
+            ps.setString(2, identifier.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToDoctor(rs);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching doctor by id: " + e.getMessage());
+        }
+        return null;
     }
 
     private void seedDefaultDoctors() {
