@@ -14,23 +14,40 @@ import java.util.List;
 public class AppointmentDAO {
 
     public boolean createAppointment(Appointment appt) {
-        String sql = "INSERT INTO appointments (appointment_id, patient_id, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String pName = appt.getPatientName() != null && !appt.getPatientName().trim().isEmpty() ? appt.getPatientName().trim() : "Patient";
+        String sql = "INSERT INTO appointments (appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, appt.getAppointmentId());
             ps.setString(2, appt.getPatientId());
-            ps.setString(3, appt.getDoctorId());
-            ps.setString(4, appt.getDoctorName());
-            ps.setString(5, appt.getDepartment());
-            ps.setString(6, appt.getAppointmentDate());
-            ps.setString(7, appt.getAppointmentTime());
-            ps.setString(8, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
-            ps.setString(9, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
+            ps.setString(3, pName);
+            ps.setString(4, appt.getDoctorId());
+            ps.setString(5, appt.getDoctorName());
+            ps.setString(6, appt.getDepartment());
+            ps.setString(7, appt.getAppointmentDate());
+            ps.setString(8, appt.getAppointmentTime());
+            ps.setString(9, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
+            ps.setString(10, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error creating appointment: " + e.getMessage());
-            return false;
+            String fallbackSql = "INSERT INTO appointments (appointment_id, patient_id, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            try (Connection conn = DBConnection.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(fallbackSql)) {
+                ps.setString(1, appt.getAppointmentId());
+                ps.setString(2, appt.getPatientId());
+                ps.setString(3, appt.getDoctorId());
+                ps.setString(4, appt.getDoctorName());
+                ps.setString(5, appt.getDepartment());
+                ps.setString(6, appt.getAppointmentDate());
+                ps.setString(7, appt.getAppointmentTime());
+                ps.setString(8, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
+                ps.setString(9, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
+                return ps.executeUpdate() > 0;
+            } catch (SQLException ex) {
+                System.err.println("Error creating appointment: " + ex.getMessage());
+                return false;
+            }
         }
     }
 
@@ -438,9 +455,18 @@ public class AppointmentDAO {
     }
 
     private Appointment mapResultSetToAppointment(ResultSet rs) throws SQLException {
+        String patientName = "";
+        try {
+            patientName = rs.getString("patient_name");
+        } catch (Exception ignored) {}
+        if (patientName == null || patientName.trim().isEmpty()) {
+            patientName = "Patient";
+        }
+
         return new Appointment(
             rs.getString("appointment_id"),
             rs.getString("patient_id"),
+            patientName,
             rs.getString("doctor_id"),
             rs.getString("doctor_name"),
             rs.getString("department"),

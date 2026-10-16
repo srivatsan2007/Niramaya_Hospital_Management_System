@@ -108,6 +108,103 @@
     margin-bottom: 16px;
   }
 
+  /* Dual Portal Switcher Tabs */
+  .portal-selector-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: #F1F5F9;
+    border: 1px solid var(--line, #E2E8F0);
+    padding: 6px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+  }
+  .portal-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--ink-soft, #64748B);
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .portal-pill:hover {
+    background: rgba(10, 77, 166, 0.05);
+    color: var(--blue-900, #0B1F33);
+  }
+  .portal-pill.active.portal-patient {
+    background: linear-gradient(135deg, var(--blue-700, #0A4DA6), var(--blue-500, #2563EB));
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(10, 77, 166, 0.3);
+  }
+  .portal-pill.active.portal-admin {
+    background: linear-gradient(135deg, #0D9488, var(--teal-500, #0AB2A7));
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(10, 178, 167, 0.3);
+  }
+  .portal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 100px;
+    margin-bottom: 12px;
+  }
+  .portal-badge.patient {
+    background: rgba(10, 77, 166, 0.1);
+    color: var(--blue-700, #0A4DA6);
+    border: 1px solid rgba(10, 77, 166, 0.25);
+  }
+  .portal-badge.admin {
+    background: rgba(10, 178, 167, 0.12);
+    color: #0A7A70;
+    border: 1px solid rgba(10, 178, 167, 0.3);
+  }
+  .portal-switch-prompt {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(220, 38, 38, 0.25);
+  }
+  .portal-switch-btn {
+    background: #ffffff;
+    color: var(--blue-900, #0B1F33);
+    border: 1px solid var(--line, #CBD5E1);
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .portal-switch-btn:hover {
+    background: var(--blue-700, #0A4DA6);
+    color: #ffffff;
+    border-color: var(--blue-700, #0A4DA6);
+  }
+  .locked-state-banner {
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid var(--danger, #DC2626);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--danger, #DC2626);
+    font-weight: 600;
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+  }
+
   @media (max-width: 600px) {
     .grid-2col {
       grid-template-columns: 1fr !important;
@@ -164,6 +261,18 @@
         </div>
       </div>
 
+      <!-- DUAL PORTAL SWITCHER: PATIENT LOGIN vs ADMINISTRATIVE LOGIN -->
+      <div class="portal-selector-bar" id="portalSelectorBar">
+        <button type="button" class="portal-pill active portal-patient" id="btnPortalPatient" onclick="selectPortal('patient')">
+          <i class="fa-solid fa-user-injured"></i>
+          <span>Patient Login</span>
+        </button>
+        <button type="button" class="portal-pill" id="btnPortalAdmin" onclick="selectPortal('admin')">
+          <i class="fa-solid fa-user-shield"></i>
+          <span>Administrative Login</span>
+        </button>
+      </div>
+
       <!-- MAIN MODE TOGGLE SWITCH (LOG IN vs REGISTER) -->
       <div class="auth-mode-tabs" id="modeTabs">
         <button class="active" id="tabModeLogin" onclick="switchAuthMode('login')">🔑 Log In</button>
@@ -176,22 +285,28 @@
 
       <!-- ================= LOGIN SECTION ================= -->
       <div id="loginSection">
-        <h1 style="font-size:1.6rem; margin-bottom:6px;">Welcome back</h1>
-        <p class="sub">Log in to reach your patient or staff dashboard.</p>
+        <div id="portalBadgeContainer">
+          <div class="portal-badge patient" id="portalBadge">
+            <i class="fa-solid fa-lock"></i> Patient Only Portal
+          </div>
+        </div>
+        <h1 id="loginTitle" style="font-size:1.6rem; margin-bottom:6px;">Patient Portal Login</h1>
+        <p class="sub" id="loginSubtitle">Only patients may log in here. Access your digital health records and appointments.</p>
 
-        <div class="role-tabs" id="roleTabs">
-          <button class="active" data-role="patient">Patient</button>
-          <button data-role="nurse">Nurse</button>
-          <button data-role="doctor">Doctor</button>
-          <button data-role="technician">Technician</button>
-          <button data-role="pharmacy">Pharmacy</button>
-          <button data-role="admin">Admin</button>
+        <!-- Role Tabs: Hidden for Patient Portal, visible with staff roles for Administrative Portal -->
+        <div class="role-tabs" id="roleTabs" style="display:none;">
+          <button class="active" data-role="doctor"><i class="fa-solid fa-user-doctor"></i> Doctor</button>
+          <button data-role="nurse"><i class="fa-solid fa-user-nurse"></i> Nurse</button>
+          <button data-role="technician"><i class="fa-solid fa-flask"></i> Lab Tech</button>
+          <button data-role="pharmacy"><i class="fa-solid fa-prescription-bottle-medical"></i> Pharmacy</button>
+          <button data-role="admin"><i class="fa-solid fa-shield-halved"></i> Admin</button>
+          <button data-role="receptionist"><i class="fa-solid fa-headset"></i> Reception</button>
         </div>
 
         <form id="loginForm">
           <div class="field">
-            <label for="email">Employee Code / Email Address</label>
-            <input type="text" id="email" placeholder="e.g. NUR10084, nurse@niramaya.health, or priya@nurse.in" required>
+            <label for="email" id="lblEmail">Patient Email or Mobile Number</label>
+            <input type="text" id="email" placeholder="e.g. patient@niramaya.health or 9876543210" required>
           </div>
           <div class="field">
             <label for="password">Password</label>
@@ -201,8 +316,8 @@
             <label class="remember"><input type="checkbox" id="remember"> Remember me</label>
             <a href="#" id="linkForgotPassword" onclick="openForgotPasswordModal(); return false;">Forgot password?</a>
           </div>
-          <button type="submit" class="btn btn-primary btn-block">Log in to Dashboard →</button>
-          <div class="demo-hint">Demo credentials: <b id="demoEmail">patient@niramaya.health</b> / <b>demo1234</b></div>
+          <button type="submit" class="btn btn-primary btn-block" id="btnLoginSubmit">Log in to Patient Portal →</button>
+          <div class="demo-hint" id="demoHintBox">Demo credentials: <b id="demoEmail">patient@niramaya.health</b> / <b>demo1234</b></div>
         </form>
 
         <div class="auth-divider">or</div>
@@ -428,10 +543,12 @@
     patient: 'patient@niramaya.health',
     nurse:   'nurse@niramaya.health',
     doctor:  'doctor@niramaya.health',
-    technician: 'labtech@tech.in',
+    technician: 'tech@niramaya.health',
     pharmacy: 'pharmacy@niramaya.health',
-    admin:   'admin@niramaya.health'
+    admin:   'admin@niramaya.health',
+    receptionist: 'reception@niramaya.health'
   };
+  let currentPortal = 'patient'; // 'patient' or 'admin'
   let currentRole = 'patient';
   let currentSimulatedOtp = "584920";
   let pendingRegistrationData = null;
@@ -440,9 +557,102 @@
     if (role === 'nurse' || (email && email.endsWith('@nurse.in'))) return 'nurse-dashboard.html';
     if (role === 'doctor' || (email && email.endsWith('@doctor.in'))) return 'doctor-dashboard.html';
     if (role === 'admin' || (email && email.endsWith('@admin.in'))) return 'admin-dashboard.html';
-    if (role === 'technician' || (email && email.endsWith('@tech.in'))) return 'lab-dashboard.html';
+    if (role === 'receptionist' || role === 'reception') return 'admin-dashboard.html';
+    if (role === 'technician' || role === 'lab_tech' || (email && email.endsWith('@tech.in'))) return 'lab-dashboard.html';
     if (role === 'pharmacy' || (email && email.endsWith('@pharmacy.in'))) return 'pharmacy-dashboard.html';
     return 'dashboard.html';
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // -------------------------------------------------------------
+  // Portal Switcher: Patient Login vs Administrative Login
+  // -------------------------------------------------------------
+  function selectPortal(portal, updateUrl = true) {
+    currentPortal = portal === 'admin' ? 'admin' : 'patient';
+    const btnPatient = document.getElementById('btnPortalPatient');
+    const btnAdmin = document.getElementById('btnPortalAdmin');
+    const roleTabs = document.getElementById('roleTabs');
+    const portalBadge = document.getElementById('portalBadge');
+    const loginTitle = document.getElementById('loginTitle');
+    const loginSubtitle = document.getElementById('loginSubtitle');
+    const lblEmail = document.getElementById('lblEmail');
+    const emailInput = document.getElementById('email');
+    const btnSubmit = document.getElementById('btnLoginSubmit');
+    const demoEmail = document.getElementById('demoEmail');
+    const errorBox = document.getElementById('authError');
+
+    if (errorBox) errorBox.classList.remove('show');
+
+    if (currentPortal === 'admin') {
+      if (btnPatient) btnPatient.className = 'portal-pill';
+      if (btnAdmin) btnAdmin.className = 'portal-pill active portal-admin';
+      
+      if (portalBadge) {
+        portalBadge.className = 'portal-badge admin';
+        portalBadge.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Administrative & Staff Portal (Nurse, Doctor, Lab, Pharmacy, Admin)';
+      }
+      
+      if (loginTitle) loginTitle.textContent = 'Administrative Portal Login';
+      if (loginSubtitle) loginSubtitle.textContent = 'Authorized clinical & hospital staff only (Nurse, Doctor, Lab Tech, Pharmacy, Admin, Receptionist).';
+      
+      if (roleTabs) roleTabs.style.display = 'flex';
+      
+      if (currentRole === 'patient') {
+        currentRole = 'doctor';
+      }
+      document.querySelectorAll('#roleTabs button').forEach(b => {
+        if (b.dataset.role === currentRole) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
+      if (lblEmail) lblEmail.textContent = 'Staff Employee Code / Official Email';
+      if (emailInput) {
+        emailInput.placeholder = 'e.g. NUR10084, doctor@niramaya.health, or admin@niramaya.health';
+        emailInput.disabled = false;
+      }
+      if (btnSubmit) {
+        btnSubmit.className = 'btn btn-teal btn-block';
+        btnSubmit.innerHTML = 'Log in to Administrative Portal →';
+        btnSubmit.disabled = false;
+      }
+      if (demoEmail) demoEmail.textContent = roleDemo[currentRole] || 'doctor@niramaya.health';
+    } else {
+      if (btnPatient) btnPatient.className = 'portal-pill active portal-patient';
+      if (btnAdmin) btnAdmin.className = 'portal-pill';
+
+      if (portalBadge) {
+        portalBadge.className = 'portal-badge patient';
+        portalBadge.innerHTML = '<i class="fa-solid fa-lock"></i> Patient Only Portal';
+      }
+
+      if (loginTitle) loginTitle.textContent = 'Patient Portal Login';
+      if (loginSubtitle) loginSubtitle.textContent = 'Only patients may log in here. Access your medical history, test reports, and appointments.';
+
+      if (roleTabs) roleTabs.style.display = 'none';
+      currentRole = 'patient';
+
+      if (lblEmail) lblEmail.textContent = 'Patient Email or Mobile Number';
+      if (emailInput) {
+        emailInput.placeholder = 'e.g. patient@niramaya.health or +91 98765 43210';
+        emailInput.disabled = false;
+      }
+      if (btnSubmit) {
+        btnSubmit.className = 'btn btn-primary btn-block';
+        btnSubmit.innerHTML = 'Log in to Patient Portal →';
+        btnSubmit.disabled = false;
+      }
+      if (demoEmail) demoEmail.textContent = roleDemo['patient'];
+    }
+
+    if (updateUrl && window.history && window.history.replaceState) {
+      const url = new URL(window.location);
+      url.searchParams.set('portal', currentPortal);
+      window.history.replaceState({}, '', url);
+    }
   }
 
   // -------------------------------------------------------------
@@ -768,9 +978,17 @@
   }
 
   // -------------------------------------------------------------
-  // Remember Me Auto-fill on Page Load
+  // Remember Me Auto-fill & URL Portal Query on Page Load
   // -------------------------------------------------------------
   window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const portal = urlParams.get('portal');
+    if (portal === 'admin' || portal === 'staff') {
+      selectPortal('admin', false);
+    } else {
+      selectPortal('patient', false);
+    }
+
     const savedEmail = localStorage.getItem('niramaya_remember_email');
     const savedRemember = localStorage.getItem('niramaya_remember_me');
     if (savedRemember === 'true' && savedEmail) {
@@ -786,12 +1004,12 @@
   // -------------------------------------------------------------
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Log in to Dashboard →';
+    const submitBtn = document.getElementById('btnLoginSubmit') || e.target.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Log in';
     
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '⚡ Logging in...';
+      submitBtn.innerHTML = '⚡ Verifying Credentials...';
     }
 
     const email = document.getElementById('email').value.trim().toLowerCase();
@@ -822,11 +1040,17 @@
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, password, role: currentRole })
+        body: JSON.stringify({ 
+          email, 
+          password, 
+          role: currentRole,
+          portal: currentPortal 
+        })
       });
       const data = await res.json();
 
       if (data.success) {
+        successBox.textContent = 'Authentication successful — redirecting to your dashboard…';
         successBox.classList.add('show');
         saveUserSession(data.role, data.name, {
           email: email,
@@ -838,44 +1062,56 @@
           patientId: data.patientId,
           isNewUser: data.isNewUser
         });
-        const targetDash = resolveTargetDashboard(data.role, email);
+        const targetDash = data.targetDashboard || resolveTargetDashboard(data.role, email);
         showToast('Welcome back, ' + data.name);
-        setTimeout(() => window.location.href = targetDash, 150);
+        setTimeout(() => window.location.href = targetDash, 250);
       } else {
-        // Check if user was registered locally
-        let registered = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]');
-        let match = registered.find(u => u.email === email && u.password === password);
-        if (match) {
-          successBox.classList.add('show');
-          saveUserSession(match.role, match.name, match);
-          const targetDash = resolveTargetDashboard(match.role, email);
-          showToast('Welcome back, ' + match.name);
-          setTimeout(() => window.location.href = targetDash, 150);
-        } else {
-          restoreBtn();
-          errorBox.textContent = data.message || 'Invalid email or password. Try demo credentials or create an account.';
+        restoreBtn();
+
+        if (data.roleMismatch) {
+          // Cross-portal authorization rejection
+          let switchHtml = '';
+          if (currentPortal === 'patient') {
+            switchHtml = `
+              <div class="portal-switch-prompt">
+                <div><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(data.message)}</div>
+                <button type="button" class="portal-switch-btn" onclick="selectPortal('admin')">
+                  <i class="fa-solid fa-arrow-right"></i> Switch to Administrative Login
+                </button>
+              </div>`;
+          } else {
+            switchHtml = `
+              <div class="portal-switch-prompt">
+                <div><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(data.message)}</div>
+                <button type="button" class="portal-switch-btn" onclick="selectPortal('patient')">
+                  <i class="fa-solid fa-arrow-right"></i> Switch to Patient Login
+                </button>
+              </div>`;
+          }
+          errorBox.innerHTML = switchHtml;
           errorBox.classList.add('show');
+        } else if (data.locked) {
+          // Daily failed attempts lockout (5 attempts limit in Asia/Kolkata timezone)
+          errorBox.innerHTML = `<i class="fa-solid fa-lock"></i> <strong>Daily Security Limit Reached:</strong> ${escapeHtml(data.message)}`;
+          errorBox.classList.add('show');
+          document.getElementById('email').disabled = true;
+          document.getElementById('password').disabled = true;
+          if (submitBtn) submitBtn.disabled = true;
+        } else {
+          // Failed attempt with exact daily remaining counter
+          errorBox.innerHTML = `<div><i class="fa-solid fa-circle-exclamation"></i> ${escapeHtml(data.message || 'Invalid credentials.')}</div>`;
+          errorBox.classList.add('show');
+          if (data.remainingAttempts === 0) {
+            document.getElementById('email').disabled = true;
+            document.getElementById('password').disabled = true;
+            if (submitBtn) submitBtn.disabled = true;
+          }
         }
       }
     } catch (err) {
-      let registered = JSON.parse(localStorage.getItem('niramaya_registered_users') || '[]');
-      let match = registered.find(u => u.email === email && u.password === password);
-      if (match) {
-        successBox.classList.add('show');
-        saveUserSession(match.role, match.name, match);
-        const targetDash = resolveTargetDashboard(match.role, email);
-        showToast('Welcome back, ' + match.name);
-        setTimeout(() => window.location.href = targetDash, 150);
-      } else if (email === roleDemo[currentRole] && password === 'demo1234') {
-        successBox.classList.add('show');
-        saveUserSession(currentRole, currentRole.charAt(0).toUpperCase() + currentRole.slice(1) + ' Demo', { email, isNewUser: false });
-        const targetDash = resolveTargetDashboard(currentRole, email);
-        setTimeout(() => window.location.href = targetDash, 150);
-      } else {
-        restoreBtn();
-        errorBox.textContent = 'Invalid credentials. Create an account or use demo credentials.';
-        errorBox.classList.add('show');
-      }
+      restoreBtn();
+      errorBox.textContent = 'Server communication error. Please ensure the server is running on localhost:8080.';
+      errorBox.classList.add('show');
     }
   });
 

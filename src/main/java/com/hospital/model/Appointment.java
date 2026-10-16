@@ -6,6 +6,7 @@ package com.hospital.model;
 public class Appointment {
     private String appointmentId;
     private String patientId;
+    private String patientName;
     private String doctorId;
     private String doctorName;
     private String department;
@@ -19,8 +20,15 @@ public class Appointment {
     public Appointment(String appointmentId, String patientId, String doctorId, String doctorName,
                        String department, String appointmentDate, String appointmentTime,
                        String status, String paymentStatus) {
+        this(appointmentId, patientId, "Patient", doctorId, doctorName, department, appointmentDate, appointmentTime, status, paymentStatus);
+    }
+
+    public Appointment(String appointmentId, String patientId, String patientName, String doctorId, String doctorName,
+                       String department, String appointmentDate, String appointmentTime,
+                       String status, String paymentStatus) {
         this.appointmentId = appointmentId;
         this.patientId = patientId;
+        this.patientName = patientName;
         this.doctorId = doctorId;
         this.doctorName = doctorName;
         this.department = department;
@@ -35,6 +43,9 @@ public class Appointment {
 
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
+
+    public String getPatientName() { return patientName != null ? patientName : ""; }
+    public void setPatientName(String patientName) { this.patientName = patientName; }
 
     public String getDoctorId() { return doctorId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }

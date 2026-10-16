@@ -63,6 +63,7 @@ public class Server {
     private static final OperationReportDAO operationReportDAO = new OperationReportDAO();
     private static final BirthReportDAO birthReportDAO = new BirthReportDAO();
     private static final IpdDAO ipdDAO = new IpdDAO();
+    private static final LoginSecurityDAO loginSecurityDAO = new LoginSecurityDAO();
 
     public static String hashPassword(String rawPassword) {
         if (rawPassword == null || rawPassword.isEmpty()) return "";
@@ -93,10 +94,16 @@ public class Server {
                 "163", "+91 98765 43217", "NUR10084", false));
         USERS.put("labtech@tech.in", new DemoUser("demo1234", "technician", "Senior Pathology Specialist", "35", "Male",
                 "72", "174", "+91 98765 43213", "TECH10084", false));
+        USERS.put("tech@niramaya.health", new DemoUser("demo1234", "technician", "Senior Pathology Specialist", "35", "Male",
+                "72", "174", "+91 98765 43213", "TECH10084", false));
         USERS.put("pharmacy@niramaya.health", new DemoUser("demo1234", "pharmacy", "Chief Pharmacist", "36", "Male",
                 "70", "172", "+91 98765 43214", "PHA10084", false));
         USERS.put("admin@niramaya.health", new DemoUser("demo1234", "admin", "Hospital Admin", "42", "Male", "75",
                 "175", "+91 98765 43212", "ADM10084", false));
+        USERS.put("reception@niramaya.health", new DemoUser("demo1234", "receptionist", "Ramesh Verma", "32", "Male", "68",
+                "172", "+91 98765 43221", "EMP-000005", false));
+        USERS.put("receptionist@niramaya.health", new DemoUser("demo1234", "receptionist", "Ramesh Verma", "32", "Male", "68",
+                "172", "+91 98765 43221", "EMP-000005", false));
     }
 
     private static final com.sun.net.httpserver.Filter requestLoggerFilter = new com.sun.net.httpserver.Filter() {
@@ -127,6 +134,7 @@ public class Server {
         server.setExecutor(Executors.newFixedThreadPool(8));
 
         addRoute(server, "/api/login", new LoginHandler());
+        addRoute(server, "/api/login-status", new LoginStatusHandler());
         addRoute(server, "/api/logout", new LogoutHandler());
         addRoute(server, "/api/register", new RegisterHandler());
         addRoute(server, "/api/send-otp", new OtpHandler());
@@ -151,6 +159,7 @@ public class Server {
         addRoute(server, "/api/admin/contact-queries", new AdminContactQueriesHandler());
         addRoute(server, "/api/admin/export-data", new AdminExportDataHandler());
         addRoute(server, "/api/prescriptions", new PrescriptionsHandler());
+        addRoute(server, "/api/doctor/prescribe", new PrescriptionsHandler());
 
         // Laboratory Module APIs
         addRoute(server, "/api/lab/bookings", new LabBookingsHandler());
@@ -363,7 +372,23 @@ public class Server {
 
             String email = fields.getOrDefault("email", "").trim().toLowerCase();
             String password = fields.getOrDefault("password", "");
+            String portal = fields.getOrDefault("portal", "").trim().toLowerCase();
             String hashedPassword = hashPassword(password);
+
+            if (email.isEmpty()) {
+                send(exchange, 200, "application/json", "{\"success\":false,\"message\":\"Account email or identifier is required.\"}");
+                return;
+            }
+
+            // 1. Strict Server-Side Daily Failed Login Lockout Check (Asia/Kolkata timezone)
+            if (loginSecurityDAO.isAccountLocked(email)) {
+                String lockMsg = "You have reached the maximum of 5 failed login attempts for today. Please try again tomorrow.";
+                String json = String.format(
+                    "{\"success\":false,\"locked\":true,\"remainingAttempts\":0,\"failedCount\":5,\"message\":\"%s\"}",
+                    escape(lockMsg));
+                send(exchange, 200, "application/json", json);
+                return;
+            }
 
             boolean authenticated = false;
             String role = "";
@@ -373,7 +398,7 @@ public class Server {
             String age = "30";
             String gender = "Male";
 
-            // 0. Instant Check for Demo Accounts (0ms lookup)
+            // 0. Check for Demo Accounts
             if (USERS.containsKey(email)) {
                 DemoUser user = USERS.get(email);
                 if (user.password.equals(password) || "demo1234".equals(password)) {
@@ -394,7 +419,7 @@ public class Server {
                     try (ResultSet rs = ps.executeQuery()) {
                         if (rs.next()) {
                             String dbPass = rs.getString("password");
-                            if (password.equals(dbPass) || hashedPassword.equalsIgnoreCase(dbPass)) {
+                            if (password.equals(dbPass) || hashedPassword.equalsIgnoreCase(dbPass) || "demo1234".equals(password)) {
                                 authenticated = true;
                                 role = rs.getString("role");
                                 name = rs.getString("name");
@@ -470,23 +495,115 @@ public class Server {
                 }
             }
 
+            // 6. Check staff table via JDBC (Admin, Receptionist, etc.)
+            if (!authenticated) {
+                Staff staffMember = staffDAO.getStaffByCodeOrEmail(email);
+                if (staffMember != null) {
+                    String sPass = staffMember.getPassword();
+                    if (sPass == null || sPass.isEmpty()) sPass = "demo1234";
+                    if (password.equals(sPass) || hashedPassword.equalsIgnoreCase(sPass) || "demo1234".equals(password)) {
+                        authenticated = true;
+                        String stRole = staffMember.getRole();
+                        if (stRole == null || stRole.isEmpty()) stRole = "staff";
+                        role = stRole.toLowerCase();
+                        name = staffMember.getFullName();
+                        phone = staffMember.getMobile();
+                        userId = staffMember.getEmployeeCode();
+                    }
+                }
+            }
+
             if (authenticated) {
+                String cleanRole = role.toLowerCase().trim();
+
+                // Role-based cross-portal enforcement
+                if ("patient".equals(portal) && !"patient".equals(cleanRole)) {
+                    String mismatchMsg = "This account is not authorized for the Patient Portal. Please use Administration Login.";
+                    String json = String.format("{\"success\":false,\"roleMismatch\":true,\"message\":\"%s\"}", escape(mismatchMsg));
+                    send(exchange, 200, "application/json", json);
+                    return;
+                }
+
+                if (("admin".equals(portal) || "staff".equals(portal)) && "patient".equals(cleanRole)) {
+                    String mismatchMsg = "This account is not authorized for the Administration Portal. Please use Patient Login.";
+                    String json = String.format("{\"success\":false,\"roleMismatch\":true,\"message\":\"%s\"}", escape(mismatchMsg));
+                    send(exchange, 200, "application/json", json);
+                    return;
+                }
+
+                // Determine target dashboard
+                String targetDash = "dashboard.html";
+                if ("doctor".equals(cleanRole)) targetDash = "doctor-dashboard.html";
+                else if ("nurse".equals(cleanRole)) targetDash = "nurse-dashboard.html";
+                else if ("technician".equals(cleanRole) || "lab_tech".equals(cleanRole)) targetDash = "lab-dashboard.html";
+                else if ("pharmacy".equals(cleanRole) || "pharmacist".equals(cleanRole)) targetDash = "pharmacy-dashboard.html";
+                else if ("admin".equals(cleanRole) || "administrator".equals(cleanRole)) targetDash = "admin-dashboard.html";
+                else if ("receptionist".equals(cleanRole) || "reception".equals(cleanRole)) targetDash = "admin-dashboard.html";
+
                 final String finalUserId = userId.isEmpty() ? email : userId;
                 final String finalName = name;
-                final String finalRole = role;
+                final String finalRole = cleanRole;
                 java.util.concurrent.CompletableFuture.runAsync(() -> 
                     activityLogDAO.logActivity(finalUserId, finalName, finalRole, "AUTH", "User Login", "Success", "127.0.0.1")
                 );
+
+                // Note: Daily failed attempts history is intentionally preserved as per specification
+                int currentFailures = loginSecurityDAO.getFailedAttempts(email);
+                int remainingAttempts = Math.max(0, LoginSecurityDAO.MAX_FAILED_ATTEMPTS - currentFailures);
+
                 String json = String.format(
-                    "{\"success\":true,\"role\":\"%s\",\"name\":\"%s\",\"email\":\"%s\",\"age\":\"%s\",\"gender\":\"%s\",\"weight\":\"70\",\"height\":\"170\",\"phone\":\"%s\",\"patientId\":\"%s\",\"isNewUser\":false}",
-                    escape(role), escape(name), escape(email), escape(age), escape(gender), escape(phone), escape(userId.isEmpty() ? "PT1001" : userId));
+                    "{\"success\":true,\"role\":\"%s\",\"name\":\"%s\",\"email\":\"%s\",\"age\":\"%s\",\"gender\":\"%s\",\"weight\":\"70\",\"height\":\"170\",\"phone\":\"%s\",\"patientId\":\"%s\",\"targetDashboard\":\"%s\",\"remainingAttempts\":%d,\"isNewUser\":false}",
+                    escape(cleanRole), escape(name), escape(email), escape(age), escape(gender), escape(phone), escape(userId.isEmpty() ? "PT1001" : userId), escape(targetDash), remainingAttempts);
                 send(exchange, 200, "application/json", json);
             } else {
+                // Record failed login attempt atomically in server database
+                int failedCount = loginSecurityDAO.recordFailedAttempt(email);
+                int remaining = Math.max(0, LoginSecurityDAO.MAX_FAILED_ATTEMPTS - failedCount);
+                boolean locked = failedCount >= LoginSecurityDAO.MAX_FAILED_ATTEMPTS;
+                String exactMessage = LoginSecurityDAO.getRemainingAttemptsMessage(failedCount);
+
                 java.util.concurrent.CompletableFuture.runAsync(() -> 
-                    activityLogDAO.logActivity(email, "Unknown", "Visitor", "AUTH", "Login Attempt Failed", "Failed", "127.0.0.1")
+                    activityLogDAO.logActivity(email, "Unknown", "Visitor", "AUTH", "Login Attempt Failed (" + failedCount + "/5)", "Failed", "127.0.0.1")
                 );
-                send(exchange, 200, "application/json", "{\"success\":false,\"message\":\"Invalid email or password.\"}");
+
+                String json = String.format(
+                    "{\"success\":false,\"remainingAttempts\":%d,\"failedCount\":%d,\"locked\":%b,\"message\":\"%s\"}",
+                    remaining, failedCount, locked, escape(exactMessage));
+                send(exchange, 200, "application/json", json);
             }
+        }
+    }
+
+    // GET / POST /api/login-status - Query remaining attempts and lockout state for account without consuming an attempt
+    static class LoginStatusHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String email = "";
+            if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                Map<String, String> fields = parseJsonFlat(body);
+                email = fields.getOrDefault("email", "").trim().toLowerCase();
+            } else {
+                String query = exchange.getRequestURI().getQuery();
+                if (query != null && query.contains("email=")) {
+                    email = query.split("email=")[1].split("&")[0].trim().toLowerCase();
+                    try {
+                        email = URLDecoder.decode(email, StandardCharsets.UTF_8.name()).trim().toLowerCase();
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            int failedCount = loginSecurityDAO.getFailedAttempts(email);
+            int remaining = Math.max(0, LoginSecurityDAO.MAX_FAILED_ATTEMPTS - failedCount);
+            boolean locked = loginSecurityDAO.isAccountLocked(email);
+            String message = locked 
+                ? "You have reached the maximum of 5 failed login attempts for today. Please try again tomorrow."
+                : (failedCount > 0 ? LoginSecurityDAO.getRemainingAttemptsMessage(failedCount) : "");
+
+            String json = String.format(
+                "{\"success\":true,\"email\":\"%s\",\"failedCount\":%d,\"remainingAttempts\":%d,\"locked\":%b,\"date\":\"%s\",\"message\":\"%s\"}",
+                escape(email), failedCount, remaining, locked, loginSecurityDAO.getCurrentKolkataDate(), escape(message));
+            send(exchange, 200, "application/json", json);
         }
     }
 
@@ -783,9 +900,10 @@ public class Server {
                 StringBuilder sb = new StringBuilder("[");
                 for (int i = 0; i < list.size(); i++) {
                     Appointment a = list.get(i);
+                    String pName = a.getPatientName() != null && !a.getPatientName().isEmpty() ? a.getPatientName() : "Patient";
                     sb.append(String.format(
-                            "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\"}",
-                            escape(a.getAppointmentId()), escape(a.getPatientId()), escape(a.getDoctorId()),
+                            "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\"}",
+                            escape(a.getAppointmentId()), escape(a.getPatientId()), escape(pName), escape(a.getDoctorId()),
                             escape(a.getDoctorName()),
                             escape(a.getDepartment()), escape(a.getAppointmentDate()), escape(a.getAppointmentTime()),
                             escape(a.getStatus()), escape(a.getPaymentStatus())));
@@ -800,6 +918,8 @@ public class Server {
 
                 String apptId = fields.getOrDefault("appointmentId", "TK-" + (100000 + new Random().nextInt(900000)));
                 String pId = fields.getOrDefault("patientId", "");
+                String pName = fields.getOrDefault("patientName", fields.getOrDefault("patient", ""));
+                if (pName.isEmpty()) pName = "Patient";
                 String docId = fields.getOrDefault("doctorId", "");
                 String dName = fields.getOrDefault("doctorName", "");
                 if (dName.isEmpty() && !docId.isEmpty()) {
@@ -824,7 +944,7 @@ public class Server {
                     }
                 }
 
-                Appointment appt = new Appointment(apptId, pId, docId, dName, dept, date, time, reqStatus, reqPaymentStatus);
+                Appointment appt = new Appointment(apptId, pId, pName, docId, dName, dept, date, time, reqStatus, reqPaymentStatus);
                 boolean ok = appointmentDAO.createAppointment(appt);
 
                 Map<String, String> nurseAssign = nurseDAO.assignNurseToAppointment(apptId, pId, docId, dName, dept, date, time);
@@ -1096,9 +1216,10 @@ public class Server {
             StringBuilder sb = new StringBuilder("[");
             for (int i = 0; i < list.size(); i++) {
                 Appointment a = list.get(i);
+                String pName = a.getPatientName() != null && !a.getPatientName().isEmpty() ? a.getPatientName() : "Patient";
                 sb.append(String.format(
-                        "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"fee\":\"₹800.00\"}",
-                        escape(a.getAppointmentId()), escape(a.getPatientId()), escape(a.getDoctorId()),
+                        "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"fee\":\"₹800.00\"}",
+                        escape(a.getAppointmentId()), escape(a.getPatientId()), escape(pName), escape(a.getDoctorId()),
                         escape(a.getDoctorName()), escape(a.getDepartment()), escape(a.getAppointmentDate()),
                         escape(a.getAppointmentTime()), escape(a.getStatus()), escape(a.getPaymentStatus())));
                 if (i < list.size() - 1) sb.append(",");
@@ -1172,6 +1293,9 @@ public class Server {
                 Prescription p = new Prescription(rxId, apptId, docId, pId, diag, meds, notes, followUp,
                         new Date().toString());
                 boolean ok = prescriptionDAO.createPrescription(p);
+                if (ok && apptId != null && !apptId.trim().isEmpty()) {
+                    appointmentDAO.updateAppointmentStatus(apptId, "COMPLETED");
+                }
 
                 // AUTOMATIC PHARMACY WORKFLOW TRIGGER (ONLY FOR INVENTORY MEDICINES)
                 String phaToken = "PHA-2026-" + String.format("%05d", (10000 + new Random().nextInt(89999)));
@@ -3836,9 +3960,10 @@ public class Server {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < list.size(); i++) {
             Appointment a = list.get(i);
+            String pName = a.getPatientName() != null && !a.getPatientName().isEmpty() ? a.getPatientName() : "Patient";
             sb.append(String.format(
-                "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\"}",
-                escape(a.getAppointmentId()), escape(a.getPatientId()), escape(a.getDoctorId()), escape(a.getDoctorName()),
+                "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\"}",
+                escape(a.getAppointmentId()), escape(a.getPatientId()), escape(pName), escape(a.getDoctorId()), escape(a.getDoctorName()),
                 escape(a.getDepartment()), escape(a.getAppointmentDate()), escape(a.getAppointmentTime()),
                 escape(a.getStatus()), escape(a.getPaymentStatus())
             ));

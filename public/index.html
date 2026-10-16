@@ -429,11 +429,11 @@
       <a href="#contact">Contact</a>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-      <a href="login.html" class="btn btn-ghost btn-sm nav-auth-desktop">
-        <i class="fa-solid fa-right-to-bracket"></i> Login
+      <a href="login.html?portal=patient" class="btn btn-primary btn-sm nav-auth-desktop" style="background:var(--blue-700); box-shadow:0 4px 14px rgba(10,77,166,0.3);">
+        <i class="fa-solid fa-user-injured"></i> Patient Login
       </a>
-      <a href="login.html" class="btn btn-primary btn-sm nav-auth-desktop">
-        <i class="fa-solid fa-user-plus"></i> Register
+      <a href="login.html?portal=admin" class="btn btn-teal btn-sm nav-auth-desktop" style="background:var(--teal-500); color:#fff; box-shadow:0 4px 14px rgba(10,178,167,0.3);">
+        <i class="fa-solid fa-user-shield"></i> Administrative Login
       </a>
       <button type="button" class="btn btn-ghost btn-sm landing-nav-toggle" id="btnToggleMobileNav" aria-label="Open Menu" style="display:none; padding:8px 12px; font-size:1.2rem;">
         ☰
@@ -455,8 +455,12 @@
   <a href="#emergency" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">🚨 Emergency 24/7</a>
   <a href="#contact" class="mobile-nav-link" onclick="document.getElementById('landingMobileNav').classList.remove('mobile-open'); document.querySelector('.sidebar-backdrop').classList.remove('active');">📞 Contact & Map</a>
   <div style="border-top:1px solid var(--border-color); padding-top:16px; display:flex; flex-direction:column; gap:10px; margin-top:auto;">
-    <a href="login.html" class="btn btn-ghost btn-block">Portal Login</a>
-    <a href="login.html" class="btn btn-primary btn-block">Book Appointment</a>
+    <a href="login.html?portal=patient" class="btn btn-primary btn-block">
+      <i class="fa-solid fa-user-injured"></i> Patient Login
+    </a>
+    <a href="login.html?portal=admin" class="btn btn-teal btn-block">
+      <i class="fa-solid fa-user-shield"></i> Administrative Login
+    </a>
   </div>
 </div>
 
@@ -471,15 +475,18 @@
       <p class="lede">
         Niramaya brings patients, doctors, nurses, laboratories, and pharmacies together through an intelligent hospital management platform.
       </p>
-      <div class="hero-ctas">
-        <a href="login.html" class="btn btn-primary" style="font-size:1rem; padding:14px 28px;">
+      <div class="hero-ctas" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:28px;">
+        <a href="login.html?portal=patient" class="btn btn-primary" style="font-size:1rem; padding:14px 26px; background:linear-gradient(135deg, var(--blue-700), var(--blue-500)); box-shadow:var(--shadow-md);">
+          <i class="fa-solid fa-user-injured"></i> Patient Login
+        </a>
+        <a href="login.html?portal=admin" class="btn btn-teal" style="font-size:1rem; padding:14px 26px; background:var(--teal-500); box-shadow:0 10px 24px rgba(10,178,167,0.3);">
+          <i class="fa-solid fa-user-shield"></i> Administrative Login
+        </a>
+        <a href="login.html?portal=patient&action=book" class="btn btn-ghost" style="font-size:1rem; padding:14px 24px;">
           <i class="fa-solid fa-calendar-check"></i> Book Appointment
         </a>
-        <a href="#emergency" class="btn btn-ghost" style="font-size:1rem; padding:14px 28px; border-color:var(--danger); color:var(--danger);">
+        <a href="#emergency" class="btn btn-ghost" style="font-size:1rem; padding:14px 24px; border-color:var(--danger); color:var(--danger);">
           <i class="fa-solid fa-truck-medical"></i> Emergency Ambulance Request
-        </a>
-        <a href="login.html" class="btn btn-teal" style="font-size:1rem; padding:14px 28px;">
-          <i class="fa-solid fa-user-shield"></i> Login / Register
         </a>
       </div>
       <div class="hero-stats">

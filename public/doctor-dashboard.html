@@ -983,6 +983,7 @@
           </div>
 
           <form id="formWritePrescription" onsubmit="handleSavePrescription(event)">
+            <input type="hidden" id="pFormApptToken">
             <!-- PATIENT DETAILS HEADER BLOCK -->
             <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; background:#F8FAFC; padding:16px; border-radius:var(--radius-md); border:1px solid var(--border); margin-bottom:20px;">
               <div>
@@ -1909,7 +1910,7 @@
           <td><span class="badge-status ${a.status === 'CONFIRMED' ? 'badge-completed' : (a.status === 'CANCELLED' ? 'badge-cancelled' : 'badge-pending')}">${a.status}</span></td>
           <td style="display:flex; gap:6px; flex-wrap:wrap;">
             ${approveBtn}
-            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}')">📝 Write Rx</button>
+            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}', '${a.token}')">📝 Write Rx</button>
             <button class="btn btn-success btn-sm" style="background:#059669; color:#fff; border:none;" onclick="markDoctorConsultationComplete('${a.token}')">✅ Complete</button>
             ${cancelBtn}
           </td>
@@ -2038,7 +2039,7 @@
           <td><span class="badge-status ${a.status === 'COMPLETED' ? 'badge-completed' : 'badge-pending'}">${a.status}</span></td>
           <td>
             <button class="btn btn-outline btn-sm" onclick="viewPatientProfileModal('${a.patientId}', '${a.patientName}')">View Profile</button>
-            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}')">Write Rx</button>
+            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}', '${a.token}')">Write Rx</button>
           </td>
         </tr>
       `).join('');
@@ -2119,7 +2120,7 @@
           <td>${p.diagnosis}</td>
           <td>
             <button class="btn btn-outline btn-sm" onclick="viewPatientProfileModal('${p.id}', '${p.name}')">Profile</button>
-            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${p.id}', '${p.name}', '${p.ageGender}')">Write Rx</button>
+            <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${p.id}', '${p.name}', '${p.ageGender}', '${p.token || ''}')">Write Rx</button>
           </td>
         </tr>
       `).join('');
@@ -2196,8 +2197,10 @@
       }
     }
 
-    function startPrescriptionForAppt(pId, pName, pAgeGender) {
+    function startPrescriptionForAppt(pId, pName, pAgeGender, apptToken) {
       switchNav('dashPrescribe');
+      const tokenInput = document.getElementById('pFormApptToken');
+      if (tokenInput) tokenInput.value = apptToken || '';
       document.getElementById('pFormId').value = pId;
       document.getElementById('pFormName').value = pName;
       document.getElementById('pFormAgeGender').value = pAgeGender;
@@ -2215,6 +2218,8 @@
       const searchId = document.getElementById('prescSearchId').value.trim().toUpperCase();
       if (!searchId) return showToast('⚠️ Enter Patient ID to search!');
 
+      const tokenInput = document.getElementById('pFormApptToken');
+      if (tokenInput) tokenInput.value = '';
       document.getElementById('pFormId').value = searchId;
       document.getElementById('pFormName').value = 'Patient (' + searchId + ')';
       document.getElementById('pFormAgeGender').value = 'Adult';
@@ -2225,6 +2230,7 @@
 
     function handleSavePrescription(e) {
       e.preventDefault();
+      const apptToken = (document.getElementById('pFormApptToken')?.value || '').trim();
       const pId = document.getElementById('pFormId').value;
       const pName = document.getElementById('pFormName').value;
       const diagnosis = document.getElementById('pFormDiagnosis').value;
@@ -2258,13 +2264,18 @@
       const rxId = 'RX-' + Math.floor(100000 + Math.random()*900000);
       const rxObj = {
         rxId,
+        appointmentId: apptToken || 'TK-1001',
+        token: apptToken || 'TK-1001',
         pId,
+        patientId: pId,
         pName,
+        patientName: pName,
         docName: docProfile.name,
+        docDept: docProfile.dept,
         diagnosis,
         meds,
         labTests,
-        date: new Date().toLocaleDateString()
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       };
 
       // 1. Save to Doctor History
@@ -2273,12 +2284,20 @@
       history.unshift(rxObj);
       localStorage.setItem('niramaya_rx_history_' + currentUserEmail, JSON.stringify(history));
 
-      // 2. Save to Patient Specific Prescriptions Key by Patient ID
+      // 2. Save to Patient Specific Prescriptions Key by Patient ID & by token
       if (pId) {
         let pRx = [];
         try { pRx = JSON.parse(localStorage.getItem('niramaya_prescriptions_' + pId) || '[]'); } catch(e){}
         pRx.unshift(rxObj);
         localStorage.setItem('niramaya_prescriptions_' + pId, JSON.stringify(pRx));
+      }
+      if (apptToken) {
+        try {
+          let tRx = [];
+          try { tRx = JSON.parse(localStorage.getItem('niramaya_rx_by_token_' + apptToken) || '[]'); } catch(e){}
+          tRx.unshift(rxObj);
+          localStorage.setItem('niramaya_rx_by_token_' + apptToken, JSON.stringify(tRx));
+        } catch(e){}
       }
 
       // 3. Save to Global Prescriptions Log
@@ -2321,7 +2340,7 @@
         localStorage.setItem('niramaya_lab_bookings', JSON.stringify(labBookings));
       }
 
-      // 5. Intimate PHARMACY QUEUE if medicines were prescribed
+      // 5. Intimate PHARMACY QUEUE if medicines were prescribed & Save to Backend DB
       if (meds.length > 0) {
         let pharmacyOrders = [];
         try { pharmacyOrders = JSON.parse(localStorage.getItem('niramaya_pharmacy_orders') || '[]'); } catch(e){}
@@ -2362,7 +2381,7 @@
           doctorId: docProfile.doctorId || currentUserEmail,
           doctorName: docProfile.name,
           prescriptionId: rxId,
-          appointmentId: 'TK-1001',
+          appointmentId: apptToken || 'TK-1001',
           totalAmount: totalAmount,
           paymentStatus: 'Unpaid',
           orderStatus: 'Prescription Received',
@@ -2374,30 +2393,36 @@
 
         pharmacyOrders.unshift(pharmOrderObj);
         localStorage.setItem('niramaya_pharmacy_orders', JSON.stringify(pharmacyOrders));
-
-        fetch('/api/doctor/prescribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prescriptionId: rxId,
-            appointmentId: 'TK-1001',
-            doctorId: docProfile.doctorId || currentUserEmail,
-            patientId: pId || 'PT100842',
-            diagnosis: diagnosis,
-            medicines: JSON.stringify(meds),
-            doctorNotes: document.getElementById('pFormRemarks')?.value || '',
-            followUp: document.getElementById('pFormFollowDate')?.value || '5 Days'
-          })
-        }).catch(e => {});
       }
 
-      // 6. Mark appointment COMPLETED in central registry
+      // Sync Prescription to Server DB
+      fetch('/api/prescriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prescriptionId: rxId,
+          appointmentId: apptToken || 'TK-1001',
+          doctorId: docProfile.doctorId || currentUserEmail,
+          patientId: pId || 'PT100842',
+          patientName: pName,
+          diagnosis: diagnosis,
+          medicines: JSON.stringify(meds),
+          doctorNotes: document.getElementById('pFormRemarks')?.value || '',
+          followUp: document.getElementById('pFormFollowDate')?.value || '5 Days'
+        })
+      }).catch(e => {});
+
+      // 6. Mark appointment COMPLETED & attach prescription in central registry
       try {
         let allAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
         let updated = false;
         allAppts.forEach(a => {
-          if ((a.patientId && a.patientId === pId) || (a.patient && a.patient.toLowerCase() === pName.toLowerCase())) {
+          if ((apptToken && (a.token === apptToken || a.appointmentId === apptToken || a.id === apptToken)) ||
+              (!apptToken && ((a.patientId && a.patientId === pId) || (a.patient && a.patient.toLowerCase() === pName.toLowerCase())))) {
             a.status = 'COMPLETED';
+            a.hasPrescription = true;
+            a.rxId = rxId;
+            a.prescription = rxObj;
             updated = true;
           }
         });
@@ -2406,6 +2431,30 @@
         }
       } catch(e){}
 
+      // Also mark in patient's personal bookings key
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('niramaya_user_bookings_') || k === 'niramaya_user_bookings')) {
+            try {
+              let bList = JSON.parse(localStorage.getItem(k) || '[]');
+              let bUpdated = false;
+              bList.forEach(b => {
+                if ((apptToken && (b.token === apptToken || b.id === apptToken || b.appointmentId === apptToken)) ||
+                    (!apptToken && (b.patientId === pId || (b.patient && b.patient.toLowerCase() === pName.toLowerCase())))) {
+                  b.hasPrescription = true;
+                  b.rxId = rxId;
+                  b.prescription = rxObj;
+                  bUpdated = true;
+                }
+              });
+              if (bUpdated) localStorage.setItem(k, JSON.stringify(bList));
+            } catch(e){}
+          }
+        }
+      } catch(e){}
+
+      localStorage.setItem('niramaya_rx_latest_broadcast', JSON.stringify({ rxId, apptToken, pId, timestamp: Date.now() }));
       window.dispatchEvent(new Event('storage'));
       showToast(`✅ Prescription ${rxId} Saved & Synced to Lab & Pharmacy!`);
       openPrintModal(rxObj);

@@ -2712,7 +2712,10 @@
     // Render Medications Table
     const tbody = document.getElementById('rxModalMedsTbody');
     let medsArr = rx.meds || rx.medicines || [];
-    if (medsArr.length === 0) {
+    if (typeof medsArr === 'string') {
+      try { medsArr = JSON.parse(medsArr); } catch(e){ medsArr = []; }
+    }
+    if (!Array.isArray(medsArr) || medsArr.length === 0) {
       medsArr = [{ name: 'Paracetamol 650mg', m: 1, a: 0, n: 1, timing: 'After Food', days: 5 }];
     }
 
@@ -4098,6 +4101,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     }
 
     activePendingBooking.patient = patientFullName;
+    activePendingBooking.patientName = patientFullName;
     activePendingBooking.ageGender = `${patientAge} Years / ${patientGender}`;
     activePendingBooking.consultMode = consultMode;
 
@@ -4259,6 +4263,67 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     renderUserBookings();
   }
 
+  // Helper to check if attending doctor has written a genuine prescription for this appointment
+  function findPrescriptionForAppt(booking, pid) {
+    if (!booking) return null;
+    const token = (booking.token || booking.appointmentId || '').trim();
+    const docClean = (booking.docName || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
+
+    // 1. In-memory prescription on booking object
+    if (booking.prescription && typeof booking.prescription === 'object' && booking.prescription.rxId) {
+      return booking.prescription;
+    }
+
+    // 2. Prescription stored by token
+    if (token) {
+      try {
+        const tList = JSON.parse(localStorage.getItem('niramaya_rx_by_token_' + token) || '[]');
+        if (tList.length > 0 && tList[0].rxId) return tList[0];
+      } catch(e){}
+    }
+
+    // 3. Prescription lists
+    let allRx = [];
+    if (Array.isArray(window.cachedPatientRxList)) allRx.push(...window.cachedPatientRxList);
+    try {
+      const pRx = JSON.parse(localStorage.getItem('niramaya_prescriptions_' + (pid || savedPatientId)) || '[]');
+      allRx.push(...pRx);
+    } catch(e){}
+    try {
+      const gRx = JSON.parse(localStorage.getItem('niramaya_all_prescriptions') || '[]');
+      allRx.push(...gRx);
+    } catch(e){}
+
+    // Match by appointmentId / token
+    if (token) {
+      const cleanTok = token.replace('#', '');
+      const found = allRx.find(r => {
+        const rAppt = (r.appointmentId || r.token || '').replace('#', '');
+        return rAppt && rAppt === cleanTok;
+      });
+      if (found) return found;
+    }
+
+    // Match by rxId if appointment holds rxId
+    if (booking.rxId) {
+      const found = allRx.find(r => (r.rxId === booking.rxId || r.prescriptionId === booking.rxId));
+      if (found) return found;
+    }
+
+    // If consultation was completed by doctor, check if doctor issued prescription for this patient
+    if (booking.status && booking.status.toLowerCase().includes('completed') && docClean) {
+      const found = allRx.find(r => {
+        const rPid = r.pId || r.patientId;
+        if (rPid && pid && rPid !== pid) return false;
+        const rDoc = (r.docName || r.doctorName || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
+        return rDoc && (rDoc.includes(docClean) || docClean.includes(rDoc));
+      });
+      if (found) return found;
+    }
+
+    return null;
+  }
+
   // Render User Bookings Table with Today's Work vs Completed History server filtering
   async function renderUserBookings() {
     const tbody = document.getElementById('tbodyUserBookings');
@@ -4266,6 +4331,24 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     if (!tbody) return;
 
     let userBookings = [];
+    let localBookings = [];
+    try { localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]'); } catch(e){}
+    let allLocalAppts = [];
+    try { allLocalAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]'); } catch(e){}
+
+    // Fetch live prescriptions from server for this patient
+    try {
+      const rxRes = await fetch(`/api/prescriptions?patientId=${encodeURIComponent(savedPatientId)}`);
+      if (rxRes.ok) {
+        const rxData = await rxRes.json();
+        if (Array.isArray(rxData)) {
+          window.cachedPatientRxList = rxData;
+        }
+      }
+    } catch(e) {
+      console.warn("Could not fetch server prescriptions:", e);
+    }
+
     try {
       const endpoint = activePatientApptsTab === 'today' 
         ? `/api/patient/todays-appointments?patientId=${savedPatientId}`
@@ -4282,30 +4365,52 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
             && !paySt.toLowerCase().includes('offline')
             && !a.status?.toLowerCase().includes('pending');
 
+          const localMatch = localBookings.find(x => x.token === a.appointmentId || x.id === a.appointmentId)
+            || allLocalAppts.find(x => x.token === a.appointmentId || x.appointmentId === a.appointmentId);
+
+          let resolvedPatient = '';
+          if (a.patientName && a.patientName.trim() && a.patientName.trim().toLowerCase() !== 'patient') {
+            resolvedPatient = a.patientName.trim();
+          } else if (localMatch && (localMatch.patient || localMatch.patientName) && (localMatch.patient || localMatch.patientName).trim().toLowerCase() !== 'patient') {
+            resolvedPatient = (localMatch.patient || localMatch.patientName).trim();
+          } else if (a.patientName && a.patientName.trim()) {
+            resolvedPatient = a.patientName.trim();
+          } else {
+            resolvedPatient = savedName || 'Patient';
+          }
+
           return {
             token: a.appointmentId,
-            patient: a.patientName || savedName,
+            patient: resolvedPatient,
+            patientName: resolvedPatient,
             patientId: a.patientId,
-            docName: a.doctorName || 'Doctor',
-            dept: a.department || 'General Medicine',
-            date: a.date || a.appointmentDate || 'Today',
-            time: a.time || a.appointmentTime || '10:00 AM',
+            docName: a.doctorName || (localMatch ? localMatch.docName : 'Doctor'),
+            dept: a.department || (localMatch ? localMatch.dept : 'General Medicine'),
+            date: a.date || a.appointmentDate || (localMatch ? localMatch.date : 'Today'),
+            time: a.time || a.appointmentTime || (localMatch ? localMatch.time : '10:00 AM'),
             fee: '₹800',
             status: isPaid ? 'Confirmed & Paid ✓' : (a.status || 'Payment Pending ⏳'),
             paymentStatus: a.paymentStatus,
-            isPaid: isPaid
+            isPaid: isPaid,
+            consultMode: localMatch ? (localMatch.consultMode || 'in_person') : 'in_person',
+            meetLink: localMatch ? localMatch.meetLink : '',
+            hasPrescription: (localMatch && localMatch.hasPrescription) || false,
+            rxId: (localMatch && localMatch.rxId) || ''
           };
         });
 
         // Synchronize local storage with real server records
         try {
-          let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
           userBookings.forEach(sb => {
             const lb = localBookings.find(x => x.token === sb.token || x.id === sb.token);
             if (lb) {
+              lb.patient = sb.patient;
+              lb.patientName = sb.patient;
               lb.paymentStatus = sb.paymentStatus;
               lb.status = sb.status;
               lb.isPaid = sb.isPaid;
+              if (sb.hasPrescription) lb.hasPrescription = true;
+              if (sb.rxId) lb.rxId = sb.rxId;
             } else {
               localBookings.unshift(sb);
             }
@@ -4318,11 +4423,8 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     }
 
     if (userBookings.length === 0) {
-      let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
-      let allA = [];
-      try { allA = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]'); } catch(e){}
       localBookings.forEach(b => {
-        const found = allA.find(x => x.appointmentId === b.token || x.token === b.token);
+        const found = allLocalAppts.find(x => x.appointmentId === b.token || x.token === b.token);
         if (found && (found.paymentStatus || '').toLowerCase().includes('paid')) {
           b.paymentStatus = 'Paid';
           b.status = 'Confirmed & Paid ✓';
@@ -4362,13 +4464,13 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         ? `<a href="${b.meetLink}" target="_blank" class="btn btn-teal btn-sm" style="font-size:0.75rem; padding:4px 8px; text-decoration:none; margin-right:4px;">📹 Join Meet</a>`
         : '';
 
-      let pRxList = [];
       const pid = b.patientId || savedPatientId;
-      try { pRxList = JSON.parse(localStorage.getItem('niramaya_prescriptions_' + pid) || '[]'); } catch(e){}
+      const matchedRx = findPrescriptionForAppt(b, pid);
 
-      const rxBtn = pRxList.length > 0
-        ? `<button type="button" class="btn btn-ghost btn-sm btn-view-patient-rx" data-pid="${pid}" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:#059669; border:1px solid #059669; margin-right:4px;">📜 View Rx</button>`
-        : `<button type="button" class="btn btn-ghost btn-sm btn-view-patient-rx" data-pid="${pid}" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:#0D6EFD; border:1px solid #0D6EFD; margin-right:4px;">📜 View Rx</button>`;
+      // View Rx button is strictly blocked until attending doctor writes the prescription
+      const rxBtn = matchedRx
+        ? `<button type="button" class="btn btn-ghost btn-sm btn-view-patient-rx" data-token="${b.token}" data-pid="${pid}" data-idx="${idx}" style="font-size:0.75rem; padding:4px 8px; color:#059669; border:1px solid #059669; font-weight:700; margin-right:4px; background:#ECFDF5;" title="Click to view doctor prescription">📜 View Rx</button>`
+        : `<button type="button" class="btn btn-ghost btn-sm btn-rx-pending" data-token="${b.token}" style="font-size:0.75rem; padding:4px 8px; color:#94A3B8; background:#F8FAFC; border:1px dashed #CBD5E1; cursor:not-allowed; opacity:0.85; margin-right:4px;" title="Prescription not yet written by attending doctor. View Rx will be enabled once prescribed.">🔒 Rx Pending</button>`;
 
       const canCancel = !b.status?.toLowerCase().includes('completed') && !b.status?.toLowerCase().includes('cancelled');
       const cancelBtn = canCancel
@@ -4438,7 +4540,14 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       });
     });
 
-    // Attach click event to View Rx buttons
+    // Attach click event to blocked Rx Pending buttons
+    tbody.querySelectorAll('.btn-rx-pending').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showToast('🔒 Prescription Pending: The attending doctor has not written the prescription for this appointment yet. It will unlock automatically once written.');
+      });
+    });
+
+    // Attach click event to View Rx buttons (only unlocked when doctor writes the prescription)
     tbody.querySelectorAll('.btn-view-patient-rx').forEach(btn => {
       btn.addEventListener('click', () => {
         const pid = btn.dataset.pid;
@@ -4448,51 +4557,15 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         const targetDocName = booking ? booking.docName : '';
         const targetDept = booking ? booking.dept : '';
 
-        let pRxList = [];
-        try { pRxList = JSON.parse(localStorage.getItem('niramaya_prescriptions_' + pid) || '[]'); } catch(e){}
-        if (pRxList.length === 0) {
-          try {
-            let allRx = JSON.parse(localStorage.getItem('niramaya_all_prescriptions') || '[]');
-            pRxList = allRx.filter(r => (r.pId && r.pId === pid) || (r.patientId && r.patientId === pid));
-          } catch(e){}
-        }
+        const matchedRx = findPrescriptionForAppt(booking, pid);
 
-        // Find prescription specifically issued for this appointment token first (prevents multi-visit duplication)
-        let matchedRx = pRxList.find(r => (r.appointmentId && booking && r.appointmentId === booking.token) || (r.token && booking && r.token === booking.token));
         if (!matchedRx) {
-          matchedRx = pRxList.find(r => {
-            if (!r.docName || !targetDocName) return false;
-            const rClean = r.docName.toLowerCase().replace(/^dr\.\s*/i, '').trim();
-            const tClean = targetDocName.toLowerCase().replace(/^dr\.\s*/i, '').trim();
-            return rClean.includes(tClean) || tClean.includes(rClean);
-          });
-        }
-
-
-        if (!matchedRx && pRxList.length > 0) {
-          matchedRx = pRxList[0];
-        }
-
-        // Fallback prescription object if doctor hasn't written a prescription yet
-        if (!matchedRx && booking) {
-          matchedRx = {
-            rxId: 'RX-' + Math.floor(100000 + Math.random() * 900000),
-            date: booking ? booking.date : 'Today',
-            docName: targetDocName || booking.docName || 'Attending Physician',
-            docDept: targetDept ? (targetDept + ' Specialist · MD') : (booking.dept || 'General Medicine Specialist'),
-            pId: pid,
-            pName: booking ? booking.patient : savedName,
-            diagnosis: 'Clinical Consultation',
-            advice: 'Follow recommended lifestyle guidelines and stay hydrated.',
-            meds: []
-          };
-        } else if (!matchedRx) {
-          alert('No prescription recorded yet for this appointment.');
+          showToast('🔒 Prescription not written yet by the attending doctor.');
           return;
         }
 
-        const docNameToDisplay = targetDocName || (booking ? booking.docName : '') || (matchedRx ? matchedRx.docName : '') || 'Attending Physician';
-        const docDeptToDisplay = targetDept ? (targetDept + ' Specialist · MD') : (matchedRx.docDept || 'Consultant Specialist · MD');
+        const docNameToDisplay = (matchedRx && matchedRx.docName) || targetDocName || 'Attending Physician';
+        const docDeptToDisplay = (matchedRx && matchedRx.docDept) || (targetDept ? (targetDept + ' Specialist · MD') : 'Consultant Specialist · MD');
 
         openPrescriptionPdfModal(matchedRx, docNameToDisplay, docDeptToDisplay);
       });
@@ -4501,6 +4574,13 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     updateNotifications();
     renderDashUpcomingAppts();
   }
+
+  // Cross-tab real-time prescription synchronization listener
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'niramaya_rx_latest_broadcast' || e.key === 'niramaya_all_prescriptions' || e.key === 'niramaya_all_appointments' || (e.key && e.key.startsWith('niramaya_prescriptions_'))) {
+      renderUserBookings();
+    }
+  });
 
   // Render Dashboard Upcoming Appointments Widget
   function renderDashUpcomingAppts() {

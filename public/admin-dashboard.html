@@ -2921,7 +2921,7 @@
         const rowsHtml = list.map(a => `
           <tr>
             <td><strong style="color:var(--primary); font-family:monospace; font-size:0.95rem;">${a.appointmentId || '-'}</strong></td>
-            <td><strong style="color:var(--text-main);">${a.patientId || 'PT100842'}</strong></td>
+            <td><strong style="color:var(--text-main);">${a.patientName ? a.patientName : (a.patientId || 'PT100842')}</strong><br><small style="color:var(--text-muted);">${a.patientId || ''}</small></td>
             <td><strong>${a.doctorName || a.doctorId || '-'}</strong><br><small style="color:var(--text-muted);">${a.department || 'General'}</small></td>
             <td>${a.date || ''} ${a.time || ''}</td>
             <td><strong style="color:#D97706; font-size:0.95rem;">${a.fee || '₹800.00'}</strong></td>
@@ -3051,7 +3051,7 @@
         return `
           <tr>
             <td><strong style="color:var(--primary); font-family:monospace;">${a.appointmentId || '-'}</strong></td>
-            <td><strong>${a.patientId || '-'}</strong></td>
+            <td><strong>${a.patientName ? a.patientName : (a.patientId || '-')}</strong><br><small style="color:var(--text-muted);">${a.patientId || ''}</small></td>
             <td>${a.doctorName || a.doctorId || '-'}</td>
             <td>${a.department || '-'}</td>
             <td>${a.date || a.appointmentDate || ''} ${a.time || a.appointmentTime || ''}</td>

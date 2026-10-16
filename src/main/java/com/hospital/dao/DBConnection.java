@@ -530,6 +530,7 @@ public class DBConnection {
             stmt.execute("CREATE TABLE IF NOT EXISTS appointments (" +
                     "appointment_id VARCHAR(50) PRIMARY KEY, " +
                     "patient_id VARCHAR(50) NOT NULL, " +
+                    "patient_name VARCHAR(100), " +
                     "doctor_id VARCHAR(50) NOT NULL, " +
                     "doctor_name VARCHAR(100), " +
                     "department VARCHAR(50), " +
@@ -538,6 +539,7 @@ public class DBConnection {
                     "status VARCHAR(30) DEFAULT 'Confirmed', " +
                     "payment_status VARCHAR(30) DEFAULT 'Paid'" +
                     ");");
+            try { stmt.execute("ALTER TABLE appointments ADD COLUMN patient_name VARCHAR(100);"); } catch (Exception ignored) {}
 
             // 4. PRESCRIPTIONS TABLE
             stmt.execute("CREATE TABLE IF NOT EXISTS prescriptions (" +

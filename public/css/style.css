@@ -980,6 +980,11 @@ button, input, select, textarea {
   }
 }
 
+/* Landing Mobile Drawer default (Hidden on Desktop) */
+.landing-mobile-nav {
+  display: none;
+}
+
 /* 3. MOBILE PHONES (Up to 767px) */
 @media (max-width: 767px) {
   .container {
