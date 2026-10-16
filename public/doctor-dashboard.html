@@ -268,6 +268,13 @@
       border-radius: 20px;
       border: 1px solid rgba(0, 200, 83, 0.3);
       cursor: pointer;
+      user-select: none;
+      transition: all 0.25s ease;
+    }
+
+    .status-badge-toggle.offline-badge {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
     }
 
     .status-dot {
@@ -813,9 +820,9 @@
           📩 Send Daily Report
         </button>
 
-        <div class="status-badge-toggle" onclick="toggleOnlineStatus()">
-          <div class="status-dot" id="statusDot"></div>
-          <span class="status-text" id="statusText">Online & Accepting</span>
+        <div class="status-badge-toggle offline-badge" onclick="toggleOnlineStatus()" style="cursor:pointer;" title="Click to toggle availability">
+          <div class="status-dot offline" id="statusDot"></div>
+          <span class="status-text" id="statusText" style="color:#EF4444;">OFFLINE [ Click to Go Online ]</span>
         </div>
 
         <div class="nav-icon-btn" onclick="showToast('🔔 Notification: 2 New appointments booked today!')">
@@ -1541,7 +1548,8 @@
         evening: '04:00 PM - 08:00 PM',
         days: 'Mon - Sat',
         phone: '+91 98765 43211',
-        status: 'Online & Accepting Appointments'
+        status: 'Offline / Not Accepting Appointments',
+        acceptAppointments: 'No'
       };
       localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
     }
@@ -1620,7 +1628,12 @@
       try { registry = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
       registry = registry.filter(d => d.email !== currentUserEmail && d.name !== docProfile.name);
 
-      const isOnline = docProfile.status ? docProfile.status.includes('Online') : true;
+      const isOnline = Boolean(
+        sessionStorage.getItem('niramaya_doctor_session_online') === 'true' &&
+        docProfile.status && 
+        docProfile.status.includes('Online') && 
+        docProfile.acceptAppointments === 'Yes'
+      );
       const cleanDocId = docProfile.doctorId || 'DOC10084';
       registry.unshift({
         id: cleanDocId,
@@ -1636,8 +1649,12 @@
         fee: parseInt(docProfile.fee) || 800,
         consultationFees: parseInt(docProfile.fee) || 800,
         phone: docProfile.phone,
-        status: docProfile.status || 'Online & Accepting Appointments',
-        availableStatus: docProfile.status || 'Online & Accepting Appointments',
+        days: docProfile.days || 'Mon - Sat',
+        workingDays: docProfile.days || 'Mon - Sat',
+        timing: `${docProfile.morning || '09:00 AM - 01:00 PM'}, ${docProfile.evening || '04:00 PM - 08:00 PM'} (${docProfile.days || 'Mon - Sat'})`,
+        workingHours: `${docProfile.morning || '09:00 AM - 01:00 PM'}, ${docProfile.evening || '04:00 PM - 08:00 PM'}`,
+        status: isOnline ? 'Online & Accepting Appointments' : 'Offline / Not Accepting Appointments',
+        availableStatus: isOnline ? 'Online & Accepting Appointments' : 'Offline / Not Accepting Appointments',
         isAvailable: isOnline,
         acceptAppointments: isOnline ? 'Yes' : 'No',
         appointmentAvailable: isOnline,
@@ -1653,6 +1670,7 @@
       const cleanEmail = currentUserEmail || 'doctor@niramaya.health';
       const cleanName = docProfile.name || 'Doctor';
       const cleanDept = docProfile.dept || 'General Medicine';
+      const cleanDays = docProfile.days || 'Mon - Sat';
 
       // 1. Post to Neon & SQLite Database API
       fetch('/api/doctor/toggle-availability', {
@@ -1674,7 +1692,9 @@
           email: cleanEmail,
           name: cleanName,
           dept: cleanDept,
-          status: docProfile.status,
+          days: cleanDays,
+          workingDays: cleanDays,
+          status: newStatus,
           isAvailable: isOnlineNow,
           acceptAppointments: acceptAppointments,
           timestamp: Date.now()
@@ -1688,7 +1708,9 @@
         email: cleanEmail,
         name: cleanName,
         dept: cleanDept,
-        status: docProfile.status,
+        days: cleanDays,
+        workingDays: cleanDays,
+        status: newStatus,
         isAvailable: isOnlineNow,
         acceptAppointments: acceptAppointments,
         timestamp: Date.now()
@@ -1696,23 +1718,41 @@
       window.dispatchEvent(new Event('storage'));
     }
 
+    // Default when entering doctor dashboard: Availability toggle is OFF
+    const initIsOnline = Boolean(
+      sessionStorage.getItem('niramaya_doctor_session_online') === 'true' &&
+      docProfile.status && 
+      docProfile.status.includes('Online') && 
+      docProfile.acceptAppointments === 'Yes'
+    );
+    if (!initIsOnline) {
+      docProfile.status = 'Offline / Not Accepting Appointments';
+      docProfile.acceptAppointments = 'No';
+      sessionStorage.setItem('niramaya_doctor_session_online', 'false');
+      localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
+    }
     syncRegistry();
-
-    // Broadcast initial presence on doctor login to patient, admin, nurse, and lab dashboards immediately
-    const initIsOnline = docProfile.status ? docProfile.status.includes('Online') : true;
-    broadcastLiveAvailability(initIsOnline ? 'Online & Accepting Appointments' : 'Offline / On Leave', initIsOnline ? 'Yes' : 'No', initIsOnline);
+    broadcastLiveAvailability(initIsOnline ? 'Online & Accepting Appointments' : 'Offline / Not Accepting Appointments', initIsOnline ? 'Yes' : 'No', initIsOnline);
 
     function updateStatusUI() {
+      const toggleBadge = document.querySelector('.status-badge-toggle');
       const dot = document.getElementById('statusDot');
       const txt = document.getElementById('statusText');
       if (!dot || !txt) return;
-      const isOnline = docProfile.status ? docProfile.status.includes('Online') : true;
+      const isOnline = Boolean(
+        sessionStorage.getItem('niramaya_doctor_session_online') === 'true' &&
+        docProfile.status && 
+        docProfile.status.includes('Online') && 
+        docProfile.acceptAppointments === 'Yes'
+      );
       if (!isOnline) {
         dot.classList.add('offline');
-        txt.textContent = 'OFFLINE [ OFF ]';
+        if (toggleBadge) toggleBadge.classList.add('offline-badge');
+        txt.textContent = 'OFFLINE [ Click to Go Online ]';
         txt.style.color = '#EF4444';
       } else {
         dot.classList.remove('offline');
+        if (toggleBadge) toggleBadge.classList.remove('offline-badge');
         txt.textContent = 'ONLINE & ACCEPTING';
         txt.style.color = '#065F46';
       }
@@ -1748,16 +1788,25 @@
       let newStatus = '';
       let acceptAppointments = 'No';
 
-      if (docProfile.status && docProfile.status.includes('Online')) {
-        docProfile.status = 'Offline / On Leave';
+      const currentlyOnline = Boolean(
+        sessionStorage.getItem('niramaya_doctor_session_online') === 'true' &&
+        docProfile.status && 
+        docProfile.status.includes('Online') && 
+        docProfile.acceptAppointments === 'Yes'
+      );
+
+      if (currentlyOnline) {
+        docProfile.status = 'Offline / Not Accepting Appointments';
         docProfile.acceptAppointments = 'No';
         newStatus = 'Offline';
         acceptAppointments = 'No';
+        sessionStorage.setItem('niramaya_doctor_session_online', 'false');
       } else {
         docProfile.status = 'Online & Accepting Appointments';
         docProfile.acceptAppointments = 'Yes';
         newStatus = 'Online';
         acceptAppointments = 'Yes';
+        sessionStorage.setItem('niramaya_doctor_session_online', 'true');
       }
       localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
       syncRegistry();
@@ -1766,7 +1815,7 @@
       const isOnlineNow = newStatus === 'Online';
       broadcastLiveAvailability(docProfile.status, acceptAppointments, isOnlineNow);
 
-      showToast(`Status updated: ${docProfile.status}`);
+      showToast(isOnlineNow ? `🟢 You are now ONLINE & accepting patient appointments!` : `🔴 You are now OFFLINE (appointments paused)`);
     }
 
     // -------------------------------------------------------------
@@ -2232,9 +2281,13 @@
       e.preventDefault();
       const apptToken = (document.getElementById('pFormApptToken')?.value || '').trim();
       const pId = document.getElementById('pFormId').value;
-      const pName = document.getElementById('pFormName').value;
-      const diagnosis = document.getElementById('pFormDiagnosis').value;
-      const ageGender = document.getElementById('pFormAgeGender').value || '28 Yrs / Female';
+      const pName = document.getElementById('pFormName').value.trim();
+      const diagnosis = document.getElementById('pFormDiagnosis').value.trim();
+      const ageGender = (document.getElementById('pFormAgeGender').value || '28 Yrs / Female').trim();
+      const pBlood = (document.getElementById('pFormBlood')?.value || 'O+').trim();
+      const remarks = (document.getElementById('pFormRemarks')?.value || '').trim();
+      const followUp = (document.getElementById('pFormFollowDate')?.value || '5 Days').trim();
+
       const partsAG = ageGender.split('/');
       const pAge = (partsAG[0] || '28 Yrs').trim();
       const pGender = (partsAG[1] || 'Female').trim();
@@ -2264,18 +2317,38 @@
       const rxId = 'RX-' + Math.floor(100000 + Math.random()*900000);
       const rxObj = {
         rxId,
+        prescriptionId: rxId,
         appointmentId: apptToken || 'TK-1001',
         token: apptToken || 'TK-1001',
         pId,
         patientId: pId,
         pName,
         patientName: pName,
+        patient: pName,
+        pAge,
+        age: pAge,
+        patientAge: pAge,
+        pGender,
+        gender: pGender,
+        patientGender: pGender,
+        ageGender,
+        pBlood,
+        blood: pBlood,
+        bloodGroup: pBlood,
         docName: docProfile.name,
+        doctorName: docProfile.name,
         docDept: docProfile.dept,
+        doctorDept: docProfile.dept,
         diagnosis,
         meds,
+        medicines: meds,
         labTests,
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        advice: remarks || 'Follow prescribed medication schedule and drink adequate water.',
+        remarks: remarks,
+        doctorNotes: remarks,
+        followUp: followUp,
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        createdDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       };
 
       // 1. Save to Doctor History
@@ -2401,14 +2474,26 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prescriptionId: rxId,
+          rxId: rxId,
           appointmentId: apptToken || 'TK-1001',
           doctorId: docProfile.doctorId || currentUserEmail,
+          doctorName: docProfile.name,
+          doctorDept: docProfile.dept,
           patientId: pId || 'PT100842',
           patientName: pName,
+          pName: pName,
+          patientAge: pAge,
+          age: pAge,
+          patientGender: pGender,
+          gender: pGender,
+          ageGender: ageGender,
+          bloodGroup: pBlood,
           diagnosis: diagnosis,
           medicines: JSON.stringify(meds),
-          doctorNotes: document.getElementById('pFormRemarks')?.value || '',
-          followUp: document.getElementById('pFormFollowDate')?.value || '5 Days'
+          doctorNotes: remarks,
+          advice: remarks,
+          remarks: remarks,
+          followUp: followUp
         })
       }).catch(e => {});
 
@@ -2423,6 +2508,13 @@
             a.hasPrescription = true;
             a.rxId = rxId;
             a.prescription = rxObj;
+            if (pName) {
+              a.patient = pName;
+              a.patientName = pName;
+            }
+            if (ageGender) {
+              a.ageGender = ageGender;
+            }
             updated = true;
           }
         });
@@ -2435,7 +2527,7 @@
       try {
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && (k.startsWith('niramaya_user_bookings_') || k === 'niramaya_user_bookings')) {
+          if (k && (k.startsWith('niramaya_user_bookings') || k.startsWith('niramaya_bookings_'))) {
             try {
               let bList = JSON.parse(localStorage.getItem(k) || '[]');
               let bUpdated = false;
@@ -2445,6 +2537,13 @@
                   b.hasPrescription = true;
                   b.rxId = rxId;
                   b.prescription = rxObj;
+                  if (pName) {
+                    b.patient = pName;
+                    b.patientName = pName;
+                  }
+                  if (ageGender) {
+                    b.ageGender = ageGender;
+                  }
                   bUpdated = true;
                 }
               });
@@ -2454,7 +2553,7 @@
         }
       } catch(e){}
 
-      localStorage.setItem('niramaya_rx_latest_broadcast', JSON.stringify({ rxId, apptToken, pId, timestamp: Date.now() }));
+      localStorage.setItem('niramaya_rx_latest_broadcast', JSON.stringify({ rxId, apptToken, pId, pName, ageGender, timestamp: Date.now() }));
       window.dispatchEvent(new Event('storage'));
       showToast(`✅ Prescription ${rxId} Saved & Synced to Lab & Pharmacy!`);
       openPrintModal(rxObj);
@@ -2486,11 +2585,16 @@
     }
 
     function openPrintModal(rx) {
-      document.getElementById('printDocName').textContent = docProfile.name;
-      document.getElementById('printPatientId').textContent = rx.pId;
-      document.getElementById('printPatientName').textContent = rx.pName;
-      document.getElementById('printDiagnosis').textContent = rx.diagnosis;
-      document.getElementById('printDate').textContent = rx.date;
+      document.getElementById('printDocName').textContent = rx.docName || rx.doctorName || docProfile.name;
+      const deptEl = document.getElementById('printDocDept');
+      if (deptEl) deptEl.textContent = rx.docDept || rx.doctorDept || (docProfile.dept ? docProfile.dept + ' Specialist' : 'General Medicine Specialist');
+      document.getElementById('printPatientId').textContent = rx.pId || rx.patientId || '-';
+      document.getElementById('printPatientName').textContent = rx.pName || rx.patientName || rx.patient || '-';
+      const ageDisp = rx.ageGender || (rx.pAge ? `${rx.pAge} / ${rx.pGender || 'Adult'}` : (rx.age ? `${rx.age} Yrs` : '-'));
+      const printAgeEl = document.getElementById('printPatientAge');
+      if (printAgeEl) printAgeEl.textContent = ageDisp;
+      document.getElementById('printDiagnosis').textContent = rx.diagnosis || '-';
+      document.getElementById('printDate').textContent = rx.date || rx.createdDate || 'Today';
 
       const tbody = document.getElementById('printMedsBody');
       tbody.innerHTML = rx.meds.map(m => `
@@ -2559,6 +2663,13 @@
     }
 
     function handleLogout() {
+      try {
+        sessionStorage.removeItem('niramaya_doctor_session_online');
+        docProfile.status = 'Offline / Not Accepting Appointments';
+        docProfile.acceptAppointments = 'No';
+        localStorage.setItem(docProfileKey, JSON.stringify(docProfile));
+        broadcastLiveAvailability('Offline / Not Accepting Appointments', 'No', false);
+      } catch(e) {}
       sessionStorage.clear();
       window.location.href = '/login.html';
     }

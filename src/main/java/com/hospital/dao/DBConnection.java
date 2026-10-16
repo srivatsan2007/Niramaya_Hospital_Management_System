@@ -546,13 +546,25 @@ public class DBConnection {
                     "prescription_id VARCHAR(50) PRIMARY KEY, " +
                     "appointment_id VARCHAR(50), " +
                     "doctor_id VARCHAR(50) NOT NULL, " +
+                    "doctor_name VARCHAR(100), " +
+                    "doctor_dept VARCHAR(100), " +
                     "patient_id VARCHAR(50) NOT NULL, " +
+                    "patient_name VARCHAR(100), " +
+                    "patient_age VARCHAR(50), " +
+                    "patient_gender VARCHAR(50), " +
+                    "blood_group VARCHAR(20), " +
                     "diagnosis TEXT, " +
                     "medicines TEXT, " +
                     "doctor_notes TEXT, " +
                     "follow_up VARCHAR(50), " +
                     "created_date VARCHAR(50)" +
                     ");");
+            try { stmt.execute("ALTER TABLE prescriptions ADD COLUMN doctor_name VARCHAR(100);"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE prescriptions ADD COLUMN doctor_dept VARCHAR(100);"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE prescriptions ADD COLUMN patient_name VARCHAR(100);"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE prescriptions ADD COLUMN patient_age VARCHAR(50);"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE prescriptions ADD COLUMN patient_gender VARCHAR(50);"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE prescriptions ADD COLUMN blood_group VARCHAR(20);"); } catch (Exception ignored) {}
 
             // 5. USERS TABLE
             stmt.execute("CREATE TABLE IF NOT EXISTS users (" +

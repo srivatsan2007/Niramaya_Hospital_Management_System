@@ -1266,12 +1266,30 @@ public class Server {
                 StringBuilder sb = new StringBuilder("[");
                 for (int i = 0; i < list.size(); i++) {
                     Prescription p = list.get(i);
+                    String pName = p.getPatientName() != null ? p.getPatientName() : "";
+                    String pAge = p.getPatientAge() != null ? p.getPatientAge() : "";
+                    String pGender = p.getPatientGender() != null ? p.getPatientGender() : "";
+                    String pBlood = p.getBloodGroup() != null ? p.getBloodGroup() : "";
+                    String docName = p.getDoctorName() != null ? p.getDoctorName() : "";
+                    String docDept = p.getDoctorDept() != null ? p.getDoctorDept() : "";
+                    String ageGender = !pAge.isEmpty() && !pGender.isEmpty() ? (pAge + " / " + pGender) : (!pAge.isEmpty() ? pAge : pGender);
+
                     sb.append(String.format(
-                            "{\"prescriptionId\":\"%s\",\"appointmentId\":\"%s\",\"doctorId\":\"%s\",\"patientId\":\"%s\",\"diagnosis\":\"%s\",\"medicines\":\"%s\",\"doctorNotes\":\"%s\",\"followUp\":\"%s\",\"createdDate\":\"%s\"}",
-                            escape(p.getPrescriptionId()), escape(p.getAppointmentId()), escape(p.getDoctorId()),
-                            escape(p.getPatientId()),
-                            escape(p.getDiagnosis()), escape(p.getMedicines()), escape(p.getDoctorNotes()),
-                            escape(p.getFollowUp()), escape(p.getCreatedDate())));
+                            "{\"prescriptionId\":\"%s\",\"rxId\":\"%s\",\"appointmentId\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"docName\":\"%s\",\"doctorDept\":\"%s\",\"docDept\":\"%s\",\"patientId\":\"%s\",\"pId\":\"%s\",\"patientName\":\"%s\",\"pName\":\"%s\",\"patient\":\"%s\",\"patientAge\":\"%s\",\"age\":\"%s\",\"pAge\":\"%s\",\"patientGender\":\"%s\",\"gender\":\"%s\",\"pGender\":\"%s\",\"ageGender\":\"%s\",\"bloodGroup\":\"%s\",\"blood\":\"%s\",\"pBlood\":\"%s\",\"diagnosis\":\"%s\",\"medicines\":\"%s\",\"doctorNotes\":\"%s\",\"advice\":\"%s\",\"remarks\":\"%s\",\"followUp\":\"%s\",\"createdDate\":\"%s\",\"date\":\"%s\"}",
+                            escape(p.getPrescriptionId()), escape(p.getPrescriptionId()),
+                            escape(p.getAppointmentId()),
+                            escape(p.getDoctorId()), escape(docName), escape(docName),
+                            escape(docDept), escape(docDept),
+                            escape(p.getPatientId()), escape(p.getPatientId()),
+                            escape(pName), escape(pName), escape(pName),
+                            escape(pAge), escape(pAge), escape(pAge),
+                            escape(pGender), escape(pGender), escape(pGender),
+                            escape(ageGender),
+                            escape(pBlood), escape(pBlood), escape(pBlood),
+                            escape(p.getDiagnosis()), escape(p.getMedicines()),
+                            escape(p.getDoctorNotes()), escape(p.getDoctorNotes()), escape(p.getDoctorNotes()),
+                            escape(p.getFollowUp()),
+                            escape(p.getCreatedDate()), escape(p.getCreatedDate())));
                     if (i < list.size() - 1)
                         sb.append(",");
                 }
@@ -1281,20 +1299,35 @@ public class Server {
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                 Map<String, String> fields = parseJsonFlat(body);
 
-                String rxId = fields.getOrDefault("prescriptionId", "RX-" + (100000 + new Random().nextInt(900000)));
+                String rxId = fields.getOrDefault("prescriptionId", fields.getOrDefault("rxId", "RX-" + (100000 + new Random().nextInt(900000))));
                 String apptId = fields.getOrDefault("appointmentId", "TK-1001");
                 String docId = fields.getOrDefault("doctorId", "DOC10084");
-                String pId = fields.getOrDefault("patientId", "PT100842");
+                String pId = fields.getOrDefault("patientId", fields.getOrDefault("pId", "PT100842"));
+                String pName = fields.getOrDefault("patientName", fields.getOrDefault("pName", fields.getOrDefault("patient", "")));
+                String pAge = fields.getOrDefault("patientAge", fields.getOrDefault("age", fields.getOrDefault("pAge", "")));
+                String pGender = fields.getOrDefault("patientGender", fields.getOrDefault("gender", fields.getOrDefault("pGender", "")));
+                String pBlood = fields.getOrDefault("bloodGroup", fields.getOrDefault("blood", fields.getOrDefault("pBlood", "")));
+                String docName = fields.getOrDefault("doctorName", fields.getOrDefault("docName", ""));
+                String docDept = fields.getOrDefault("doctorDept", fields.getOrDefault("docDept", ""));
                 String diag = fields.getOrDefault("diagnosis", "Clinical Consultation");
-                String meds = fields.getOrDefault("medicines", "");
-                String notes = fields.getOrDefault("doctorNotes", "");
+                String meds = fields.getOrDefault("medicines", fields.getOrDefault("meds", ""));
+                String notes = fields.getOrDefault("doctorNotes", fields.getOrDefault("remarks", fields.getOrDefault("advice", "")));
                 String followUp = fields.getOrDefault("followUp", "5 Days");
 
-                Prescription p = new Prescription(rxId, apptId, docId, pId, diag, meds, notes, followUp,
-                        new Date().toString());
+                String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd").format(new Date());
+                Prescription p = new Prescription(rxId, apptId, docId, pId, diag, meds, notes, followUp, todayStr,
+                        pName, pAge, pGender, pBlood, docName, docDept);
                 boolean ok = prescriptionDAO.createPrescription(p);
                 if (ok && apptId != null && !apptId.trim().isEmpty()) {
                     appointmentDAO.updateAppointmentStatus(apptId, "COMPLETED");
+                    if (!pName.isEmpty()) {
+                        try (Connection conn = DBConnection.getConnection();
+                             PreparedStatement ps = conn.prepareStatement("UPDATE appointments SET patient_name = ? WHERE appointment_id = ?")) {
+                            ps.setString(1, pName);
+                            ps.setString(2, apptId);
+                            ps.executeUpdate();
+                        } catch (Exception ignored) {}
+                    }
                 }
 
                 // AUTOMATIC PHARMACY WORKFLOW TRIGGER (ONLY FOR INVENTORY MEDICINES)
@@ -1422,8 +1455,8 @@ public class Server {
                 }
 
                 send(exchange, 200, "application/json", String.format(
-                        "{\"success\":%b,\"prescriptionId\":\"%s\",\"pharmacyToken\":\"%s\",\"orderId\":\"%s\",\"totalAmount\":%.2f}",
-                        ok, escape(rxId), escape(phaToken), escape(orderId), pOrder.getTotalAmount()));
+                        "{\"success\":%b,\"prescriptionId\":\"%s\",\"rxId\":\"%s\",\"patientName\":\"%s\",\"pharmacyToken\":\"%s\",\"orderId\":\"%s\",\"totalAmount\":%.2f}",
+                        ok, escape(rxId), escape(rxId), escape(pName), escape(phaToken), escape(orderId), pOrder.getTotalAmount()));
             }
         }
     }

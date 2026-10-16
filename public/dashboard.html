@@ -1707,7 +1707,7 @@
 
     <div style="font-size:0.85rem; line-height:1.6; margin-bottom:16px;">
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:var(--bg); padding:12px; border-radius:8px; margin-bottom:14px;">
-        <div><b>Patient Name:</b> <span id="rxPatientName" style="font-weight:700;">Patient</span> (20 Y/M)</div>
+        <div><b>Patient Name:</b> <span id="rxPatientName" style="font-weight:700;">Patient</span> <span id="rxPatientAgeGender" style="color:var(--ink-soft); font-weight:600;">(28 Y/F)</span></div>
         <div><b>Rx Date:</b> <span id="rxDate">Today (Latest Consultation)</span></div>
         <div><b>Doctor Name:</b> <span id="rxDocName">-</span></div>
         <div><b>Department:</b> <span id="rxDept">-</span></div>
@@ -2690,14 +2690,30 @@
     const modal = document.getElementById('prescriptionPdfModal');
     if (!modal) return;
 
-    const rxIdStr = rx.rxId || rx.id || 'RX-100842';
-    const docNameStr = fallbackDocName || rx.docName || getSelectedOrAttendingDoctorName() || 'Attending Physician';
-    const docDeptStr = fallbackDocDept || rx.docDept || 'Consultant Specialist · MD';
-    const patientNameStr = rx.pName || rx.patientName || savedName;
+    const rxIdStr = rx.rxId || rx.prescriptionId || rx.id || 'RX-100842';
+    const docNameStr = fallbackDocName || rx.docName || rx.doctorName || getSelectedOrAttendingDoctorName() || 'Attending Physician';
+    const docDeptStr = fallbackDocDept || rx.docDept || rx.doctorDept || (rx.dept ? (rx.dept.includes('Specialist') ? rx.dept : rx.dept + ' Specialist · MD') : 'Consultant Specialist · MD');
+    const patientNameStr = rx.pName || rx.patientName || (rx.patient && rx.patient !== 'Guest Patient' ? rx.patient : '') || rx.name || savedName;
     const patientIdStr = rx.pId || rx.patientId || savedPatientId;
-    const dateStr = rx.date || new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+    const dateStr = rx.date || rx.createdDate || new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
     const diagnosisStr = rx.diagnosis || 'General Clinical Consultation';
-    const adviceStr = rx.advice || 'Follow prescribed medication schedule and drink adequate water.';
+    const adviceStr = rx.advice || rx.remarks || rx.doctorNotes || 'Follow prescribed medication schedule and drink adequate water.';
+
+    // Extract Age, Gender & Blood from prescription first, falling back to patient profile
+    const rxAge = rx.pAge || rx.age || rx.patientAge;
+    const rxGender = rx.pGender || rx.gender || rx.patientGender;
+    const rxBlood = rx.pBlood || rx.blood || rx.bloodGroup;
+
+    let ageGenderDisplay = '';
+    if (rx.ageGender && String(rx.ageGender).trim()) {
+      const bloodSuffix = rxBlood ? ` (${rxBlood})` : (savedBlood ? ` (${savedBlood})` : '');
+      ageGenderDisplay = `${String(rx.ageGender).trim()}${String(rx.ageGender).includes('(') ? '' : bloodSuffix}`;
+    } else {
+      const finalAge = rxAge || savedAge;
+      const finalGender = rxGender || savedGender;
+      const finalBlood = rxBlood || savedBlood;
+      ageGenderDisplay = `${finalAge} Yrs / ${finalGender} (${finalBlood})`;
+    }
 
     document.getElementById('rxModalDocName').textContent = docNameStr;
     document.getElementById('rxModalDocDept').textContent = docDeptStr;
@@ -2705,7 +2721,7 @@
     document.getElementById('rxModalDate').textContent = 'Date: ' + dateStr;
     document.getElementById('rxModalPatientName').textContent = patientNameStr;
     document.getElementById('rxModalPatientId').textContent = patientIdStr;
-    document.getElementById('rxModalAgeGender').textContent = `${savedAge} Yrs / ${savedGender} (${savedBlood})`;
+    document.getElementById('rxModalAgeGender').textContent = ageGenderDisplay;
     document.getElementById('rxModalDiagnosis').textContent = diagnosisStr;
     document.getElementById('rxModalAdvice').textContent = adviceStr;
 
@@ -2802,8 +2818,7 @@ DEPARTMENT      : ${docDeptStr}
 
 PATIENT ID      : ${patientIdStr}
 PATIENT NAME    : ${patientNameStr}
-AGE & GENDER    : ${savedAge} Yrs / ${savedGender}
-BLOOD GROUP     : ${savedBlood}
+AGE / GENDER / BLOOD: ${ageGenderDisplay}
 
 --------------------------------------------------------------------------------
 CLINICAL DIAGNOSIS & SYMPTOMS:
@@ -2858,6 +2873,11 @@ ${adviceStr}
       } catch(e){}
     }
 
+    // Fallback: check cached server list
+    if (prescs.length === 0 && Array.isArray(window.cachedPatientRxList) && window.cachedPatientRxList.length > 0) {
+      prescs = window.cachedPatientRxList;
+    }
+
     if (prescs.length === 0) {
       container.innerHTML = '<div class="panel" style="padding:40px; text-align:center; color:var(--ink-soft); font-weight:600;">📋 No active prescriptions issued for your account yet.</div>';
       return;
@@ -2867,9 +2887,10 @@ ${adviceStr}
       <div class="panel" style="margin-bottom:20px; border-left:4px solid var(--teal-500); padding:24px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:16px;">
           <div>
-            <span class="status-pill ok" style="font-family:monospace; font-weight:800; margin-bottom:6px; display:inline-block;">${p.rxId || p.id || 'RX-' + idx}</span>
-            <h3 style="font-size:1.15rem; color:var(--blue-900); margin:0;">${p.docName || 'Attending Physician'}</h3>
-            <span style="font-size:0.8rem; color:var(--ink-soft);">${p.docDept || 'General Medicine'} · Issued on ${p.date || 'Today'}</span>
+            <span class="status-pill ok" style="font-family:monospace; font-weight:800; margin-bottom:6px; display:inline-block;">${p.rxId || p.prescriptionId || p.id || 'RX-' + idx}</span>
+            <h3 style="font-size:1.15rem; color:var(--blue-900); margin:0;">${p.docName || p.doctorName || 'Attending Physician'}</h3>
+            <span style="font-size:0.8rem; color:var(--ink-soft);">${p.docDept || p.doctorDept || 'General Medicine'} · Issued on ${p.date || p.createdDate || 'Today'}</span>
+            ${(p.patientName || p.pName) ? `<div style="font-size:0.82rem; color:var(--teal-600); font-weight:700; margin-top:4px;">👤 Patient: ${p.patientName || p.pName}${p.ageGender ? ` (${p.ageGender})` : (p.age ? ` (${p.age} Yrs)` : '')}</div>` : ''}
           </div>
           <button type="button" class="btn btn-ghost btn-sm btn-open-rx-modal" data-idx="${idx}" style="font-weight:700; color:var(--teal-500); border: 1px solid var(--teal-500);">
             📥 View & Download / Print PDF
@@ -2905,9 +2926,9 @@ ${adviceStr}
           </table>
         </div>
 
-        ${p.advice ? `
+        ${(p.advice || p.remarks || p.doctorNotes) ? `
           <div style="background:rgba(10,122,112,0.06); border:1px solid rgba(10,122,112,0.15); padding:12px 16px; border-radius:10px; font-size:0.85rem; color:var(--blue-900);">
-            <b>🩺 Doctor Advice:</b> ${p.advice}
+            <b>🩺 Doctor Advice:</b> ${p.advice || p.remarks || p.doctorNotes}
           </div>
         ` : ''}
       </div>
@@ -2917,7 +2938,7 @@ ${adviceStr}
       btn.addEventListener('click', () => {
         const i = parseInt(btn.dataset.idx, 10);
         if (!isNaN(i) && prescs[i]) {
-          openPrescriptionPdfModal(prescs[i], prescs[i].docName, prescs[i].docDept);
+          openPrescriptionPdfModal(prescs[i], prescs[i].docName || prescs[i].doctorName, prescs[i].docDept || prescs[i].doctorDept);
         }
       });
     });
@@ -3559,13 +3580,8 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     const targetShort = dayNames[targetDayIdx];
     const targetFull = fullDayNames[targetDayIdx];
 
-    // Single or discrete days list (e.g., "Mon, Wed, Fri" or "Sat, Sun")
-    if (!cleanStr.includes('-') && !cleanStr.includes('–') && !cleanStr.includes('TO')) {
-      return cleanStr.includes(targetShort) || cleanStr.includes(targetFull);
-    }
-
     // Range parsing (e.g., "Mon - Sat", "Mon - Fri", "Mon to Wed")
-    const rangeParts = cleanStr.split(/[-\u2013\u2014TO]/i).map(s => s.trim());
+    const rangeParts = cleanStr.split(/[-\u2013\u2014]|\bTO\b/i).map(s => s.trim()).filter(Boolean);
     if (rangeParts.length >= 2) {
       let startIdx = -1;
       let endIdx = -1;
@@ -3602,25 +3618,51 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       let localReg = [];
       try { localReg = JSON.parse(localStorage.getItem('niramaya_doctors_registry') || '[]'); } catch(e){}
 
+      // Canonical key helper to deduplicate by doctor name across ID variants (e.g. DOC1001 vs DOC10084)
+      function getDoctorCanonicalKey(d) {
+        if (!d) return '';
+        const nameClean = (d.doctorName || d.name || '').toLowerCase()
+          .replace(/^dr\.\s*/i, '')
+          .replace(/^dr\s+/i, '')
+          .replace(/[^a-z0-9]/g, '');
+        if (nameClean.length >= 3) return nameClean;
+        return (d.doctorId || d.id || d.email || '').toLowerCase().trim();
+      }
+
       // Map of docs
       const mergedDocsMap = new Map();
 
-      // Seed with API docs
+      // Seed with API docs with smart name-based deduplication
       if (Array.isArray(dbDocs)) {
         dbDocs.forEach(d => {
-          const key = (d.doctorId || d.email || d.name || '').toLowerCase();
-          mergedDocsMap.set(key, d);
+          const key = getDoctorCanonicalKey(d);
+          if (!mergedDocsMap.has(key)) {
+            mergedDocsMap.set(key, d);
+          } else {
+            // Keep the canonical demo doctor record (e.g., DOC1008x / doctor@niramaya.health)
+            const ex = mergedDocsMap.get(key);
+            const isIncomingPreferred = (d.email && d.email === 'doctor@niramaya.health') || 
+                                       (d.doctorId && d.doctorId.startsWith('DOC1008'));
+            if (isIncomingPreferred) {
+              mergedDocsMap.set(key, { ...ex, ...d });
+            } else {
+              mergedDocsMap.set(key, { ...d, ...ex });
+            }
+          }
         });
       }
 
       // Merge local live registry entries (takes precedence for instant status update)
       localReg.forEach(lr => {
-        const key = (lr.doctorId || lr.email || lr.name || '').toLowerCase();
+        const key = getDoctorCanonicalKey(lr);
         if (mergedDocsMap.has(key)) {
           const ex = mergedDocsMap.get(key);
           mergedDocsMap.set(key, {
             ...ex,
             ...lr,
+            days: lr.days || lr.workingDays || ex.days || ex.workingDays || 'Mon - Sat',
+            workingDays: lr.workingDays || lr.days || ex.workingDays || ex.days || 'Mon - Sat',
+            workingHours: lr.workingHours || ex.workingHours || '09:00 AM - 05:00 PM',
             status: lr.status || ex.status,
             availableStatus: lr.status || ex.availableStatus,
             isAvailable: lr.isAvailable !== undefined ? lr.isAvailable : ex.appointmentAvailable,
@@ -3720,6 +3762,10 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
             doc.isAvailable = Boolean(msg.data.isAvailable);
             doc.acceptAppointments = msg.data.acceptAppointments || (msg.data.isAvailable ? 'Yes' : 'No');
             doc.appointmentAvailable = Boolean(msg.data.isAvailable);
+            if (msg.data.days) doc.days = msg.data.days;
+            if (msg.data.workingDays) doc.workingDays = msg.data.workingDays;
+            if (msg.data.timing) doc.timing = msg.data.timing;
+            if (msg.data.workingHours) doc.workingHours = msg.data.workingHours;
             doc.updatedAt = Date.now();
           } else {
             reg.unshift({
@@ -3730,6 +3776,10 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
               doctorName: msg.data.name || 'Dr. Doctor',
               dept: msg.data.dept || 'General Medicine',
               role: `${msg.data.dept || 'General Medicine'} Specialist`,
+              days: msg.data.days || msg.data.workingDays || 'Mon - Sat',
+              workingDays: msg.data.workingDays || msg.data.days || 'Mon - Sat',
+              timing: msg.data.timing || '09:00 AM - 05:00 PM (Mon - Sat)',
+              workingHours: msg.data.workingHours || '09:00 AM - 05:00 PM',
               fee: 800,
               status: msg.data.status || 'Online & Accepting Appointments',
               availableStatus: msg.data.status || 'Online & Accepting Appointments',
@@ -3810,11 +3860,14 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       }
 
       // 2. Registered Working Day Filter:
-      // If doctor is online & accepting appointments right now, always show on Today!
-      if (selectedBookingDay === 'today' && d.isAvailable) {
-        return true;
-      }
+      // Doctor must be scheduled to work on the selected day (Today or Tomorrow)
       if (!isDoctorWorkingOnDay(d.days, selectedDateObj)) {
+        return false;
+      }
+
+      // 3. Live Status Filter:
+      // For Today: Only show doctors who are currently Online and accepting appointments
+      if (selectedBookingDay === 'today' && !d.isAvailable) {
         return false;
       }
 
@@ -3830,16 +3883,23 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     }
 
     const currentBookingDate = selectedBookingDay === 'today' ? dateTodayStr : dateTomorrowStr;
+    const nowTimeObj = new Date();
+    const currentMinutesNow = nowTimeObj.getHours() * 60 + nowTimeObj.getMinutes();
 
     // Get all user booked slots to block them in real-time
     const userBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
     const bookedKeys = new Set(userBookings.map(b => `${b.docName}|${b.date}|${b.time}`));
 
     filteredDocs.forEach(doc => {
-      const todayAvailable = doc.todaySlots.filter(time => !bookedKeys.has(`${doc.name}|${dateTodayStr}|${time}`)).length;
-      const isTodayFull = todayAvailable === 0;
-
       const slots = selectedBookingDay === 'today' ? doc.todaySlots : doc.tomorrowSlots;
+
+      // Filter available upcoming slots for today (exclude booked and past time slots)
+      const todayAvailable = doc.todaySlots.filter(time => {
+        const slotMin = parseTimeMinutes(time);
+        const isPastSlot = selectedBookingDay === 'today' && !isNaN(slotMin) && slotMin <= currentMinutesNow;
+        return !isPastSlot && !bookedKeys.has(`${doc.name}|${dateTodayStr}|${time}`);
+      }).length;
+      const isTodayFull = todayAvailable === 0;
 
       const card = document.createElement('div');
       card.className = 'doc-card';
@@ -3854,9 +3914,13 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       let slotsHtml = slots.map((time) => {
         const slotKey = `${doc.name}|${currentBookingDate}|${time}`;
         const isBooked = bookedKeys.has(slotKey);
+        const slotMin = parseTimeMinutes(time);
+        const isPastToday = selectedBookingDay === 'today' && !isNaN(slotMin) && slotMin <= currentMinutesNow;
 
         if (isBooked) {
           return `<button type="button" class="slot-btn booked" disabled title="Slot reserved by another patient (20-min slot occupied)" style="opacity:0.45; cursor:not-allowed; text-decoration:line-through; background:rgba(225,91,91,0.1) !important; color:var(--danger) !important; border-color:rgba(225,91,91,0.3) !important;">${time} 🔒</button>`;
+        } else if (isPastToday) {
+          return `<button type="button" class="slot-btn past" disabled title="This time slot has already passed for today" style="opacity:0.35; cursor:not-allowed; text-decoration:line-through; background:#F1F5F9; color:#94A3B8; border-color:#E2E8F0;">${time}</button>`;
         } else {
           return `<button type="button" class="slot-btn" data-docid="${doc.id}" data-time="${time}">${time}</button>`;
         }
@@ -4269,59 +4333,75 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     const token = (booking.token || booking.appointmentId || '').trim();
     const docClean = (booking.docName || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
 
+    let matched = null;
+
     // 1. In-memory prescription on booking object
-    if (booking.prescription && typeof booking.prescription === 'object' && booking.prescription.rxId) {
-      return booking.prescription;
+    if (booking.prescription && typeof booking.prescription === 'object' && (booking.prescription.rxId || booking.prescription.prescriptionId)) {
+      matched = Object.assign({}, booking.prescription);
     }
 
     // 2. Prescription stored by token
-    if (token) {
+    if (!matched && token) {
       try {
         const tList = JSON.parse(localStorage.getItem('niramaya_rx_by_token_' + token) || '[]');
-        if (tList.length > 0 && tList[0].rxId) return tList[0];
+        if (tList.length > 0 && (tList[0].rxId || tList[0].prescriptionId)) {
+          matched = Object.assign({}, tList[0]);
+        }
       } catch(e){}
     }
 
     // 3. Prescription lists
-    let allRx = [];
-    if (Array.isArray(window.cachedPatientRxList)) allRx.push(...window.cachedPatientRxList);
-    try {
-      const pRx = JSON.parse(localStorage.getItem('niramaya_prescriptions_' + (pid || savedPatientId)) || '[]');
-      allRx.push(...pRx);
-    } catch(e){}
-    try {
-      const gRx = JSON.parse(localStorage.getItem('niramaya_all_prescriptions') || '[]');
-      allRx.push(...gRx);
-    } catch(e){}
+    if (!matched) {
+      let allRx = [];
+      try {
+        const pRx = JSON.parse(localStorage.getItem('niramaya_prescriptions_' + (pid || savedPatientId)) || '[]');
+        allRx.push(...pRx);
+      } catch(e){}
+      try {
+        const gRx = JSON.parse(localStorage.getItem('niramaya_all_prescriptions') || '[]');
+        allRx.push(...gRx);
+      } catch(e){}
+      if (Array.isArray(window.cachedPatientRxList)) allRx.push(...window.cachedPatientRxList);
 
-    // Match by appointmentId / token
-    if (token) {
-      const cleanTok = token.replace('#', '');
-      const found = allRx.find(r => {
-        const rAppt = (r.appointmentId || r.token || '').replace('#', '');
-        return rAppt && rAppt === cleanTok;
-      });
-      if (found) return found;
+      // Match by appointmentId / token
+      if (token) {
+        const cleanTok = token.replace('#', '');
+        const found = allRx.find(r => {
+          const rAppt = (r.appointmentId || r.token || '').replace('#', '');
+          return rAppt && rAppt === cleanTok;
+        });
+        if (found) matched = Object.assign({}, found);
+      }
+
+      // Match by rxId if appointment holds rxId
+      if (!matched && booking.rxId) {
+        const found = allRx.find(r => (r.rxId === booking.rxId || r.prescriptionId === booking.rxId));
+        if (found) matched = Object.assign({}, found);
+      }
+
+      // If consultation was completed by doctor, check if doctor issued prescription for this patient
+      if (!matched && booking.status && booking.status.toLowerCase().includes('completed') && docClean) {
+        const found = allRx.find(r => {
+          const rPid = r.pId || r.patientId;
+          if (rPid && pid && rPid !== pid) return false;
+          const rDoc = (r.docName || r.doctorName || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
+          return rDoc && (rDoc.includes(docClean) || docClean.includes(rDoc));
+        });
+        if (found) matched = Object.assign({}, found);
+      }
     }
 
-    // Match by rxId if appointment holds rxId
-    if (booking.rxId) {
-      const found = allRx.find(r => (r.rxId === booking.rxId || r.prescriptionId === booking.rxId));
-      if (found) return found;
+    if (matched) {
+      if ((!matched.patientName && !matched.pName) && (booking.patient && booking.patient !== 'Guest Patient')) {
+        matched.patientName = booking.patient;
+        matched.pName = booking.patient;
+      }
+      if (!matched.ageGender && booking.ageGender) {
+        matched.ageGender = booking.ageGender;
+      }
     }
 
-    // If consultation was completed by doctor, check if doctor issued prescription for this patient
-    if (booking.status && booking.status.toLowerCase().includes('completed') && docClean) {
-      const found = allRx.find(r => {
-        const rPid = r.pId || r.patientId;
-        if (rPid && pid && rPid !== pid) return false;
-        const rDoc = (r.docName || r.doctorName || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
-        return rDoc && (rDoc.includes(docClean) || docClean.includes(rDoc));
-      });
-      if (found) return found;
-    }
-
-    return null;
+    return matched;
   }
 
   // Render User Bookings Table with Today's Work vs Completed History server filtering
@@ -4722,7 +4802,11 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     const userBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
     let latest = userBookings.length > 0 ? userBookings[0] : null;
 
-    if (rxName) rxName.textContent = (latest && latest.patient) ? latest.patient : (savedName || 'Patient');
+    const rxAgeEl = document.getElementById('rxPatientAgeGender');
+    const pNameVal = (latest && latest.prescription && (latest.prescription.patientName || latest.prescription.pName)) || (latest && latest.patient && latest.patient !== 'Guest Patient' ? latest.patient : '') || savedName || 'Patient';
+    const pAgeVal = (latest && latest.prescription && (latest.prescription.ageGender || latest.prescription.age)) || (latest && latest.ageGender) || `${savedAge} Yrs / ${savedGender}`;
+    if (rxName) rxName.textContent = pNameVal;
+    if (rxAgeEl) rxAgeEl.textContent = `(${pAgeVal})`;
     if (rxDoc) rxDoc.textContent = (latest && latest.docName) ? latest.docName : (getSelectedOrAttendingDoctorName() || 'Attending Physician');
     if (rxDept) rxDept.textContent = (latest && latest.dept) ? latest.dept : 'General OPD';
     if (rxDate) rxDate.textContent = (latest && latest.date) ? `${latest.date} · ${latest.time}` : 'Today (Active Rx)';
@@ -5128,7 +5212,8 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       alert('No active appointment or prescription available to download.');
       return;
     }
-    const pName = latest.patient || savedName || 'Patient';
+    const pName = (latest && latest.prescription && (latest.prescription.patientName || latest.prescription.pName)) || (latest && latest.patient && latest.patient !== 'Guest Patient' ? latest.patient : '') || savedName || 'Patient';
+    const pAgeGender = (latest && latest.prescription && (latest.prescription.ageGender || latest.prescription.age)) || (latest && latest.ageGender) || `${savedAge} Yrs / ${savedGender}`;
 
     const medSection = (latest && latest.prescription && latest.prescription.medications)
       ? latest.prescription.medications
@@ -5151,7 +5236,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
 Prescription No : RX-NIRAMAYA-20260728-101
 Date            : ${latest.date || 'Today'}
 Patient Name    : ${pName}
-Age / Gender    : ${savedAge} Yrs / ${savedGender}
+Age / Gender    : ${pAgeGender}
 Doctor Name     : ${latest.docName}
 Department      : ${latest.dept}
 Token Number    : ${latest.token || '#TK-101'}

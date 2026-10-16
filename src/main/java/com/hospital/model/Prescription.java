@@ -13,6 +13,12 @@ public class Prescription {
     private String doctorNotes;
     private String followUp;
     private String createdDate;
+    private String patientName;
+    private String patientAge;
+    private String patientGender;
+    private String bloodGroup;
+    private String doctorName;
+    private String doctorDept;
 
     public Prescription() {}
 
@@ -27,6 +33,19 @@ public class Prescription {
         this.doctorNotes = doctorNotes;
         this.followUp = followUp;
         this.createdDate = createdDate;
+    }
+
+    public Prescription(String prescriptionId, String appointmentId, String doctorId, String patientId,
+                        String diagnosis, String medicines, String doctorNotes, String followUp, String createdDate,
+                        String patientName, String patientAge, String patientGender, String bloodGroup,
+                        String doctorName, String doctorDept) {
+        this(prescriptionId, appointmentId, doctorId, patientId, diagnosis, medicines, doctorNotes, followUp, createdDate);
+        this.patientName = patientName;
+        this.patientAge = patientAge;
+        this.patientGender = patientGender;
+        this.bloodGroup = bloodGroup;
+        this.doctorName = doctorName;
+        this.doctorDept = doctorDept;
     }
 
     public String getPrescriptionId() { return prescriptionId; }
@@ -55,4 +74,22 @@ public class Prescription {
 
     public String getCreatedDate() { return createdDate; }
     public void setCreatedDate(String createdDate) { this.createdDate = createdDate; }
+
+    public String getPatientName() { return patientName; }
+    public void setPatientName(String patientName) { this.patientName = patientName; }
+
+    public String getPatientAge() { return patientAge; }
+    public void setPatientAge(String patientAge) { this.patientAge = patientAge; }
+
+    public String getPatientGender() { return patientGender; }
+    public void setPatientGender(String patientGender) { this.patientGender = patientGender; }
+
+    public String getBloodGroup() { return bloodGroup; }
+    public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
+
+    public String getDoctorName() { return doctorName; }
+    public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
+
+    public String getDoctorDept() { return doctorDept; }
+    public void setDoctorDept(String doctorDept) { this.doctorDept = doctorDept; }
 }

@@ -22,7 +22,7 @@ public class PrescriptionDAO {
             MEM_PRESCRIPTIONS.put(p.getPrescriptionId(), p);
         }
 
-        String sql = "INSERT INTO prescriptions (prescription_id, appointment_id, doctor_id, patient_id, diagnosis, medicines, doctor_notes, follow_up, created_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO prescriptions (prescription_id, appointment_id, doctor_id, patient_id, diagnosis, medicines, doctor_notes, follow_up, created_date, created_at, patient_name, patient_age, patient_gender, blood_group, doctor_name, doctor_dept) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -36,10 +36,33 @@ public class PrescriptionDAO {
             ps.setString(8, p.getFollowUp());
             ps.setString(9, p.getCreatedDate() != null ? p.getCreatedDate() : nowStr);
             ps.setString(10, nowStr);
+            ps.setString(11, p.getPatientName() != null ? p.getPatientName() : "");
+            ps.setString(12, p.getPatientAge() != null ? p.getPatientAge() : "");
+            ps.setString(13, p.getPatientGender() != null ? p.getPatientGender() : "");
+            ps.setString(14, p.getBloodGroup() != null ? p.getBloodGroup() : "");
+            ps.setString(15, p.getDoctorName() != null ? p.getDoctorName() : "");
+            ps.setString(16, p.getDoctorDept() != null ? p.getDoctorDept() : "");
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error saving prescription: " + e.getMessage());
+            System.err.println("Notice: inserting with extended prescription columns failed (" + e.getMessage() + "), attempting fallback insert...");
+            try (Connection conn = DBConnection.getConnection();
+                 PreparedStatement psFallback = conn.prepareStatement(
+                     "INSERT INTO prescriptions (prescription_id, appointment_id, doctor_id, patient_id, diagnosis, medicines, doctor_notes, follow_up, created_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                psFallback.setString(1, p.getPrescriptionId());
+                psFallback.setString(2, p.getAppointmentId());
+                psFallback.setString(3, p.getDoctorId());
+                psFallback.setString(4, p.getPatientId());
+                psFallback.setString(5, p.getDiagnosis());
+                psFallback.setString(6, p.getMedicines());
+                psFallback.setString(7, p.getDoctorNotes());
+                psFallback.setString(8, p.getFollowUp());
+                psFallback.setString(9, p.getCreatedDate() != null ? p.getCreatedDate() : nowStr);
+                psFallback.setString(10, nowStr);
+                return psFallback.executeUpdate() > 0;
+            } catch (SQLException ex) {
+                System.err.println("Fallback prescription save error: " + ex.getMessage());
+            }
             return true; // cached in MEM_PRESCRIPTIONS
         }
     }
@@ -129,7 +152,7 @@ public class PrescriptionDAO {
     }
 
     private Prescription mapResultSetToPrescription(ResultSet rs) throws SQLException {
-        return new Prescription(
+        Prescription p = new Prescription(
             rs.getString("prescription_id"),
             rs.getString("appointment_id"),
             rs.getString("doctor_id"),
@@ -140,5 +163,12 @@ public class PrescriptionDAO {
             rs.getString("follow_up"),
             rs.getString("created_date")
         );
+        try { p.setPatientName(rs.getString("patient_name")); } catch(Exception ignored){}
+        try { p.setPatientAge(rs.getString("patient_age")); } catch(Exception ignored){}
+        try { p.setPatientGender(rs.getString("patient_gender")); } catch(Exception ignored){}
+        try { p.setBloodGroup(rs.getString("blood_group")); } catch(Exception ignored){}
+        try { p.setDoctorName(rs.getString("doctor_name")); } catch(Exception ignored){}
+        try { p.setDoctorDept(rs.getString("doctor_dept")); } catch(Exception ignored){}
+        return p;
     }
 }
