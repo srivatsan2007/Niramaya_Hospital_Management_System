@@ -144,7 +144,7 @@ public class StockManager {
             newStock += quantity;
         } else if ("Decrease".equalsIgnoreCase(actionType)) {
             newStock = Math.max(0, currentStock - quantity);
-        } else if ("Adjust".equalsIgnoreCase(actionType)) {
+        } else if ("Adjust".equalsIgnoreCase(actionType) || "Adjustment".equalsIgnoreCase(actionType) || "Set".equalsIgnoreCase(actionType)) {
             newStock = Math.max(0, quantity);
         }
 

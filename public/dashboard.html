@@ -6193,7 +6193,9 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       currentLabReports.forEach(r => {
         const pId = r.patientId || savedPatientId || 'PT100842';
         const rId = r.reportId || 'REP-100842';
-        const pdfUrl = `/Reports/${r.reportFile || ('LabReport_' + pId + '_' + rId + '.pdf')}`;
+        const reportFileName = r.reportFile || ('LabReport_' + pId + '_' + rId + '.pdf');
+        const pdfUrl = `/Reports/${reportFileName}`;
+        const downloadUrl = `/Reports/${reportFileName}?download=true`;
 
         let matchedDoc = r.doctorName;
         if (r.bookingId) {
@@ -6210,12 +6212,13 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
           <td style="padding:12px 14px;"><b>${rId}</b></td>
           <td style="padding:12px 14px;"><strong style="color:#0D6EFD;">${r.testName}</strong></td>
           <td style="padding:12px 14px; font-weight:600;">${matchedDoc}</td>
-          <td style="padding:12px 14px;">${r.uploadedBy || 'Lab Tech Specialist'}</td>
-          <td style="padding:12px 14px;">${r.reportDate || '29 Jul 2026'}</td>
+          <td style="padding:12px 14px;">${r.uploadedBy || 'Senior Lab Technologist'}</td>
+          <td style="padding:12px 14px;">${r.reportDate || 'Today'}</td>
           <td style="padding:12px 14px;"><span style="background:#DCFCE7; color:#15803D; font-weight:700; padding:4px 10px; border-radius:12px; font-size:0.75rem;">Verified Ready</span></td>
-          <td style="padding:12px 14px; text-align:right; display:flex; justify-content:flex-end; gap:8px;">
-            <button class="btn btn-ghost" style="padding:6px 12px; font-size:0.78rem;" onclick="openViewLabReportModal('${rId}')">👁️ View Details</button>
-            <a href="${pdfUrl}" target="_blank" class="btn btn-primary" style="padding:6px 12px; font-size:0.78rem; background:#00C853; border-color:#00C853; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600;">📄 View PDF Online</a>
+          <td style="padding:12px 14px; text-align:right; display:flex; justify-content:flex-end; gap:6px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" style="padding:5px 10px; font-size:0.75rem;" onclick="openViewLabReportModal('${rId}')">👁️ Details</button>
+            <a href="${pdfUrl}" target="_blank" class="btn btn-primary" style="padding:5px 10px; font-size:0.75rem; background:#00C853; border-color:#00C853; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600;">📄 View Online</a>
+            <a href="${downloadUrl}" target="_blank" class="btn btn-teal" style="padding:5px 10px; font-size:0.75rem; background:#0AB2A7; border-color:#0AB2A7; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600;">📥 Download</a>
           </td>
         `;
         tbody.appendChild(tr);
@@ -6281,26 +6284,37 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       document.getElementById('repModalRemarks').textContent = rep.remarks || 'Sample analyzed in automated diagnostic analyzer. Results correlate with clinical presentation.';
 
       const tbody = document.getElementById('repModalTableTbody');
-      tbody.innerHTML = `
-        <tr style="border-bottom:1px solid #E2E8F0;">
-          <td style="padding:8px 12px;"><b>Hemoglobin (Hb)</b></td>
-          <td style="padding:8px 12px; font-weight:700; color:#00C853;">14.2 g/dL</td>
-          <td style="padding:8px 12px;">13.0 - 17.0 g/dL</td>
-          <td style="padding:8px 12px; color:#00C853;">Normal</td>
-        </tr>
-        <tr style="border-bottom:1px solid #E2E8F0;">
-          <td style="padding:8px 12px;"><b>Total WBC Count</b></td>
-          <td style="padding:8px 12px; font-weight:700; color:#00C853;">6,500 /mcL</td>
-          <td style="padding:8px 12px;">4,500 - 11,000 /mcL</td>
-          <td style="padding:8px 12px; color:#00C853;">Normal</td>
-        </tr>
-        <tr style="border-bottom:1px solid #E2E8F0;">
-          <td style="padding:8px 12px;"><b>Platelet Count</b></td>
-          <td style="padding:8px 12px; font-weight:700; color:#00C853;">280,000 /mcL</td>
-          <td style="padding:8px 12px;">150,000 - 450,000 /mcL</td>
-          <td style="padding:8px 12px; color:#00C853;">Normal</td>
-        </tr>
-      `;
+      tbody.innerHTML = '';
+
+      let rowsHtml = '';
+      if (rep.testDataJson && rep.testDataJson.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(rep.testDataJson);
+          for (const [k, v] of Object.entries(parsed)) {
+            if (['Clinical Interpretation', 'Pathologist Remarks', 'Remarks', 'Interpretation'].includes(k)) continue;
+            rowsHtml += `
+              <tr style="border-bottom:1px solid #E2E8F0;">
+                <td style="padding:8px 12px;"><b>${k}</b></td>
+                <td style="padding:8px 12px; font-weight:700; color:#00C853;">${v}</td>
+                <td style="padding:8px 12px; color:#64748B;">Clinical Reference</td>
+                <td style="padding:8px 12px; color:#00C853;">Normal</td>
+              </tr>
+            `;
+          }
+        } catch(e){}
+      }
+
+      if (!rowsHtml) {
+        rowsHtml = `
+          <tr style="border-bottom:1px solid #E2E8F0;">
+            <td style="padding:8px 12px;"><b>Primary Parameter</b></td>
+            <td style="padding:8px 12px; font-weight:700; color:#00C853;">${rep.result || 'Normal Physiological Limits'}</td>
+            <td style="padding:8px 12px;">Standard Reference</td>
+            <td style="padding:8px 12px; color:#00C853;">Normal</td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = rowsHtml;
 
       document.getElementById('modalViewLabReport').style.display = 'flex';
     };
@@ -6312,7 +6326,8 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
     window.downloadLabReportPdf = function(rId) {
       const repId = rId || (activeReportObj ? activeReportObj.reportId : 'REP-100842');
       const pId = typeof savedPatientId !== 'undefined' ? savedPatientId : 'PT100842';
-      const pdfUrl = `/Reports/LabReport_${pId}_${repId}.pdf`;
+      const fileName = (activeReportObj && activeReportObj.reportFile) ? activeReportObj.reportFile : `LabReport_${pId}_${repId}.pdf`;
+      const pdfUrl = `/Reports/${fileName}?download=true`;
       window.open(pdfUrl, '_blank');
     };
 
@@ -7369,9 +7384,16 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
   async function submitAssistantMessage(e) {
     if (e && e.preventDefault) e.preventDefault();
     const input = document.getElementById('inputAssistantQuery');
+    const sendBtn = document.getElementById('btnSendAssistant');
     const msgStream = document.getElementById('astMessages');
-    const query = input.value.trim();
+    const query = input ? input.value.trim() : '';
     if (!query) return;
+
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = '0.6';
+      sendBtn.style.cursor = 'not-allowed';
+    }
 
     input.value = '';
     const currentLang = sessionStorage.getItem('niramaya_assistant_lang') || 'en';
@@ -7398,7 +7420,7 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
         body: JSON.stringify({ query: query, language: currentLang, patientId: pId })
       });
       const data = await res.json();
-      msgStream.removeChild(loadingBubble);
+      if (loadingBubble.parentNode) msgStream.removeChild(loadingBubble);
 
       const botBubble = document.createElement('div');
       if (data.isEmergency) {
@@ -7420,12 +7442,19 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       msgStream.appendChild(botBubble);
       msgStream.scrollTop = msgStream.scrollHeight;
     } catch(err) {
-      msgStream.removeChild(loadingBubble);
+      if (loadingBubble.parentNode) msgStream.removeChild(loadingBubble);
       const errBubble = document.createElement('div');
       errBubble.style.cssText = 'align-self:flex-start; background:#FEF2F2; color:#B91C1C; border-radius:12px; padding:8px 12px; font-size:0.8rem;';
       errBubble.textContent = currentLang === 'ta' ? 'மன்னிக்கவும், தகவலைப் பெற முடியவில்லை. பின்னர் முயற்சிக்கவும்.' : 'Unable to connect to hospital assistant. Please try again.';
       msgStream.appendChild(errBubble);
+    } finally {
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = '1';
+        sendBtn.style.cursor = 'pointer';
+      }
     }
+  }
   }
 
   function escapeHtml(str) {

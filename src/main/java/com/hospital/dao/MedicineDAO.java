@@ -179,24 +179,41 @@ public class MedicineDAO {
     public boolean updateMedicine(Medicine med) {
         med.setStatus(StockManager.calculateStatus(med.getStockQuantity(), med.getMinimumStock(), med.getExpiryDate()));
         IN_MEMORY_MEDICINES.put(med.getMedicineId(), med);
+        if (med.getMedicineName() != null) {
+            IN_MEMORY_MEDICINES.put(med.getMedicineName().toLowerCase(), med);
+        }
 
-        String sql = "UPDATE medicines SET selling_price = ?, unit_price = ?, stock_quantity = ?, expiry_date = ?, rack_number = ?, storage_instructions = ?, description = ?, status = ?, updated_at = ?, stock_updated_at = ? WHERE medicine_id = ?";
+        String sql = "UPDATE medicines SET medicine_name = ?, generic_name = ?, category = ?, strength = ?, dosage_form = ?, manufacturer = ?, batch_number = ?, purchase_price = ?, selling_price = ?, unit_price = ?, gst_percentage = ?, stock_quantity = ?, minimum_stock = ?, expiry_date = ?, rack_number = ?, supplier_name = ?, supplier_contact = ?, storage_instructions = ?, prescription_required = ?, description = ?, status = ?, updated_at = ?, stock_updated_at = ? WHERE medicine_id = ?";
         String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setDouble(1, med.getSellingPrice());
-            pstmt.setDouble(2, med.getSellingPrice());
-            pstmt.setInt(3, med.getStockQuantity());
-            pstmt.setString(4, med.getExpiryDate());
-            pstmt.setString(5, med.getRackNumber());
-            pstmt.setString(6, med.getStorageInstructions());
-            pstmt.setString(7, med.getDescription());
-            pstmt.setString(8, med.getStatus());
-            pstmt.setString(9, nowStr);
-            pstmt.setString(10, nowStr);
-            pstmt.setString(11, med.getMedicineId());
+            pstmt.setString(1, med.getMedicineName());
+            pstmt.setString(2, med.getGenericName());
+            pstmt.setString(3, med.getCategory());
+            pstmt.setString(4, med.getStrength());
+            pstmt.setString(5, med.getDosageForm());
+            pstmt.setString(6, med.getManufacturer());
+            pstmt.setString(7, med.getBatchNumber());
+            pstmt.setDouble(8, med.getPurchasePrice());
+            pstmt.setDouble(9, med.getSellingPrice());
+            pstmt.setDouble(10, med.getSellingPrice());
+            pstmt.setDouble(11, med.getGstPercentage());
+            pstmt.setInt(12, med.getStockQuantity());
+            pstmt.setInt(13, med.getMinimumStock());
+            pstmt.setString(14, med.getExpiryDate());
+            pstmt.setString(15, med.getRackNumber());
+            pstmt.setString(16, med.getSupplierName());
+            pstmt.setString(17, med.getSupplierContact());
+            pstmt.setString(18, med.getStorageInstructions());
+            pstmt.setString(19, med.getPrescriptionRequired());
+            pstmt.setString(20, med.getDescription());
+            pstmt.setString(21, med.getStatus());
+            pstmt.setString(22, nowStr);
+            pstmt.setString(23, nowStr);
+            pstmt.setString(24, med.getMedicineId());
             return pstmt.executeUpdate() > 0;
         } catch (Exception e) {
+            System.err.println("MedicineDAO updateMedicine error: " + e.getMessage());
             return true;
         }
     }

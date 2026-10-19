@@ -1514,31 +1514,158 @@
         </div>
       </section>
 
-      <!-- ================= 6. PHARMACY VIEW ================= -->
+      <!-- ================= 6. PHARMACY & MEDICINE INVENTORY VIEW ================= -->
       <section id="viewPharmacy" class="view-section">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Pharmacy & Medicine Stock</h1>
-            <p class="page-subtitle">Inventory, Orders & Stock Alerts</p>
+            <h1 class="page-title">Pharmacy & Medicine Inventory Management</h1>
+            <p class="page-subtitle">Hospital Medicine Catalog, Batch Tracking, Stock Levels & Prescriptions</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" onclick="openAdminAddMedicineModal()" style="background:var(--success); border-color:var(--success);">➕ Add Medicine</button>
+            <button class="btn btn-outline" onclick="exportAdminInventoryCSV()">📥 Export Inventory CSV</button>
           </div>
         </div>
-        <div class="card">
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Order / Token</th>
-                  <th>Patient ID</th>
-                  <th>Doctor ID</th>
-                  <th>Total Amount</th>
-                  <th>Payment Status</th>
-                  <th>Order Status</th>
-                </tr>
-              </thead>
-              <tbody id="tbodyAdminPharmacy">
-                <tr><td colspan="6" style="text-align:center;">Loading pharmacy orders...</td></tr>
-              </tbody>
-            </table>
+
+        <!-- Sub Tabs: Inventory vs Orders -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; border-bottom:2px solid #E2E8F0; padding-bottom:10px;">
+          <button id="adminTabBtnInv" onclick="switchAdminPharmTab('inventory')" style="background:var(--primary); color:#fff; border:none; padding:8px 18px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
+            <span>💊 Medicine Inventory Catalog</span>
+            <span id="adminInvCountBadge" style="background:rgba(255,255,255,0.25); padding:2px 8px; border-radius:12px; font-size:0.75rem;">0</span>
+          </button>
+          <button id="adminTabBtnOrders" onclick="switchAdminPharmTab('orders')" style="background:#F1F5F9; color:#475569; border:none; padding:8px 18px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
+            <span>📑 Prescriptions & Dispensing Orders</span>
+          </button>
+        </div>
+
+        <!-- PANE 1: MEDICINE INVENTORY CATALOG -->
+        <div id="adminPharmInventoryPane">
+          <!-- 5 Dynamic KPI Overview Cards -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
+            <div class="stat-card teal">
+              <div class="stat-icon-wrapper">💊</div>
+              <div class="stat-info">
+                <div class="stat-label">Total Medicines</div>
+                <div class="stat-value" id="statAdminTotalMeds">0</div>
+                <div class="stat-trend" style="color:var(--teal);">Catalog Items</div>
+              </div>
+            </div>
+            <div class="stat-card success">
+              <div class="stat-icon-wrapper">✅</div>
+              <div class="stat-info">
+                <div class="stat-label">In Stock</div>
+                <div class="stat-value" id="statAdminInStock">0</div>
+                <div class="stat-trend" style="color:var(--success);">Adequate Supply</div>
+              </div>
+            </div>
+            <div class="stat-card warning">
+              <div class="stat-icon-wrapper">⚠️</div>
+              <div class="stat-info">
+                <div class="stat-label">Low Stock</div>
+                <div class="stat-value" id="statAdminLowStock">0</div>
+                <div class="stat-trend" style="color:var(--warning);">≤ Min Threshold</div>
+              </div>
+            </div>
+            <div class="stat-card danger">
+              <div class="stat-icon-wrapper">🚫</div>
+              <div class="stat-info">
+                <div class="stat-label">Out of Stock</div>
+                <div class="stat-value" id="statAdminOutOfStock">0</div>
+                <div class="stat-trend" style="color:var(--danger);">Zero Units</div>
+              </div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-icon-wrapper">⌛</div>
+              <div class="stat-info">
+                <div class="stat-label">Expired / Soon</div>
+                <div class="stat-value" id="statAdminExpired">0</div>
+                <div class="stat-trend" style="color:var(--purple);">Needs Action</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Banner for Stock Warnings -->
+          <div id="adminStockAlertBanner" style="display:none; margin-bottom:20px; border-radius:12px; padding:14px 18px; box-shadow:0 2px 8px rgba(0,0,0,0.04); font-size:0.88rem; font-weight:600;"></div>
+
+          <!-- Search & Filter Controls -->
+          <div class="card" style="margin-bottom: 20px; padding: 16px 20px;">
+            <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between;">
+              <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; flex:1;">
+                <input type="text" id="adminInvSearchInput" placeholder="🔍 Search name, generic, brand, batch, code..." oninput="filterAdminInventory()" style="padding:8px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:0.85rem; width:280px; outline:none;">
+                <select id="adminInvCatFilter" onchange="filterAdminInventory()" style="padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:0.85rem; outline:none;">
+                  <option value="">All Categories</option>
+                  <option value="Tablet">Tablet</option>
+                  <option value="Capsule">Capsule</option>
+                  <option value="Syrup">Syrup</option>
+                  <option value="Injection">Injection</option>
+                  <option value="Ointment">Ointment / Cream</option>
+                  <option value="Drops">Drops</option>
+                  <option value="Inhaler">Inhaler</option>
+                  <option value="IV Fluid">IV Fluid / Drip</option>
+                  <option value="Vaccine">Vaccine</option>
+                  <option value="Other">Other</option>
+                </select>
+                <select id="adminInvStatusFilter" onchange="filterAdminInventory()" style="padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:0.85rem; outline:none;">
+                  <option value="">All Stock Statuses</option>
+                  <option value="In Stock">✅ In Stock</option>
+                  <option value="Low Stock">⚠️ Low Stock</option>
+                  <option value="Out of Stock">🚫 Out of Stock</option>
+                  <option value="Expired">⌛ Expired</option>
+                </select>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-outline btn-sm" onclick="loadAdminInventory()">🔄 Refresh Inventory</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Medicine Inventory Table -->
+          <div class="card">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code / ID</th>
+                    <th>Medicine & Generic Name</th>
+                    <th>Category / Unit</th>
+                    <th>Batch No</th>
+                    <th>Expiry Date</th>
+                    <th>Cost Price</th>
+                    <th>Selling Price</th>
+                    <th>Stock / Min</th>
+                    <th>Rack</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyAdminMedicineInventory">
+                  <tr><td colspan="11" style="text-align:center; padding:24px;">Loading medicine catalog...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANE 2: PHARMACY ORDERS -->
+        <div id="adminPharmOrdersPane" style="display:none;">
+          <div class="card">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order / Token</th>
+                    <th>Patient ID</th>
+                    <th>Doctor ID</th>
+                    <th>Total Amount</th>
+                    <th>Payment Status</th>
+                    <th>Order Status</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyAdminPharmacy">
+                  <tr><td colspan="6" style="text-align:center; padding:24px;">Loading pharmacy orders...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -3279,7 +3406,401 @@
       } catch (e) { console.error("Error loading lab table:", e); }
     }
 
+    
+    // ==========================================
+    // ADMIN MEDICINE INVENTORY MANAGEMENT ENGINE
+    // ==========================================
+    let adminMedicinesCatalog = [];
+
+    function switchAdminPharmTab(tab) {
+      const invPane = document.getElementById('adminPharmInventoryPane');
+      const ordPane = document.getElementById('adminPharmOrdersPane');
+      const btnInv = document.getElementById('adminTabBtnInv');
+      const btnOrd = document.getElementById('adminTabBtnOrders');
+
+      if (tab === 'inventory') {
+        if (invPane) invPane.style.display = 'block';
+        if (ordPane) ordPane.style.display = 'none';
+        if (btnInv) { btnInv.style.background = 'var(--primary)'; btnInv.style.color = '#fff'; }
+        if (btnOrd) { btnOrd.style.background = '#F1F5F9'; btnOrd.style.color = '#475569'; }
+        loadAdminInventory();
+      } else {
+        if (invPane) invPane.style.display = 'none';
+        if (ordPane) ordPane.style.display = 'block';
+        if (btnInv) { btnInv.style.background = '#F1F5F9'; btnInv.style.color = '#475569'; }
+        if (btnOrd) { btnOrd.style.background = 'var(--primary)'; btnOrd.style.color = '#fff'; }
+        loadPharmacyOrdersOnly();
+      }
+    }
+
+    async function loadAdminInventory() {
+      try {
+        const res = await fetch('/api/admin/medicines');
+        if (!res.ok) throw new Error('Failed to fetch medicines');
+        adminMedicinesCatalog = await res.json();
+        updateAdminInventoryStats(adminMedicinesCatalog);
+        filterAdminInventory();
+      } catch (err) {
+        console.error('Error loading admin medicine inventory:', err);
+        const tbody = document.getElementById('tbodyAdminMedicineInventory');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; color:red; padding:18px;">Error loading medicine inventory from server.</td></tr>';
+      }
+    }
+
+    function updateAdminInventoryStats(list) {
+      let total = list.length;
+      let inStock = 0;
+      let lowStock = 0;
+      let outOfStock = 0;
+      let expired = 0;
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      list.forEach(m => {
+        const qty = parseInt(m.stockQuantity || 0);
+        const min = parseInt(m.minimumStock || 15);
+        const exp = (m.expiryDate || '').trim();
+        const isExp = exp && exp < todayStr;
+
+        if (isExp || (m.status && m.status.toLowerCase().includes('expire'))) {
+          expired++;
+        } else if (qty <= 0) {
+          outOfStock++;
+        } else if (qty <= min) {
+          lowStock++;
+        } else {
+          inStock++;
+        }
+      });
+
+      const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setTxt('statAdminTotalMeds', total);
+      setTxt('statAdminInStock', inStock);
+      setTxt('statAdminLowStock', lowStock);
+      setTxt('statAdminOutOfStock', outOfStock);
+      setTxt('statAdminExpired', expired);
+      setTxt('adminInvCountBadge', total);
+
+      // Alert Banner
+      const banner = document.getElementById('adminStockAlertBanner');
+      if (banner) {
+        if (outOfStock > 0 || lowStock > 0 || expired > 0) {
+          banner.style.display = 'block';
+          banner.style.background = outOfStock > 0 ? '#FEE2E2' : '#FEF3C7';
+          banner.style.border = outOfStock > 0 ? '1px solid #F87171' : '1px solid #FCD34D';
+          banner.style.color = outOfStock > 0 ? '#991B1B' : '#92400E';
+          banner.innerHTML = `⚠️ <strong>Inventory Alert:</strong> ${outOfStock} medicines are currently Out of Stock, ${lowStock} items are below minimum threshold, and ${expired} items are expired/expiring soon. Please reorder or adjust inventory.`;
+        } else {
+          banner.style.display = 'none';
+        }
+      }
+    }
+
+    function filterAdminInventory() {
+      const q = (document.getElementById('adminInvSearchInput')?.value || '').toLowerCase().trim();
+      const cat = (document.getElementById('adminInvCatFilter')?.value || '').toLowerCase().trim();
+      const status = (document.getElementById('adminInvStatusFilter')?.value || '').toLowerCase().trim();
+
+      const filtered = adminMedicinesCatalog.filter(m => {
+        const matchesQ = !q ||
+          (m.medicineName && m.medicineName.toLowerCase().includes(q)) ||
+          (m.genericName && m.genericName.toLowerCase().includes(q)) ||
+          (m.medicineId && m.medicineId.toLowerCase().includes(q)) ||
+          (m.batchNumber && m.batchNumber.toLowerCase().includes(q)) ||
+          (m.manufacturer && m.manufacturer.toLowerCase().includes(q));
+
+        const matchesCat = !cat || (m.category && m.category.toLowerCase() === cat);
+        const matchesStatus = !status || (m.status && m.status.toLowerCase().includes(status));
+
+        return matchesQ && matchesCat && matchesStatus;
+      });
+
+      renderAdminInventoryTable(filtered);
+    }
+
+    function renderAdminInventoryTable(list) {
+      const tbody = document.getElementById('tbodyAdminMedicineInventory');
+      if (!tbody) return;
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:24px; color:#64748B;">No medicines match the selected search and filter criteria.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(m => {
+        let statusBadge = '<span class="badge badge-success">In Stock</span>';
+        const st = (m.status || '').toLowerCase();
+        if (st.includes('out') || m.stockQuantity <= 0) {
+          statusBadge = '<span class="badge badge-danger">Out of Stock</span>';
+        } else if (st.includes('low') || m.stockQuantity <= (m.minimumStock || 15)) {
+          statusBadge = '<span class="badge badge-warning">Low Stock</span>';
+        } else if (st.includes('expire')) {
+          statusBadge = '<span class="badge" style="background:#F3E8FF; color:#7E22CE; font-weight:700;">Expired</span>';
+        }
+
+        const cost = m.purchasePrice ? `₹${parseFloat(m.purchasePrice).toFixed(2)}` : '-';
+        const price = m.sellingPrice ? `₹${parseFloat(m.sellingPrice).toFixed(2)}` : '₹0.00';
+        const safeMedObj = JSON.stringify(m).replace(/"/g, '&quot;');
+
+        return `
+          <tr>
+            <td><strong style="color:var(--primary); font-family:monospace;">${m.medicineId || '-'}</strong></td>
+            <td>
+              <div style="font-weight:700; color:#0F172A;">${escapeHtml(m.medicineName || 'Medicine')}</div>
+              <div style="font-size:0.75rem; color:#64748B;">${escapeHtml(m.genericName || m.manufacturer || '')}</div>
+            </td>
+            <td>${escapeHtml(m.category || 'Tablet')} <span style="font-size:0.75rem; color:#64748B;">(${escapeHtml(m.dosageForm || m.strength || 'Unit')})</span></td>
+            <td><span style="font-family:monospace; background:#F1F5F9; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${escapeHtml(m.batchNumber || '-')}</span></td>
+            <td>${m.expiryDate || '-'}</td>
+            <td>${cost}</td>
+            <td><strong style="color:var(--primary);">${price}</strong></td>
+            <td>
+              <strong>${m.stockQuantity ?? 0}</strong>
+              <span style="font-size:0.72rem; color:#94A3B8;">/ min ${m.minimumStock ?? 15}</span>
+            </td>
+            <td><span style="font-size:0.8rem; color:#475569;">${escapeHtml(m.rackNumber || '-')}</span></td>
+            <td>${statusBadge}</td>
+            <td style="text-align:right; white-space:nowrap;">
+              <button class="btn btn-outline btn-sm" onclick='openAdminEditMedicineModal(${safeMedObj})' style="padding:4px 8px; font-size:0.75rem; margin-right:4px;">✏️</button>
+              <button class="btn btn-outline btn-sm" onclick='openAdminUpdateStockModal("${m.medicineId}", "${escapeHtml(m.medicineName)}", ${m.stockQuantity || 0})' style="padding:4px 8px; font-size:0.75rem; margin-right:4px;">🔄</button>
+              <button class="btn btn-danger btn-sm" onclick='deleteAdminMedicine("${m.medicineId}", "${escapeHtml(m.medicineName)}")' style="padding:4px 8px; font-size:0.75rem;">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openAdminModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.style.display = 'flex';
+    }
+
+    function closeAdminModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.style.display = 'none';
+    }
+
+    function openAdminAddMedicineModal() {
+      const f = document.getElementById('formAdminAddMedicine');
+      if (f) f.reset();
+      const exp = document.getElementById('adminAddMedExpiry');
+      if (exp) {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 2);
+        exp.value = d.toISOString().split('T')[0];
+      }
+      openAdminModal('modalAdminAddMedicine');
+    }
+
+    async function submitAdminAddMedicine(e) {
+      e.preventDefault();
+      const payload = {
+        medicineName: document.getElementById('adminAddMedName')?.value.trim(),
+        genericName: document.getElementById('adminAddMedGeneric')?.value.trim(),
+        manufacturer: document.getElementById('adminAddMedBrand')?.value.trim(),
+        category: document.getElementById('adminAddMedCategory')?.value.trim(),
+        strength: document.getElementById('adminAddMedStrength')?.value.trim(),
+        dosageForm: document.getElementById('adminAddMedUnit')?.value.trim(),
+        batchNumber: document.getElementById('adminAddMedBatch')?.value.trim(),
+        expiryDate: document.getElementById('adminAddMedExpiry')?.value.trim(),
+        stockQuantity: document.getElementById('adminAddMedStock')?.value.trim(),
+        minimumStock: document.getElementById('adminAddMedMinStock')?.value.trim(),
+        purchasePrice: document.getElementById('adminAddMedCost')?.value.trim(),
+        sellingPrice: document.getElementById('adminAddMedPrice')?.value.trim(),
+        rackNumber: document.getElementById('adminAddMedRack')?.value.trim(),
+        supplierName: document.getElementById('adminAddMedSupplier')?.value.trim(),
+        description: document.getElementById('adminAddMedDesc')?.value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/admin/add-medicine', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✓ Medicine added successfully to hospital inventory!');
+          closeAdminModal('modalAdminAddMedicine');
+          loadAdminInventory();
+        } else {
+          alert('Error: ' + (data.message || 'Could not save medicine'));
+        }
+      } catch (err) {
+        alert('Server error: ' + err.message);
+      }
+    }
+
+    function openAdminEditMedicineModal(m) {
+      document.getElementById('adminEditMedId').value = m.medicineId || '';
+      document.getElementById('adminEditMedName').value = m.medicineName || '';
+      document.getElementById('adminEditMedGeneric').value = m.genericName || '';
+      document.getElementById('adminEditMedBrand').value = m.manufacturer || '';
+      document.getElementById('adminEditMedCategory').value = m.category || 'Tablet';
+      document.getElementById('adminEditMedStrength').value = m.strength || '';
+      document.getElementById('adminEditMedUnit').value = m.dosageForm || '';
+      document.getElementById('adminEditMedBatch').value = m.batchNumber || '';
+      document.getElementById('adminEditMedExpiry').value = m.expiryDate || '';
+      document.getElementById('adminEditMedStock').value = m.stockQuantity ?? 0;
+      document.getElementById('adminEditMedMinStock').value = m.minimumStock ?? 15;
+      document.getElementById('adminEditMedCost').value = m.purchasePrice || 0;
+      document.getElementById('adminEditMedPrice').value = m.sellingPrice || 0;
+      document.getElementById('adminEditMedRack').value = m.rackNumber || '';
+      document.getElementById('adminEditMedSupplier').value = m.supplierName || '';
+      document.getElementById('adminEditMedDesc').value = m.description || '';
+      openAdminModal('modalAdminEditMedicine');
+    }
+
+    async function submitAdminEditMedicine(e) {
+      e.preventDefault();
+      const payload = {
+        medicineId: document.getElementById('adminEditMedId')?.value.trim(),
+        medicineName: document.getElementById('adminEditMedName')?.value.trim(),
+        genericName: document.getElementById('adminEditMedGeneric')?.value.trim(),
+        manufacturer: document.getElementById('adminEditMedBrand')?.value.trim(),
+        category: document.getElementById('adminEditMedCategory')?.value.trim(),
+        strength: document.getElementById('adminEditMedStrength')?.value.trim(),
+        dosageForm: document.getElementById('adminEditMedUnit')?.value.trim(),
+        batchNumber: document.getElementById('adminEditMedBatch')?.value.trim(),
+        expiryDate: document.getElementById('adminEditMedExpiry')?.value.trim(),
+        stockQuantity: document.getElementById('adminEditMedStock')?.value.trim(),
+        minimumStock: document.getElementById('adminEditMedMinStock')?.value.trim(),
+        purchasePrice: document.getElementById('adminEditMedCost')?.value.trim(),
+        sellingPrice: document.getElementById('adminEditMedPrice')?.value.trim(),
+        rackNumber: document.getElementById('adminEditMedRack')?.value.trim(),
+        supplierName: document.getElementById('adminEditMedSupplier')?.value.trim(),
+        description: document.getElementById('adminEditMedDesc')?.value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/admin/edit-medicine', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✓ Medicine details updated successfully!');
+          closeAdminModal('modalAdminEditMedicine');
+          loadAdminInventory();
+        } else {
+          alert('Error: ' + (data.message || 'Could not update medicine'));
+        }
+      } catch (err) {
+        alert('Server error: ' + err.message);
+      }
+    }
+
+    function openAdminUpdateStockModal(id, name, curStock) {
+      document.getElementById('adminStockMedId').value = id;
+      document.getElementById('adminStockMedName').textContent = name + ' (' + id + ')';
+      document.getElementById('adminStockCurQty').textContent = curStock;
+      document.getElementById('adminStockQuantity').value = 50;
+      openAdminModal('modalAdminUpdateStock');
+    }
+
+    async function submitAdminUpdateStock(e) {
+      e.preventDefault();
+      const payload = {
+        medicineId: document.getElementById('adminStockMedId')?.value.trim(),
+        actionType: document.getElementById('adminStockActionType')?.value.trim(),
+        quantity: document.getElementById('adminStockQuantity')?.value.trim(),
+        reason: document.getElementById('adminStockReason')?.value.trim(),
+        remarks: document.getElementById('adminStockRemarks')?.value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/admin/update-stock', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✓ Stock updated! New stock quantity: ' + data.newStock);
+          closeAdminModal('modalAdminUpdateStock');
+          loadAdminInventory();
+        } else {
+          alert('Error: Could not adjust stock');
+        }
+      } catch (err) {
+        alert('Server error: ' + err.message);
+      }
+    }
+
+    async function deleteAdminMedicine(id, name) {
+      if (!confirm(`Are you sure you want to permanently delete "${name}" (${id}) from hospital medicine inventory?`)) return;
+      try {
+        const res = await fetch(`/api/admin/delete-medicine?medicineId=${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✓ Medicine removed from inventory.');
+          loadAdminInventory();
+        } else {
+          alert('Could not delete medicine');
+        }
+      } catch (err) {
+        alert('Server error: ' + err.message);
+      }
+    }
+
+    function exportAdminInventoryCSV() {
+      if (!adminMedicinesCatalog || adminMedicinesCatalog.length === 0) {
+        alert('No medicines to export.');
+        return;
+      }
+      const headers = ['Medicine ID', 'Name', 'Generic Name', 'Category', 'Strength', 'Unit', 'Manufacturer', 'Batch No', 'Expiry Date', 'Cost Price', 'Selling Price', 'Stock Quantity', 'Min Stock', 'Rack', 'Status'];
+      const rows = adminMedicinesCatalog.map(m => [
+        m.medicineId || '',
+        `"${(m.medicineName || '').replace(/"/g, '""')}"`,
+        `"${(m.genericName || '').replace(/"/g, '""')}"`,
+        m.category || '',
+        m.strength || '',
+        m.dosageForm || '',
+        `"${(m.manufacturer || '').replace(/"/g, '""')}"`,
+        m.batchNumber || '',
+        m.expiryDate || '',
+        m.purchasePrice || 0,
+        m.sellingPrice || 0,
+        m.stockQuantity || 0,
+        m.minimumStock || 15,
+        m.rackNumber || '',
+        m.status || ''
+      ]);
+
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Niramaya_Medicine_Inventory_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    async function loadPharmacyOrdersOnly() {
+      try {
+        const res = await fetch('/api/pharmacy/orders');
+        const list = await res.json();
+        const tbody = document.getElementById('tbodyAdminPharmacy');
+        if (!tbody) return;
+        tbody.innerHTML = list.map(p => `
+          <tr>
+            <td><strong>${p.pharmacyToken || p.orderId || '-'}</strong></td>
+            <td>${p.patientId || '-'}</td>
+            <td>${p.doctorId || '-'}</td>
+            <td>₹${p.totalAmount || '0.00'}</td>
+            <td><span class="badge ${p.paymentStatus === 'Paid' ? 'badge-success' : 'badge-danger'}">${p.paymentStatus || 'Unpaid'}</span></td>
+            <td>${p.orderStatus || 'Pending'}</td>
+          </tr>
+        `).join('');
+      } catch (e) { console.error('Error loading pharmacy table:', e); }
+    }
+
     async function loadPharmacyTable() {
+      loadAdminInventory();
+
       try {
         const res = await fetch("/api/pharmacy/orders");
         const list = await res.json();
@@ -4260,5 +4781,231 @@
     } catch(e){}
   </script>
   <script src="assets/js/mobile-responsive.js"></script>
+
+  <!-- MODAL: ADD MEDICINE (ADMIN INVENTORY) -->
+  <div class="modal-overlay" id="modalAdminAddMedicine" style="display:none;">
+    <div class="modal-content" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title">➕ Add New Medicine to Hospital Inventory</h3>
+        <button class="close-btn" onclick="closeAdminModal('modalAdminAddMedicine')">✕</button>
+      </div>
+      <form id="formAdminAddMedicine" onsubmit="submitAdminAddMedicine(event)">
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:14px; margin-top:14px;">
+          <div class="form-group">
+            <label>Medicine Name <span style="color:red;">*</span></label>
+            <input type="text" id="adminAddMedName" placeholder="e.g. Paracetamol" required>
+          </div>
+          <div class="form-group">
+            <label>Generic Name</label>
+            <input type="text" id="adminAddMedGeneric" placeholder="e.g. Acetaminophen">
+          </div>
+          <div class="form-group">
+            <label>Brand / Manufacturer</label>
+            <input type="text" id="adminAddMedBrand" placeholder="e.g. Cipla / Sun Pharma">
+          </div>
+          <div class="form-group">
+            <label>Category <span style="color:red;">*</span></label>
+            <select id="adminAddMedCategory" required>
+              <option value="Tablet">Tablet</option>
+              <option value="Capsule">Capsule</option>
+              <option value="Syrup">Syrup</option>
+              <option value="Injection">Injection</option>
+              <option value="Ointment">Ointment / Cream</option>
+              <option value="Drops">Drops</option>
+              <option value="Inhaler">Inhaler</option>
+              <option value="IV Fluid">IV Fluid / Drip</option>
+              <option value="Vaccine">Vaccine</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Strength / Dosage</label>
+            <input type="text" id="adminAddMedStrength" placeholder="e.g. 650mg / 500mg / 100ml">
+          </div>
+          <div class="form-group">
+            <label>Unit / Dosage Form</label>
+            <input type="text" id="adminAddMedUnit" placeholder="e.g. Tablet / Strip / Bottle / Ampoule">
+          </div>
+          <div class="form-group">
+            <label>Batch Number</label>
+            <input type="text" id="adminAddMedBatch" placeholder="Auto-generated if blank">
+          </div>
+          <div class="form-group">
+            <label>Expiry Date <span style="color:red;">*</span></label>
+            <input type="date" id="adminAddMedExpiry" required>
+          </div>
+          <div class="form-group">
+            <label>Initial Stock Quantity <span style="color:red;">*</span></label>
+            <input type="number" id="adminAddMedStock" min="0" value="100" required>
+          </div>
+          <div class="form-group">
+            <label>Low-Stock Threshold (Min Stock)</label>
+            <input type="number" id="adminAddMedMinStock" min="1" value="15" required>
+          </div>
+          <div class="form-group">
+            <label>Purchase Price (₹)</label>
+            <input type="number" id="adminAddMedCost" min="0" step="0.5" placeholder="Cost price">
+          </div>
+          <div class="form-group">
+            <label>Selling Price (₹) <span style="color:red;">*</span></label>
+            <input type="number" id="adminAddMedPrice" min="0" step="0.5" placeholder="Selling price" required>
+          </div>
+          <div class="form-group">
+            <label>Rack / Storage Location</label>
+            <input type="text" id="adminAddMedRack" placeholder="e.g. R-101 / Cool Storage">
+          </div>
+          <div class="form-group">
+            <label>Supplier Name</label>
+            <input type="text" id="adminAddMedSupplier" placeholder="e.g. Niramaya Medical Supplies">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label>Description / Therapeutic Uses</label>
+            <input type="text" id="adminAddMedDesc" placeholder="e.g. Antipyretic and analgesic for pain and fever relief">
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAdminModal('modalAdminAddMedicine')">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background:var(--success); border-color:var(--success);">Save Medicine</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT MEDICINE -->
+  <div class="modal-overlay" id="modalAdminEditMedicine" style="display:none;">
+    <div class="modal-content" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Edit Medicine Details</h3>
+        <button class="close-btn" onclick="closeAdminModal('modalAdminEditMedicine')">✕</button>
+      </div>
+      <form id="formAdminEditMedicine" onsubmit="submitAdminEditMedicine(event)">
+        <input type="hidden" id="adminEditMedId">
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:14px; margin-top:14px;">
+          <div class="form-group">
+            <label>Medicine Name <span style="color:red;">*</span></label>
+            <input type="text" id="adminEditMedName" required>
+          </div>
+          <div class="form-group">
+            <label>Generic Name</label>
+            <input type="text" id="adminEditMedGeneric">
+          </div>
+          <div class="form-group">
+            <label>Brand / Manufacturer</label>
+            <input type="text" id="adminEditMedBrand">
+          </div>
+          <div class="form-group">
+            <label>Category <span style="color:red;">*</span></label>
+            <select id="adminEditMedCategory" required>
+              <option value="Tablet">Tablet</option>
+              <option value="Capsule">Capsule</option>
+              <option value="Syrup">Syrup</option>
+              <option value="Injection">Injection</option>
+              <option value="Ointment">Ointment / Cream</option>
+              <option value="Drops">Drops</option>
+              <option value="Inhaler">Inhaler</option>
+              <option value="IV Fluid">IV Fluid / Drip</option>
+              <option value="Vaccine">Vaccine</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Strength / Dosage</label>
+            <input type="text" id="adminEditMedStrength">
+          </div>
+          <div class="form-group">
+            <label>Unit / Dosage Form</label>
+            <input type="text" id="adminEditMedUnit">
+          </div>
+          <div class="form-group">
+            <label>Batch Number</label>
+            <input type="text" id="adminEditMedBatch">
+          </div>
+          <div class="form-group">
+            <label>Expiry Date <span style="color:red;">*</span></label>
+            <input type="date" id="adminEditMedExpiry" required>
+          </div>
+          <div class="form-group">
+            <label>Stock Quantity <span style="color:red;">*</span></label>
+            <input type="number" id="adminEditMedStock" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>Low-Stock Threshold (Min Stock)</label>
+            <input type="number" id="adminEditMedMinStock" min="1" required>
+          </div>
+          <div class="form-group">
+            <label>Purchase Price (₹)</label>
+            <input type="number" id="adminEditMedCost" min="0" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Selling Price (₹) <span style="color:red;">*</span></label>
+            <input type="number" id="adminEditMedPrice" min="0" step="0.5" required>
+          </div>
+          <div class="form-group">
+            <label>Rack / Storage Location</label>
+            <input type="text" id="adminEditMedRack">
+          </div>
+          <div class="form-group">
+            <label>Supplier Name</label>
+            <input type="text" id="adminEditMedSupplier">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label>Description / Therapeutic Uses</label>
+            <input type="text" id="adminEditMedDesc">
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAdminModal('modalAdminEditMedicine')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update Medicine</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: UPDATE / ADJUST STOCK -->
+  <div class="modal-overlay" id="modalAdminUpdateStock" style="display:none;">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🔄 Adjust Medicine Stock</h3>
+        <button class="close-btn" onclick="closeAdminModal('modalAdminUpdateStock')">✕</button>
+      </div>
+      <form id="formAdminUpdateStock" onsubmit="submitAdminUpdateStock(event)">
+        <input type="hidden" id="adminStockMedId">
+        <div style="margin: 14px 0;">
+          <div style="font-weight:700; color:var(--primary); font-size:1.05rem;" id="adminStockMedName">-</div>
+          <div style="font-size:0.85rem; color:#64748B; margin-top:2px;">Current Stock: <strong id="adminStockCurQty" style="color:#0B1F33;">0</strong> units</div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Adjustment Action</label>
+          <select id="adminStockActionType" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px;">
+            <option value="Increase">➕ Increase Stock (Restock / Received)</option>
+            <option value="Decrease">➖ Decrease Stock (Dispense / Adjustment / Return)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Quantity <span style="color:red;">*</span></label>
+          <input type="number" id="adminStockQuantity" min="1" value="50" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px;" required>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Reason</label>
+          <select id="adminStockReason" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px;">
+            <option value="Restock Delivery">Restock Delivery / Purchase Order</option>
+            <option value="Inventory Audit">Physical Inventory Audit / Reconciliation</option>
+            <option value="Damaged / Write-off">Damaged / Expired Disposal</option>
+            <option value="Dispense Correction">Dispensing Correction</option>
+            <option value="Other">Other Adjustment</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Remarks / Notes</label>
+          <input type="text" id="adminStockRemarks" placeholder="Optional notes" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:8px;">
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAdminModal('modalAdminUpdateStock')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Apply Stock Change</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </body>
 </html>

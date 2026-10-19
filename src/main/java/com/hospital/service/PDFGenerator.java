@@ -1,11 +1,9 @@
 package com.hospital.service;
 
 import com.hospital.model.LabReport;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 /**
  * Service to generate professional hospital PDF & HTML laboratory reports for Niramaya Hospitals.
@@ -23,16 +21,30 @@ public class PDFGenerator {
             if (!publicReportsDir.exists()) publicReportsDir.mkdirs();
 
             String filename = "LabReport_" + report.getPatientId() + "_" + report.getReportId() + ".pdf";
+            String htmlFilename = "LabReport_" + report.getPatientId() + "_" + report.getReportId() + ".html";
             File targetFile = new File(reportsDir, filename);
             File publicTargetFile = new File(publicReportsDir, filename);
+            File targetHtml = new File(reportsDir, htmlFilename);
+            File publicTargetHtml = new File(publicReportsDir, htmlFilename);
 
             String htmlContent = buildReportHTML(report, parametersHtmlTable);
 
-            // Save PDF / Printable HTML document
-            saveHtmlFile(targetFile, htmlContent);
-            saveHtmlFile(publicTargetFile, htmlContent);
+            // Save Printable HTML document
+            saveHtmlFile(targetHtml, htmlContent);
+            saveHtmlFile(publicTargetHtml, htmlContent);
 
-            System.out.println("✓ Generated Lab Report PDF at: " + targetFile.getAbsolutePath());
+            // Generate authentic %PDF-1.4 binary file
+            List<String[]> rows = extractLabTableRows(report);
+            byte[] binaryPdfBytes = generateBinaryPdf(report, rows);
+            if (binaryPdfBytes.length > 0) {
+                saveBinaryFile(targetFile, binaryPdfBytes);
+                saveBinaryFile(publicTargetFile, binaryPdfBytes);
+            } else {
+                saveHtmlFile(targetFile, htmlContent);
+                saveHtmlFile(publicTargetFile, htmlContent);
+            }
+
+            System.out.println("✓ Generated Lab Report PDF (Binary & HTML) at: " + targetFile.getAbsolutePath());
             return targetFile;
         } catch (Exception e) {
             System.err.println("Error generating PDF report: " + e.getMessage());
@@ -44,6 +56,12 @@ public class PDFGenerator {
     private static void saveHtmlFile(File file, String content) throws Exception {
         try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
             writer.write(content);
+        }
+    }
+
+    private static void saveBinaryFile(File file, byte[] data) throws Exception {
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(data);
         }
     }
 
@@ -125,7 +143,7 @@ public class PDFGenerator {
                "\n" +
                "    <div class=\"test-badge\">🧪 Diagnostic Test: " + report.getTestName() + "</div>\n" +
                "\n" +
-               "    " + (parametersTable != null && !parametersTable.isEmpty() ? parametersTable : buildDefaultTable(report)) + "\n" +
+               "    " + (parametersTable != null && !parametersTable.isEmpty() ? parametersTable : buildDynamicTable(report)) + "\n" +
                "\n" +
                "    <div class=\"section-title\">CLINICAL INTERPRETATION</div>\n" +
                "    <div class=\"notes-box\">" + (report.getObservation() != null ? report.getObservation() : "All observed physiological values lie within normal diagnostic reference intervals.") + "</div>\n" +
@@ -161,103 +179,422 @@ public class PDFGenerator {
                "</html>";
     }
 
-    private static String buildDefaultTable(LabReport report) {
-        String test = (report.getTestName() != null ? report.getTestName().toLowerCase() : "");
-        StringBuilder sb = new StringBuilder();
+    
+    private static String escapePdf(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+                .replace("₹", "Rs.").replaceAll("[^\\x20-\\x7E]", " ");
+    }
 
-        if (test.contains("cbc") || test.contains("blood count")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Hemoglobin (Hb)</b></td><td><b style=\"color:#0A4DA6;\">14.2</b></td><td>12.0 - 17.5</td><td>g/dL</td></tr>\n")
-              .append("    <tr><td><b>Total Leukocyte Count (WBC)</b></td><td><b style=\"color:#0A4DA6;\">7,500</b></td><td>4,500 - 11,000</td><td>/mcL</td></tr>\n")
-              .append("    <tr><td><b>RBC Count</b></td><td><b style=\"color:#0A4DA6;\">4.8</b></td><td>4.5 - 5.9</td><td>million/mcL</td></tr>\n")
-              .append("    <tr><td><b>Platelet Count</b></td><td><b style=\"color:#0A4DA6;\">2.8</b></td><td>1.5 - 4.5</td><td>lakhs/mcL</td></tr>\n")
-              .append("    <tr><td><b>Packed Cell Volume (PCV / Hematocrit)</b></td><td><b style=\"color:#0A4DA6;\">42.5</b></td><td>38.0 - 50.0</td><td>%</td></tr>\n")
-              .append("    <tr><td><b>Mean Corpuscular Volume (MCV)</b></td><td><b style=\"color:#0A4DA6;\">88.0</b></td><td>80.0 - 96.0</td><td>fL</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("lipid") || test.contains("cholesterol")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Total Cholesterol</b></td><td><b style=\"color:#0A4DA6;\">175</b></td><td>&lt; 200 (Desirable)</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>HDL Cholesterol (Good)</b></td><td><b style=\"color:#0A4DA6;\">52</b></td><td>&gt; 40</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>LDL Cholesterol (Bad)</b></td><td><b style=\"color:#0A4DA6;\">98</b></td><td>&lt; 100 (Optimal)</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>Triglycerides</b></td><td><b style=\"color:#0A4DA6;\">120</b></td><td>&lt; 150 (Normal)</td><td>mg/dL</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("liver") || test.contains("lft")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Bilirubin (Total)</b></td><td><b style=\"color:#0A4DA6;\">0.8</b></td><td>0.2 - 1.2</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>SGPT (ALT)</b></td><td><b style=\"color:#0A4DA6;\">28</b></td><td>7 - 55</td><td>U/L</td></tr>\n")
-              .append("    <tr><td><b>SGOT (AST)</b></td><td><b style=\"color:#0A4DA6;\">24</b></td><td>8 - 48</td><td>U/L</td></tr>\n")
-              .append("    <tr><td><b>Alkaline Phosphatase (ALP)</b></td><td><b style=\"color:#0A4DA6;\">78</b></td><td>44 - 147</td><td>U/L</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("kidney") || test.contains("kft")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Serum Creatinine</b></td><td><b style=\"color:#0A4DA6;\">0.9</b></td><td>0.7 - 1.3</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>Blood Urea Nitrogen (BUN)</b></td><td><b style=\"color:#0A4DA6;\">18</b></td><td>7 - 20</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>Uric Acid</b></td><td><b style=\"color:#0A4DA6;\">5.1</b></td><td>3.5 - 7.2</td><td>mg/dL</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("thyroid")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Thyroid Stimulating Hormone (TSH)</b></td><td><b style=\"color:#0A4DA6;\">2.45</b></td><td>0.40 - 4.00</td><td>uIU/mL</td></tr>\n")
-              .append("    <tr><td><b>Total Triiodothyronine (T3)</b></td><td><b style=\"color:#0A4DA6;\">1.25</b></td><td>0.80 - 2.00</td><td>ng/mL</td></tr>\n")
-              .append("    <tr><td><b>Total Thyroxine (T4)</b></td><td><b style=\"color:#0A4DA6;\">8.20</b></td><td>5.10 - 14.10</td><td>ug/dL</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("sugar") || test.contains("glucose") || test.contains("hba1c")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Fasting Blood Sugar (FBS)</b></td><td><b style=\"color:#0A4DA6;\">98</b></td><td>70 - 99 (Normal)</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>Post-Prandial Blood Sugar (PPBS)</b></td><td><b style=\"color:#0A4DA6;\">135</b></td><td>&lt; 140 (Normal)</td><td>mg/dL</td></tr>\n")
-              .append("    <tr><td><b>Glycated Hemoglobin (HbA1c)</b></td><td><b style=\"color:#0A4DA6;\">5.6</b></td><td>&lt; 5.7 (Non-diabetic)</td><td>%</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("urine")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Color & Appearance</b></td><td><b style=\"color:#0A4DA6;\">Pale Yellow, Clear</b></td><td>Pale Yellow, Clear</td><td>Visual</td></tr>\n")
-              .append("    <tr><td><b>Specific Gravity</b></td><td><b style=\"color:#0A4DA6;\">1.020</b></td><td>1.005 - 1.030</td><td>-</td></tr>\n")
-              .append("    <tr><td><b>pH</b></td><td><b style=\"color:#0A4DA6;\">6.5</b></td><td>4.5 - 8.0</td><td>-</td></tr>\n")
-              .append("    <tr><td><b>Urine Protein (Albumin)</b></td><td><b style=\"color:#0A4DA6;\">Nil (Negative)</b></td><td>Nil</td><td>Qualitative</td></tr>\n")
-              .append("    <tr><td><b>Urine Sugar (Glucose)</b></td><td><b style=\"color:#0A4DA6;\">Nil (Negative)</b></td><td>Nil</td><td>Qualitative</td></tr>\n")
-              .append("    <tr><td><b>Pus Cells (Leukocytes)</b></td><td><b style=\"color:#0A4DA6;\">1 - 2</b></td><td>0 - 5</td><td>/HPF</td></tr>\n")
-              .append("    <tr><td><b>Red Blood Cells (RBCs)</b></td><td><b style=\"color:#0A4DA6;\">Nil</b></td><td>0 - 2</td><td>/HPF</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("x-ray") || test.contains("imaging") || test.contains("ct") || test.contains("mri") || test.contains("ultrasound")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Diagnostic Imaging Parameter</th><th>Radiological Evaluation</th><th>Standard Technical Reference</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Investigation Requested</b></td><td><b style=\"color:#0A4DA6;\">" + report.getTestName() + "</b></td><td>Standard Hospital Diagnostic Protocol</td></tr>\n")
-              .append("    <tr><td><b>Projection / View</b></td><td>PA (Postero-Anterior) View</td><td>Digital Radiography (DR)</td></tr>\n")
-              .append("    <tr><td><b>Radiological Findings</b></td><td><b style=\"color:#0A4DA6;\">" + (report.getResult() != null ? report.getResult() : "Bilateral lung fields clear. Cardiac silhouette normal. Costophrenic angles sharp.") + "</b></td><td>No acute cardiopulmonary or bony abnormality detected.</td></tr>\n")
-              .append("    <tr><td><b>Diagnostic Impression</b></td><td><b style=\"color:#059669;\">Normal Study</b></td><td>Physiological limits</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else if (test.contains("ecg")) {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>ECG Parameter</th><th>Measured Value</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>Heart Rate</b></td><td><b style=\"color:#0A4DA6;\">72</b></td><td>60 - 100</td><td>bpm</td></tr>\n")
-              .append("    <tr><td><b>Rhythm</b></td><td><b style=\"color:#0A4DA6;\">Normal Sinus Rhythm</b></td><td>Sinus Rhythm</td><td>-</td></tr>\n")
-              .append("    <tr><td><b>PR Interval</b></td><td><b style=\"color:#0A4DA6;\">154</b></td><td>120 - 200</td><td>ms</td></tr>\n")
-              .append("    <tr><td><b>QRS Duration</b></td><td><b style=\"color:#0A4DA6;\">86</b></td><td>80 - 120</td><td>ms</td></tr>\n")
-              .append("    <tr><td><b>Interpretation</b></td><td><b style=\"color:#059669;\">Normal 12-Lead Electrocardiogram</b></td><td>Within normal limits</td><td>-</td></tr>\n")
-              .append("  </tbody>\n</table>");
-        } else {
-            sb.append("<table class=\"results-table\">\n")
-              .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th></tr></thead>\n")
-              .append("  <tbody>\n")
-              .append("    <tr><td><b>" + report.getTestName() + " Finding</b></td><td><b style=\"color:#0A4DA6;\">" + report.getResult() + "</b></td><td>Standard Reference</td><td>Clinical Metric</td></tr>\n")
-              .append("  </tbody>\n</table>");
+    public static List<String[]> extractLabTableRows(LabReport report) {
+        List<String[]> rows = new ArrayList<>();
+        String json = report.getTestDataJson();
+        if (json != null && json.trim().startsWith("{") && json.length() > 5) {
+            Map<String, String> data = parseJsonFlatPdf(json);
+            for (Map.Entry<String, String> e : data.entrySet()) {
+                String key = e.getKey().trim();
+                String val = e.getValue() != null ? e.getValue().trim() : "";
+                if (key.equalsIgnoreCase("Reference Range") || key.equalsIgnoreCase("Clinical Interpretation")
+                        || key.equalsIgnoreCase("Pathologist Remarks") || key.equalsIgnoreCase("Interpretation")
+                        || key.equalsIgnoreCase("Remarks") || key.equalsIgnoreCase("Doctor Recommendation")
+                        || key.equalsIgnoreCase("Radiological Impression") || val.isEmpty()) {
+                    continue;
+                }
+                String param = key;
+                String unit = "";
+                if (param.contains("(") && param.endsWith(")")) {
+                    int pIdx = param.lastIndexOf("(");
+                    unit = param.substring(pIdx + 1, param.length() - 1).trim();
+                    param = param.substring(0, pIdx).trim();
+                }
+                String refRange = resolveStandardReference(param, unit);
+                String flag = evaluateClinicalFlag(param, val, refRange);
+                rows.add(new String[]{param, val, refRange, unit, flag});
+            }
         }
 
+        if (rows.isEmpty()) {
+            String test = (report.getTestName() != null ? report.getTestName().toLowerCase() : "");
+            if (test.contains("cbc") || test.contains("blood count") || test.contains("hemogram")) {
+                rows.add(new String[]{"Hemoglobin (Hb)", "14.2", "13.0 - 17.5", "g/dL", "Normal"});
+                rows.add(new String[]{"Total Leukocyte Count (WBC)", "7,500", "4,500 - 11,000", "/mcL", "Normal"});
+                rows.add(new String[]{"RBC Count", "4.80", "4.50 - 5.90", "million/mcL", "Normal"});
+                rows.add(new String[]{"Platelet Count", "280,000", "150,000 - 450,000", "/mcL", "Normal"});
+                rows.add(new String[]{"Packed Cell Volume (PCV)", "42.5", "40.0 - 50.0", "%", "Normal"});
+                rows.add(new String[]{"Mean Corpuscular Volume (MCV)", "88.0", "80.0 - 96.0", "fL", "Normal"});
+                rows.add(new String[]{"MCH", "29.5", "27.0 - 33.0", "pg", "Normal"});
+                rows.add(new String[]{"MCHC", "33.8", "32.0 - 36.0", "g/dL", "Normal"});
+                rows.add(new String[]{"Neutrophils", "58", "40 - 70", "%", "Normal"});
+                rows.add(new String[]{"Lymphocytes", "32", "20 - 40", "%", "Normal"});
+                rows.add(new String[]{"Monocytes", "5", "2 - 8", "%", "Normal"});
+                rows.add(new String[]{"Eosinophils", "4", "1 - 6", "%", "Normal"});
+                rows.add(new String[]{"Basophils", "1", "0 - 1", "%", "Normal"});
+            } else if (test.contains("sugar") || test.contains("glucose") || test.contains("hba1c") || test.contains("diabet")) {
+                rows.add(new String[]{"Fasting Blood Sugar (FBS)", "98", "70 - 99", "mg/dL", "Normal"});
+                rows.add(new String[]{"Post-Prandial Blood Sugar (PPBS)", "135", "< 140", "mg/dL", "Normal"});
+                rows.add(new String[]{"Random Blood Sugar (RBS)", "110", "70 - 140", "mg/dL", "Normal"});
+                rows.add(new String[]{"Glycated Hemoglobin (HbA1c)", "5.6", "< 5.7", "%", "Normal"});
+            } else if (test.contains("lipid") || test.contains("cholesterol")) {
+                rows.add(new String[]{"Total Cholesterol", "175", "< 200 (Desirable)", "mg/dL", "Normal"});
+                rows.add(new String[]{"Triglycerides", "120", "< 150 (Normal)", "mg/dL", "Normal"});
+                rows.add(new String[]{"HDL Cholesterol (Good)", "52", "> 40", "mg/dL", "Normal"});
+                rows.add(new String[]{"LDL Cholesterol (Bad)", "98", "< 100 (Optimal)", "mg/dL", "Normal"});
+                rows.add(new String[]{"VLDL Cholesterol", "24", "10 - 30", "mg/dL", "Normal"});
+                rows.add(new String[]{"Non-HDL Cholesterol", "123", "< 130", "mg/dL", "Normal"});
+            } else if (test.contains("liver") || test.contains("lft") || test.contains("hepatic")) {
+                rows.add(new String[]{"Bilirubin (Total)", "0.8", "0.2 - 1.2", "mg/dL", "Normal"});
+                rows.add(new String[]{"Bilirubin (Direct)", "0.2", "0.0 - 0.3", "mg/dL", "Normal"});
+                rows.add(new String[]{"Bilirubin (Indirect)", "0.6", "0.2 - 0.8", "mg/dL", "Normal"});
+                rows.add(new String[]{"SGPT (ALT)", "28", "7 - 55", "U/L", "Normal"});
+                rows.add(new String[]{"SGOT (AST)", "24", "8 - 48", "U/L", "Normal"});
+                rows.add(new String[]{"Alkaline Phosphatase (ALP)", "78", "44 - 147", "U/L", "Normal"});
+                rows.add(new String[]{"Total Protein", "7.2", "6.0 - 8.3", "g/dL", "Normal"});
+                rows.add(new String[]{"Albumin", "4.4", "3.5 - 5.2", "g/dL", "Normal"});
+                rows.add(new String[]{"Globulin", "2.8", "2.0 - 3.5", "g/dL", "Normal"});
+                rows.add(new String[]{"A/G Ratio", "1.57", "1.2 - 2.2", "Ratio", "Normal"});
+            } else if (test.contains("kidney") || test.contains("kft") || test.contains("renal") || test.contains("rft")) {
+                rows.add(new String[]{"Serum Creatinine", "0.9", "0.7 - 1.3", "mg/dL", "Normal"});
+                rows.add(new String[]{"Blood Urea", "24", "15 - 40", "mg/dL", "Normal"});
+                rows.add(new String[]{"Blood Urea Nitrogen (BUN)", "18", "7 - 20", "mg/dL", "Normal"});
+                rows.add(new String[]{"Uric Acid", "5.1", "3.5 - 7.2", "mg/dL", "Normal"});
+                rows.add(new String[]{"Sodium (Na+)", "140", "136 - 145", "mEq/L", "Normal"});
+                rows.add(new String[]{"Potassium (K+)", "4.2", "3.5 - 5.1", "mEq/L", "Normal"});
+                rows.add(new String[]{"Chloride (Cl-)", "102", "98 - 107", "mEq/L", "Normal"});
+            } else if (test.contains("thyroid") || test.contains("tsh")) {
+                rows.add(new String[]{"Thyroid Stimulating Hormone (TSH)", "2.35", "0.40 - 4.00", "uIU/mL", "Normal"});
+                rows.add(new String[]{"Free Triiodothyronine (FT3)", "3.1", "2.3 - 4.2", "pg/mL", "Normal"});
+                rows.add(new String[]{"Free Thyroxine (FT4)", "1.2", "0.8 - 1.8", "ng/dL", "Normal"});
+                rows.add(new String[]{"Total T3", "120", "80 - 200", "ng/dL", "Normal"});
+                rows.add(new String[]{"Total T4", "8.4", "5.0 - 12.0", "ug/dL", "Normal"});
+            } else if (test.contains("urine") || test.contains("urinalysis")) {
+                rows.add(new String[]{"Color & Appearance", "Pale Yellow, Clear", "Pale Yellow, Clear", "Visual", "Normal"});
+                rows.add(new String[]{"Specific Gravity", "1.018", "1.005 - 1.030", "Index", "Normal"});
+                rows.add(new String[]{"pH", "6.0", "4.6 - 8.0", "pH", "Normal"});
+                rows.add(new String[]{"Urine Protein (Albumin)", "Nil (Negative)", "Negative", "Qualitative", "Normal"});
+                rows.add(new String[]{"Urine Sugar (Glucose)", "Nil (Negative)", "Negative", "Qualitative", "Normal"});
+                rows.add(new String[]{"Ketone Bodies", "Nil (Negative)", "Negative", "Qualitative", "Normal"});
+                rows.add(new String[]{"Pus Cells (Leukocytes)", "1 - 2", "0 - 5", "/HPF", "Normal"});
+                rows.add(new String[]{"Red Blood Cells (RBCs)", "Nil", "0 - 2", "/HPF", "Normal"});
+                rows.add(new String[]{"Epithelial Cells", "1 - 2", "0 - 5", "/HPF", "Normal"});
+            } else if (test.contains("electrolyte")) {
+                rows.add(new String[]{"Sodium (Na+)", "140", "136 - 145", "mEq/L", "Normal"});
+                rows.add(new String[]{"Potassium (K+)", "4.2", "3.5 - 5.1", "mEq/L", "Normal"});
+                rows.add(new String[]{"Chloride (Cl-)", "102", "98 - 107", "mEq/L", "Normal"});
+                rows.add(new String[]{"Bicarbonate (HCO3-)", "25", "22 - 29", "mEq/L", "Normal"});
+            } else {
+                rows.add(new String[]{report.getTestName() + " Finding", report.getResult() != null ? report.getResult() : "Normal Clinical Limits", "Standard Diagnostic Reference", "Metric", "Normal"});
+            }
+        }
+        return rows;
+    }
+
+    private static String resolveStandardReference(String param, String unit) {
+        String p = param.toLowerCase();
+        if (p.contains("hemoglobin") || p.contains("hb")) return "13.0 - 17.5";
+        if (p.contains("wbc") || p.contains("leukocyte")) return "4,500 - 11,000";
+        if (p.contains("rbc")) return "4.50 - 5.90";
+        if (p.contains("platelet")) return "150,000 - 450,000";
+        if (p.contains("hematocrit") || p.contains("hct") || p.contains("pcv")) return "40.0 - 50.0";
+        if (p.contains("mcv")) return "80.0 - 96.0";
+        if (p.contains("fasting") || p.contains("fbs")) return "70 - 99";
+        if (p.contains("post-prandial") || p.contains("ppbs")) return "< 140";
+        if (p.contains("hba1c")) return "< 5.7";
+        if (p.contains("cholesterol")) return "< 200 (Desirable)";
+        if (p.contains("triglyceride")) return "< 150 (Normal)";
+        if (p.contains("hdl")) return "> 40";
+        if (p.contains("ldl")) return "< 100 (Optimal)";
+        if (p.contains("creatinine")) return "0.7 - 1.3";
+        if (p.contains("urea")) return "15 - 40";
+        if (p.contains("uric acid")) return "3.5 - 7.2";
+        if (p.contains("tsh")) return "0.40 - 4.00";
+        if (p.contains("bilirubin")) return "0.2 - 1.2";
+        if (p.contains("sgpt") || p.contains("alt")) return "7 - 55";
+        if (p.contains("sgot") || p.contains("ast")) return "8 - 48";
+        if (p.contains("sodium")) return "136 - 145";
+        if (p.contains("potassium")) return "3.5 - 5.1";
+        if (p.contains("chloride")) return "98 - 107";
+        return "Within Standard Reference Limits";
+    }
+
+    private static String evaluateClinicalFlag(String param, String val, String refRange) {
+        if (val == null || val.isEmpty()) return "Normal";
+        try {
+            String cleanVal = val.replaceAll("[^0-9.]", "");
+            if (cleanVal.isEmpty()) return "Normal";
+            double d = Double.parseDouble(cleanVal);
+            if (refRange.contains("-")) {
+                String[] parts = refRange.split("-");
+                double low = Double.parseDouble(parts[0].replaceAll("[^0-9.]", ""));
+                double high = Double.parseDouble(parts[1].replaceAll("[^0-9.]", ""));
+                if (d < low) return "Low";
+                if (d > high) return "High";
+            } else if (refRange.startsWith("<")) {
+                double max = Double.parseDouble(refRange.replaceAll("[^0-9.]", ""));
+                if (d > max) return "High";
+            } else if (refRange.startsWith(">")) {
+                double min = Double.parseDouble(refRange.replaceAll("[^0-9.]", ""));
+                if (d < min) return "Low";
+            }
+        } catch (Exception ignored) {}
+        return "Normal";
+    }
+
+    public static String buildDynamicTable(LabReport report) {
+        List<String[]> rows = extractLabTableRows(report);
+        StringBuilder sb = new StringBuilder();
+        sb.append("<table class=\"results-table\">\n")
+          .append("  <thead><tr><th>Parameter / Investigation</th><th>Observed Result</th><th>Reference Range</th><th>Unit</th><th>Diagnostic Flag</th></tr></thead>\n")
+          .append("  <tbody>\n");
+        for (String[] r : rows) {
+            String param = r[0];
+            String val = r[1];
+            String ref = r[2];
+            String unit = r[3];
+            String flag = r[4];
+            String flagColor = "Normal".equalsIgnoreCase(flag) ? "#16A34A" : "#DC2626";
+            String flagBg = "Normal".equalsIgnoreCase(flag) ? "#DCFCE7" : "#FEE2E2";
+
+            sb.append("    <tr>\n")
+              .append("      <td><b>").append(param).append("</b></td>\n")
+              .append("      <td><b style=\"color:#0A4DA6;\">").append(val).append("</b></td>\n")
+              .append("      <td>").append(ref).append("</td>\n")
+              .append("      <td>").append(unit).append("</td>\n")
+              .append("      <td><span style=\"background:").append(flagBg).append("; color:").append(flagColor).append("; font-weight:700; padding:2px 8px; border-radius:12px; font-size:12px;\">").append(flag).append("</span></td>\n")
+              .append("    </tr>\n");
+        }
+        sb.append("  </tbody>\n</table>");
         return sb.toString();
+    }
+
+    public static byte[] generateBinaryPdf(LabReport report, List<String[]> rows) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            String pId = report.getPatientId() != null ? report.getPatientId() : "PT100842";
+            String rId = report.getReportId() != null ? report.getReportId() : "REP-100842";
+            String pName = report.getPatientName() != null ? report.getPatientName() : "Patient";
+            String docName = report.getDoctorName() != null ? report.getDoctorName() : "Consulting Doctor";
+            String dept = report.getDepartment() != null ? report.getDepartment() : "Pathology";
+            String repDate = report.getReportDate() != null ? report.getReportDate() : new java.text.SimpleDateFormat("yyyy-MM-dd").format(new Date());
+            String testName = report.getTestName() != null ? report.getTestName() : "Diagnostic Panel";
+            String ageGender = (report.getPatientAge() != null ? report.getPatientAge() : "28 Yrs") + " / " + (report.getPatientGender() != null ? report.getPatientGender() : "Male");
+            String obs = report.getObservation() != null ? report.getObservation() : "All observed physiological parameters lie within normal diagnostic reference intervals.";
+            String remarks = report.getRemarks() != null ? report.getRemarks() : "Sample analyzed in automated diagnostic analyzer. No pathology detected.";
+            String verifiedBy = report.getVerifiedBy() != null ? report.getVerifiedBy() : "Chief Pathologist (MD, Pathology)";
+
+            StringBuilder stream = new StringBuilder();
+            stream.append("0.04 0.25 0.55 rg\n40 790 515 3 re f\n");
+            stream.append("BT /F2 16 Tf 0.04 0.19 0.42 rg 40 805 Td (NIRAMAYA HOSPITALS) Tj ET\n");
+            stream.append("BT /F1 8 Tf 0.4 0.45 0.52 rg 40 796 Td (Accredited Multispeciality Tertiary Care Hospital | ISO 9001:2015 Certified) Tj ET\n");
+            stream.append("BT /F2 12 Tf 0.04 0.19 0.42 rg 380 805 Td (LABORATORY REPORT) Tj ET\n");
+            stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 380 795 Td (Report ID: ").append(escapePdf(rId)).append(") Tj ET\n");
+            stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 380 786 Td (Date: ").append(escapePdf(repDate)).append(") Tj ET\n");
+
+            // Patient Metadata Box
+            stream.append("0.95 0.96 0.98 rg 40 710 515 65 re f\n");
+            stream.append("0.8 0.85 0.9 RG 0.8 w 40 710 515 65 re S\n");
+
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 50 758 Td (Patient ID: ) Tj /F1 9 Tf (").append(escapePdf(pId)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 300 758 Td (Referring Doctor: ) Tj /F1 9 Tf (").append(escapePdf(docName)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 50 740 Td (Patient Name: ) Tj /F1 9 Tf (").append(escapePdf(pName)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 300 740 Td (Department: ) Tj /F1 9 Tf (").append(escapePdf(dept)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 50 722 Td (Age / Gender: ) Tj /F1 9 Tf (").append(escapePdf(ageGender)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 300 722 Td (Status: ) Tj /F2 9 Tf 0.05 0.6 0.2 rg (Verified Ready) Tj ET\n");
+
+            // Test Title
+            stream.append("0.04 0.3 0.65 rg 40 680 515 20 re f\n");
+            stream.append("BT /F2 10 Tf 1 1 1 rg 50 686 Td (Diagnostic Investigation: ").append(escapePdf(testName)).append(") Tj ET\n");
+
+            // Table Header
+            stream.append("0.9 0.93 0.97 rg 40 655 515 18 re f\n");
+            stream.append("BT /F2 8 Tf 0.05 0.2 0.45 rg 45 660 Td (INVESTIGATION / PARAMETER) Tj 220 660 Td (OBSERVED RESULT) Tj 340 660 Td (REFERENCE RANGE) Tj 450 660 Td (UNIT) Tj 505 660 Td (FLAG) Tj ET\n");
+
+            int y = 640;
+            if (rows != null) {
+                for (String[] row : rows) {
+                    if (y < 130) break;
+                    stream.append("0.92 0.94 0.96 RG 0.5 w 40 ").append(y - 3).append(" 515 0 re S\n");
+                    String param = row.length > 0 ? row[0] : "";
+                    String res = row.length > 1 ? row[1] : "";
+                    String ref = row.length > 2 ? row[2] : "";
+                    String unit = row.length > 3 ? row[3] : "";
+                    String flag = row.length > 4 ? row[4] : "Normal";
+
+                    stream.append("BT /F2 8 Tf 0.1 0.15 0.2 rg 45 ").append(y).append(" Td (").append(escapePdf(param)).append(") Tj ET\n");
+                    stream.append("BT /F2 8 Tf 0.04 0.3 0.65 rg 220 ").append(y).append(" Td (").append(escapePdf(res)).append(") Tj ET\n");
+                    stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 340 ").append(y).append(" Td (").append(escapePdf(ref)).append(") Tj ET\n");
+                    stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 450 ").append(y).append(" Td (").append(escapePdf(unit)).append(") Tj ET\n");
+                    if ("High".equalsIgnoreCase(flag) || "Low".equalsIgnoreCase(flag) || "Abnormal".equalsIgnoreCase(flag)) {
+                        stream.append("BT /F2 8 Tf 0.85 0.15 0.15 rg 505 ").append(y).append(" Td (").append(escapePdf(flag)).append(") Tj ET\n");
+                    } else {
+                        stream.append("BT /F1 8 Tf 0.05 0.6 0.2 rg 505 ").append(y).append(" Td (Normal) Tj ET\n");
+                    }
+                    y -= 15;
+                }
+            }
+
+            // Clinical Notes
+            y -= 8;
+            stream.append("BT /F2 9 Tf 0.05 0.2 0.45 rg 40 ").append(y).append(" Td (CLINICAL INTERPRETATION & REMARKS) Tj ET\n");
+            y -= 13;
+            stream.append("BT /F1 8 Tf 0.2 0.25 0.3 rg 40 ").append(y).append(" Td (").append(escapePdf(obs)).append(") Tj ET\n");
+            y -= 11;
+            stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 40 ").append(y).append(" Td (Remarks: ").append(escapePdf(remarks)).append(") Tj ET\n");
+
+            // Signatures
+            stream.append("0.85 0.88 0.92 RG 0.8 w 40 85 515 0 re S\n");
+            stream.append("BT /F2 8 Tf 0.1 0.15 0.2 rg 40 70 Td (Technician: Senior Pathologist) Tj ET\n");
+            stream.append("BT /F1 7 Tf 0.4 0.45 0.5 rg 40 60 Td (Clinical Pathology & Diagnostic Biochemistry) Tj ET\n");
+            stream.append("BT /F2 8 Tf 0.1 0.15 0.2 rg 380 70 Td (Verified By: ").append(escapePdf(verifiedBy)).append(") Tj ET\n");
+            stream.append("BT /F1 7 Tf 0.4 0.45 0.5 rg 380 60 Td (Chief Pathologist | MD Pathology) Tj ET\n");
+            stream.append("BT /F1 7 Tf 0.5 0.55 0.6 rg 150 25 Td (Official Clinical Laboratory Report - Niramaya Smart Hospital Management System) Tj ET\n");
+
+            byte[] streamBytes = stream.toString().getBytes(StandardCharsets.ISO_8859_1);
+            List<Long> offsets = new ArrayList<>();
+            baos.write("%PDF-1.4\n".getBytes(StandardCharsets.US_ASCII));
+            baos.write("%\u00E2\u00E3\u00CF\u00D3\n".getBytes(StandardCharsets.ISO_8859_1));
+
+            offsets.add((long) baos.size());
+            baos.write("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write(("6 0 obj\n<< /Length " + streamBytes.length + " >>\nstream\n").getBytes(StandardCharsets.US_ASCII));
+            baos.write(streamBytes);
+            baos.write("\nendstream\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            long xrefPos = baos.size();
+            baos.write(("xref\n0 " + (offsets.size() + 1) + "\n").getBytes(StandardCharsets.US_ASCII));
+            baos.write("0000000000 65535 f \n".getBytes(StandardCharsets.US_ASCII));
+            for (Long off : offsets) {
+                baos.write(String.format(Locale.US, "%010d 00000 n \n", off).getBytes(StandardCharsets.US_ASCII));
+            }
+            baos.write(("trailer\n<< /Size " + (offsets.size() + 1) + " /Root 1 0 R >>\n").getBytes(StandardCharsets.US_ASCII));
+            baos.write(("startxref\n" + xrefPos + "\n%%EOF\n").getBytes(StandardCharsets.US_ASCII));
+            return baos.toByteArray();
+        } catch (Exception e) {
+            return new byte[0];
+        }
+    }
+
+    public static byte[] createPharmacyInvoicePdfBytes(com.hospital.model.PharmacyOrder order, List<com.hospital.model.PharmacyOrderItem> items, String patientName, String doctorName) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            String token = order.getPharmacyToken() != null ? order.getPharmacyToken() : "PHA-10084";
+            String ordId = order.getOrderId() != null ? order.getOrderId() : "10084";
+            String invNo = ordId.startsWith("INV-") ? ordId : ("INV-" + ordId.replace("PHA-", ""));
+            String orderDate = order.getOrderDate() != null ? order.getOrderDate() : new java.text.SimpleDateFormat("yyyy-MM-dd").format(new Date());
+            String pId = order.getPatientId() != null ? order.getPatientId() : "PT100842";
+            double total = order.getTotalAmount();
+            String payStatus = order.getPaymentStatus() != null ? order.getPaymentStatus() : "Paid";
+            String payMethod = order.getPaymentMethod() != null ? order.getPaymentMethod() : "UPI";
+
+            StringBuilder stream = new StringBuilder();
+            stream.append("0.05 0.43 0.99 rg\n40 790 515 3 re f\n");
+            stream.append("BT /F2 16 Tf 0.04 0.19 0.42 rg 40 805 Td (NIRAMAYA HOSPITALS) Tj ET\n");
+            stream.append("BT /F1 8 Tf 0.4 0.45 0.52 rg 40 796 Td (Department of Pharmacy & Pharmaceutical Services | GSTIN: 33AAAAA0000A1Z5) Tj ET\n");
+            stream.append("BT /F2 12 Tf 0.04 0.19 0.42 rg 370 805 Td (PHARMACY TAX INVOICE) Tj ET\n");
+            stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 370 795 Td (Invoice No: ").append(escapePdf(invNo)).append(") Tj ET\n");
+            stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 370 786 Td (Date: ").append(escapePdf(orderDate)).append(") Tj ET\n");
+
+            // Order Metadata Box
+            stream.append("0.95 0.96 0.98 rg 40 710 515 65 re f\n");
+            stream.append("0.8 0.85 0.9 RG 0.8 w 40 710 515 65 re S\n");
+
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 50 758 Td (Patient ID: ) Tj /F1 9 Tf (").append(escapePdf(pId)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 300 758 Td (Prescribing Doctor: ) Tj /F1 9 Tf (").append(escapePdf(doctorName)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 50 740 Td (Patient Name: ) Tj /F1 9 Tf (").append(escapePdf(patientName)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 300 740 Td (Token: ) Tj /F1 9 Tf (").append(escapePdf(token)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 50 722 Td (Payment Status: ) Tj /F2 9 Tf 0.05 0.6 0.2 rg (").append(escapePdf(payStatus)).append(") Tj ET\n");
+            stream.append("BT /F2 9 Tf 0.1 0.15 0.25 rg 300 722 Td (Payment Method: ) Tj /F1 9 Tf (").append(escapePdf(payMethod)).append(") Tj ET\n");
+
+            // Items Table Header
+            stream.append("0.9 0.93 0.97 rg 40 675 515 20 re f\n");
+            stream.append("BT /F2 8 Tf 0.05 0.2 0.45 rg 45 681 Td (MEDICINE / ITEM DESCRIPTION) Tj 270 681 Td (STRENGTH) Tj 360 681 Td (QTY) Tj 410 681 Td (UNIT PRICE) Tj 480 681 Td (AMOUNT) Tj ET\n");
+
+            int y = 655;
+            double subtotal = 0;
+            if (items != null) {
+                for (com.hospital.model.PharmacyOrderItem itm : items) {
+                    if (y < 160) break;
+                    stream.append("0.92 0.94 0.96 RG 0.5 w 40 ").append(y - 3).append(" 515 0 re S\n");
+                    double itemSub = itm.getSubtotal() > 0 ? itm.getSubtotal() : (itm.getUnitPrice() * itm.getQuantity());
+                    subtotal += itemSub;
+                    stream.append("BT /F2 8 Tf 0.1 0.15 0.2 rg 45 ").append(y).append(" Td (").append(escapePdf(itm.getMedicineName())).append(") Tj ET\n");
+                    stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 270 ").append(y).append(" Td (").append(escapePdf(itm.getStrength())).append(") Tj ET\n");
+                    stream.append("BT /F1 8 Tf 0.1 0.15 0.2 rg 365 ").append(y).append(" Td (").append(itm.getQuantity()).append(") Tj ET\n");
+                    stream.append("BT /F1 8 Tf 0.3 0.35 0.4 rg 415 ").append(y).append(" Td (Rs. ").append(String.format(Locale.US, "%.2f", itm.getUnitPrice())).append(") Tj ET\n");
+                    stream.append("BT /F2 8 Tf 0.05 0.3 0.6 rg 480 ").append(y).append(" Td (Rs. ").append(String.format(Locale.US, "%.2f", itemSub)).append(") Tj ET\n");
+                    y -= 16;
+                }
+            }
+            if (subtotal <= 0) subtotal = total > 0 ? (total / 1.05) : 0;
+            double gst = total > 0 ? (total - subtotal) : (subtotal * 0.05);
+            double grandTotal = total > 0 ? total : (subtotal + gst);
+
+            // Totals Box
+            y -= 10;
+            stream.append("0.95 0.96 0.98 rg 340 ").append(y - 50).append(" 215 55 re f\n");
+            stream.append("0.85 0.88 0.92 RG 0.8 w 340 ").append(y - 50).append(" 215 55 re S\n");
+            stream.append("BT /F1 8 Tf 0.2 0.25 0.3 rg 350 ").append(y - 12).append(" Td (Subtotal: ) Tj 480 ").append(y - 12).append(" Td (Rs. ").append(String.format(Locale.US, "%.2f", subtotal)).append(") Tj ET\n");
+            stream.append("BT /F1 8 Tf 0.2 0.25 0.3 rg 350 ").append(y - 26).append(" Td (GST (5%): ) Tj 480 ").append(y - 26).append(" Td (Rs. ").append(String.format(Locale.US, "%.2f", gst)).append(") Tj ET\n");
+            stream.append("BT /F2 10 Tf 0.05 0.43 0.99 rg 350 ").append(y - 42).append(" Td (Grand Total: ) Tj 470 ").append(y - 42).append(" Td (Rs. ").append(String.format(Locale.US, "%.2f", grandTotal)).append(") Tj ET\n");
+
+            // Signatures
+            stream.append("0.85 0.88 0.92 RG 0.8 w 40 85 515 0 re S\n");
+            stream.append("BT /F2 8 Tf 0.1 0.15 0.2 rg 40 70 Td (Dispensed By: Chief Pharmacist) Tj ET\n");
+            stream.append("BT /F1 7 Tf 0.4 0.45 0.5 rg 40 60 Td (Pharmacy License No: DL-TN-2026-9081) Tj ET\n");
+            stream.append("BT /F2 8 Tf 0.1 0.15 0.2 rg 390 70 Td (Authorized Hospital Seal) Tj ET\n");
+            stream.append("BT /F1 7 Tf 0.4 0.45 0.5 rg 390 60 Td (Verified & System Generated Invoice) Tj ET\n");
+            stream.append("BT /F1 7 Tf 0.5 0.55 0.6 rg 170 25 Td (Official Tax Invoice - Niramaya Smart Hospital Management System) Tj ET\n");
+
+            byte[] streamBytes = stream.toString().getBytes(StandardCharsets.ISO_8859_1);
+            List<Long> offsets = new ArrayList<>();
+            baos.write("%PDF-1.4\n".getBytes(StandardCharsets.US_ASCII));
+            baos.write("%\u00E2\u00E3\u00CF\u00D3\n".getBytes(StandardCharsets.ISO_8859_1));
+
+            offsets.add((long) baos.size());
+            baos.write("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            offsets.add((long) baos.size());
+            baos.write(("6 0 obj\n<< /Length " + streamBytes.length + " >>\nstream\n").getBytes(StandardCharsets.US_ASCII));
+            baos.write(streamBytes);
+            baos.write("\nendstream\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+
+            long xrefPos = baos.size();
+            baos.write(("xref\n0 " + (offsets.size() + 1) + "\n").getBytes(StandardCharsets.US_ASCII));
+            baos.write("0000000000 65535 f \n".getBytes(StandardCharsets.US_ASCII));
+            for (Long off : offsets) {
+                baos.write(String.format(Locale.US, "%010d 00000 n \n", off).getBytes(StandardCharsets.US_ASCII));
+            }
+            baos.write(("trailer\n<< /Size " + (offsets.size() + 1) + " /Root 1 0 R >>\n").getBytes(StandardCharsets.US_ASCII));
+            baos.write(("startxref\n" + xrefPos + "\n%%EOF\n").getBytes(StandardCharsets.US_ASCII));
+            return baos.toByteArray();
+        } catch (Exception e) {
+            return new byte[0];
+        }
     }
 
     public static File generatePharmacyInvoicePDF(com.hospital.model.PharmacyOrder order, java.util.List<com.hospital.model.PharmacyOrderItem> items, String patientName, String doctorName) {
@@ -269,15 +606,26 @@ public class PDFGenerator {
             if (!publicReportsDir.exists()) publicReportsDir.mkdirs();
 
             String filename = "PharmacyInvoice_" + order.getPharmacyToken() + "_" + order.getOrderId() + ".pdf";
+            String htmlFilename = "PharmacyInvoice_" + order.getPharmacyToken() + "_" + order.getOrderId() + ".html";
             File targetFile = new File(reportsDir, filename);
             File publicTargetFile = new File(publicReportsDir, filename);
+            File targetHtml = new File(reportsDir, htmlFilename);
+            File publicTargetHtml = new File(publicReportsDir, htmlFilename);
 
             String htmlContent = buildPharmacyInvoiceHTML(order, items, patientName, doctorName);
+            saveHtmlFile(targetHtml, htmlContent);
+            saveHtmlFile(publicTargetHtml, htmlContent);
 
-            saveHtmlFile(targetFile, htmlContent);
-            saveHtmlFile(publicTargetFile, htmlContent);
+            byte[] binaryPdfBytes = createPharmacyInvoicePdfBytes(order, items, patientName, doctorName);
+            if (binaryPdfBytes.length > 0) {
+                saveBinaryFile(targetFile, binaryPdfBytes);
+                saveBinaryFile(publicTargetFile, binaryPdfBytes);
+            } else {
+                saveHtmlFile(targetFile, htmlContent);
+                saveHtmlFile(publicTargetFile, htmlContent);
+            }
 
-            System.out.println("✓ Generated Pharmacy Invoice PDF at: " + targetFile.getAbsolutePath());
+            System.out.println("✓ Generated Pharmacy Invoice PDF (Binary & HTML) at: " + targetFile.getAbsolutePath());
             return targetFile;
         } catch (Exception e) {
             System.err.println("Error generating Pharmacy Invoice PDF: " + e.getMessage());
@@ -285,6 +633,7 @@ public class PDFGenerator {
             return null;
         }
     }
+
 
     public static String buildPharmacyInvoiceHTML(com.hospital.model.PharmacyOrder order, java.util.List<com.hospital.model.PharmacyOrderItem> items, String patientName, String doctorName) {
         String token = order.getPharmacyToken() != null ? order.getPharmacyToken() : "PHA-10084";

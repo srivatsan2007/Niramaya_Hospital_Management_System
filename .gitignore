@@ -18,7 +18,9 @@ Thumbs.db
 
 # Generated reports and scratch source files
 Reports/*.pdf
+Reports/*.html
 public/Reports/*.pdf
+public/Reports/*.html
 sources_win.txt
 sources_linux.txt
 

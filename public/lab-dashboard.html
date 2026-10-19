@@ -1148,95 +1148,151 @@
       const t = (testName || '').toLowerCase();
 
       let html = '';
-      if (t.includes('cbc') || t.includes('blood count')) {
+      if (t.includes('cbc') || t.includes('blood count') || t.includes('hemogram')) {
         html = `
+          <div style="font-weight:700; color:var(--primary); margin-bottom:6px; font-size:0.85rem;">PRIMARY HEMATOLOGY PARAMETERS</div>
           <div class="grid-3">
-            <div class="form-group"><label>Hemoglobin (g/dL)</label><input type="text" id="fld_hb" value="14.2"></div>
-            <div class="form-group"><label>WBC Count (cells/mcL)</label><input type="text" id="fld_wbc" value="7,500"></div>
-            <div class="form-group"><label>RBC Count (million/mcL)</label><input type="text" id="fld_rbc" value="4.8"></div>
-            <div class="form-group"><label>Platelet Count (lakhs/mcL)</label><input type="text" id="fld_platelets" value="2.8"></div>
-            <div class="form-group"><label>Hematocrit (%)</label><input type="text" id="fld_hct" value="42.5"></div>
-            <div class="form-group"><label>MCV (fL)</label><input type="text" id="fld_mcv" value="88"></div>
+            <div class="form-group"><label>Hemoglobin (Hb) (g/dL)</label><input type="text" id="fld_hb" value="14.2"></div>
+            <div class="form-group"><label>Total WBC Count (cells/mcL)</label><input type="text" id="fld_wbc" value="7,500"></div>
+            <div class="form-group"><label>RBC Count (million/mcL)</label><input type="text" id="fld_rbc" value="4.80"></div>
+            <div class="form-group"><label>Platelet Count (cells/mcL)</label><input type="text" id="fld_platelets" value="280,000"></div>
+            <div class="form-group"><label>Packed Cell Volume (PCV) (%)</label><input type="text" id="fld_hct" value="42.5"></div>
+            <div class="form-group"><label>Mean Corpuscular Volume (MCV) (fL)</label><input type="text" id="fld_mcv" value="88.0"></div>
+            <div class="form-group"><label>MCH (pg)</label><input type="text" id="fld_mch" value="29.5"></div>
+            <div class="form-group"><label>MCHC (g/dL)</label><input type="text" id="fld_mchc" value="33.8"></div>
           </div>
-          <div class="form-group"><label>Reference Range</label><input type="text" id="fld_ref" value="Hb: 12-16 g/dL, WBC: 4500-11000, Platelets: 1.5-4.5 Lakhs"></div>
-          <div class="form-group"><label>Clinical Interpretation</label><textarea id="fld_interp" rows="2">Normal Complete Blood Count parameters. No indication of anemia or acute leukocytosis.</textarea></div>
-          <div class="form-group"><label>Pathologist Remarks</label><input type="text" id="fld_remarks" value="Platelet counts within physiological reference ranges."></div>
+          <div style="font-weight:700; color:var(--primary); margin:10px 0 6px 0; font-size:0.85rem;">DIFFERENTIAL LEUKOCYTE COUNT (DLC)</div>
+          <div class="grid-3">
+            <div class="form-group"><label>Neutrophils (%)</label><input type="text" id="fld_neut" value="58"></div>
+            <div class="form-group"><label>Lymphocytes (%)</label><input type="text" id="fld_lymph" value="32"></div>
+            <div class="form-group"><label>Monocytes (%)</label><input type="text" id="fld_mono" value="5"></div>
+            <div class="form-group"><label>Eosinophils (%)</label><input type="text" id="fld_eos" value="4"></div>
+            <div class="form-group"><label>Basophils (%)</label><input type="text" id="fld_baso" value="1"></div>
+          </div>
+          <div class="form-group"><label>Clinical Interpretation</label><textarea id="fld_interp" rows="2">Normal Complete Blood Count parameters. Red cell indices and differential leukocyte counts within physiological limits.</textarea></div>
+          <div class="form-group"><label>Pathologist Remarks</label><input type="text" id="fld_remarks" value="No hemoparasites or immature blast cells detected on peripheral blood smear."></div>
         `;
-      } else if (t.includes('sugar') || t.includes('glucose') || t.includes('hba1c')) {
+      } else if (t.includes('sugar') || t.includes('glucose') || t.includes('hba1c') || t.includes('diabet')) {
         html = `
           <div class="grid-3">
-            <div class="form-group"><label>Fasting Blood Sugar (mg/dL)</label><input type="text" id="fld_fbs" value="98"></div>
-            <div class="form-group"><label>Post-Prandial Blood Sugar (mg/dL)</label><input type="text" id="fld_ppbs" value="135"></div>
-            <div class="form-group"><label>HbA1c (%)</label><input type="text" id="fld_hba1c" value="5.6"></div>
+            <div class="form-group"><label>Fasting Blood Sugar (FBS) (mg/dL)</label><input type="text" id="fld_fbs" value="98"></div>
+            <div class="form-group"><label>Post-Prandial Blood Sugar (PPBS) (mg/dL)</label><input type="text" id="fld_ppbs" value="135"></div>
+            <div class="form-group"><label>Random Blood Sugar (RBS) (mg/dL)</label><input type="text" id="fld_rbs" value="110"></div>
+            <div class="form-group"><label>Glycated Hemoglobin (HbA1c) (%)</label><input type="text" id="fld_hba1c" value="5.6"></div>
           </div>
-          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Euglycemic status. Glycemic index is within normal non-diabetic range.</textarea></div>
-          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Optimal blood sugar control."></div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Euglycemic status. Glycemic control is optimal within non-diabetic reference ranges.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Fasting state verified. Patient advised routine healthy lifestyle maintenance."></div>
         `;
       } else if (t.includes('lipid') || t.includes('cholesterol')) {
         html = `
           <div class="grid-3">
             <div class="form-group"><label>Total Cholesterol (mg/dL)</label><input type="text" id="fld_chol" value="175"></div>
-            <div class="form-group"><label>HDL (Good) (mg/dL)</label><input type="text" id="fld_hdl" value="52"></div>
-            <div class="form-group"><label>LDL (Bad) (mg/dL)</label><input type="text" id="fld_ldl" value="98"></div>
             <div class="form-group"><label>Triglycerides (mg/dL)</label><input type="text" id="fld_trig" value="120"></div>
+            <div class="form-group"><label>HDL Cholesterol (Good) (mg/dL)</label><input type="text" id="fld_hdl" value="52"></div>
+            <div class="form-group"><label>LDL Cholesterol (Bad) (mg/dL)</label><input type="text" id="fld_ldl" value="98"></div>
+            <div class="form-group"><label>VLDL Cholesterol (mg/dL)</label><input type="text" id="fld_vldl" value="24"></div>
+            <div class="form-group"><label>Non-HDL Cholesterol (mg/dL)</label><input type="text" id="fld_nonhdl" value="123"></div>
           </div>
-          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Desirable lipid profile with good cardioprotective HDL level.</textarea></div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Desirable cardiovascular lipid profile with good cardioprotective HDL level.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="12-hour overnight fasting specimen verified."></div>
         `;
-      } else if (t.includes('liver') || t.includes('lft')) {
+      } else if (t.includes('liver') || t.includes('lft') || t.includes('hepatic')) {
         html = `
           <div class="grid-3">
-            <div class="form-group"><label>ALT (SGPT) (U/L)</label><input type="text" id="fld_alt" value="28"></div>
-            <div class="form-group"><label>AST (SGOT) (U/L)</label><input type="text" id="fld_ast" value="24"></div>
-            <div class="form-group"><label>ALP (U/L)</label><input type="text" id="fld_alp" value="78"></div>
-            <div class="form-group"><label>Bilirubin Total (mg/dL)</label><input type="text" id="fld_bili" value="0.8"></div>
+            <div class="form-group"><label>Bilirubin (Total) (mg/dL)</label><input type="text" id="fld_bili_tot" value="0.8"></div>
+            <div class="form-group"><label>Bilirubin (Direct) (mg/dL)</label><input type="text" id="fld_bili_dir" value="0.2"></div>
+            <div class="form-group"><label>Bilirubin (Indirect) (mg/dL)</label><input type="text" id="fld_bili_ind" value="0.6"></div>
+            <div class="form-group"><label>SGPT (ALT) (U/L)</label><input type="text" id="fld_alt" value="28"></div>
+            <div class="form-group"><label>SGOT (AST) (U/L)</label><input type="text" id="fld_ast" value="24"></div>
+            <div class="form-group"><label>Alkaline Phosphatase (ALP) (U/L)</label><input type="text" id="fld_alp" value="78"></div>
+            <div class="form-group"><label>Total Protein (g/dL)</label><input type="text" id="fld_prot" value="7.2"></div>
+            <div class="form-group"><label>Albumin (g/dL)</label><input type="text" id="fld_alb" value="4.2"></div>
+            <div class="form-group"><label>Globulin (g/dL)</label><input type="text" id="fld_glob" value="3.0"></div>
+            <div class="form-group"><label>A/G Ratio</label><input type="text" id="fld_ag_ratio" value="1.4"></div>
           </div>
-          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Normal liver enzyme parameters and hepatic integrity.</textarea></div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Normal hepatic parenchymal and biliary enzyme parameters. Protein synthesis capacity preserved.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Clear non-icteric serum sample evaluated."></div>
         `;
-      } else if (t.includes('kidney') || t.includes('kft') || t.includes('renal')) {
+      } else if (t.includes('kidney') || t.includes('kft') || t.includes('renal') || t.includes('rft')) {
         html = `
           <div class="grid-3">
             <div class="form-group"><label>Serum Creatinine (mg/dL)</label><input type="text" id="fld_creat" value="0.9"></div>
             <div class="form-group"><label>Blood Urea (mg/dL)</label><input type="text" id="fld_urea" value="22"></div>
-            <div class="form-group"><label>Uric Acid (mg/dL)</label><input type="text" id="fld_uric" value="5.1"></div>
+            <div class="form-group"><label>BUN (Blood Urea Nitrogen) (mg/dL)</label><input type="text" id="fld_bun" value="10.3"></div>
+            <div class="form-group"><label>Serum Uric Acid (mg/dL)</label><input type="text" id="fld_uric" value="5.1"></div>
+            <div class="form-group"><label>Serum Sodium (mEq/L)</label><input type="text" id="fld_na" value="140"></div>
+            <div class="form-group"><label>Serum Potassium (mEq/L)</label><input type="text" id="fld_k" value="4.2"></div>
+            <div class="form-group"><label>Serum Chloride (mEq/L)</label><input type="text" id="fld_cl" value="102"></div>
           </div>
-          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Renal clearance and electrolyte filtration normal.</textarea></div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Normal glomerular filtration and renal clearance parameters. Serum electrolytes in balance.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Estimated GFR > 90 mL/min/1.73m2."></div>
         `;
       } else if (t.includes('thyroid') || t.includes('tsh') || t.includes('t3') || t.includes('t4')) {
         html = `
           <div class="grid-3">
-            <div class="form-group"><label>TSH (uIU/mL)</label><input type="text" id="fld_tsh" value="2.35"></div>
-            <div class="form-group"><label>Total T3 (ng/dL)</label><input type="text" id="fld_t3" value="120"></div>
-            <div class="form-group"><label>Total T4 (ug/dL)</label><input type="text" id="fld_t4" value="8.4"></div>
-            <div class="form-group"><label>Free T3 (pg/mL)</label><input type="text" id="fld_ft3" value="3.1"></div>
-            <div class="form-group"><label>Free T4 (ng/dL)</label><input type="text" id="fld_ft4" value="1.2"></div>
+            <div class="form-group"><label>TSH (Thyroid Stimulating Hormone) (uIU/mL)</label><input type="text" id="fld_tsh" value="2.35"></div>
+            <div class="form-group"><label>Total T3 (Triiodothyronine) (ng/dL)</label><input type="text" id="fld_t3" value="120"></div>
+            <div class="form-group"><label>Total T4 (Thyroxine) (ug/dL)</label><input type="text" id="fld_t4" value="8.4"></div>
+            <div class="form-group"><label>Free T3 (FT3) (pg/mL)</label><input type="text" id="fld_ft3" value="3.1"></div>
+            <div class="form-group"><label>Free T4 (FT4) (ng/dL)</label><input type="text" id="fld_ft4" value="1.2"></div>
           </div>
-          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Euthyroid state. Thyroid stimulation and hormone levels are within physiological limits.</textarea></div>
-          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="No thyroid dysfunction observed."></div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Euthyroid state. Thyroid stimulation and circulating free and total iodothyronines are within physiological limits.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="No primary or secondary thyroid dysfunction identified."></div>
         `;
       } else if (t.includes('urine') || t.includes('urinalysis')) {
         html = `
+          <div style="font-weight:700; color:var(--primary); margin-bottom:6px; font-size:0.85rem;">PHYSICAL & CHEMICAL EXAMINATION</div>
           <div class="grid-3">
             <div class="form-group"><label>Color & Appearance</label><input type="text" id="fld_ucolor" value="Pale Yellow / Clear"></div>
             <div class="form-group"><label>Specific Gravity</label><input type="text" id="fld_usg" value="1.018"></div>
             <div class="form-group"><label>pH</label><input type="text" id="fld_uph" value="6.0"></div>
             <div class="form-group"><label>Protein / Albumin</label><input type="text" id="fld_uprot" value="Nil / Negative"></div>
-            <div class="form-group"><label>Glucose</label><input type="text" id="fld_ugluc" value="Negative"></div>
-            <div class="form-group"><label>Pus Cells (HPF)</label><input type="text" id="fld_upus" value="1-2 / HPF"></div>
+            <div class="form-group"><label>Glucose / Sugar</label><input type="text" id="fld_ugluc" value="Negative"></div>
+            <div class="form-group"><label>Ketone Bodies</label><input type="text" id="fld_uket" value="Negative"></div>
           </div>
-          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Routine urinalysis shows no proteinuria, glycosuria, or active sediment.</textarea></div>
-          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Clean specimen, no signs of urinary tract infection."></div>
+          <div style="font-weight:700; color:var(--primary); margin:10px 0 6px 0; font-size:0.85rem;">MICROSCOPIC EXAMINATION</div>
+          <div class="grid-3">
+            <div class="form-group"><label>Pus Cells (WBC) (/HPF)</label><input type="text" id="fld_upus" value="1-2 / HPF"></div>
+            <div class="form-group"><label>Red Blood Cells (RBC) (/HPF)</label><input type="text" id="fld_urbc" value="Nil / HPF"></div>
+            <div class="form-group"><label>Epithelial Cells (/HPF)</label><input type="text" id="fld_uepi" value="Few / HPF"></div>
+            <div class="form-group"><label>Casts & Crystals</label><input type="text" id="fld_ucast" value="None seen"></div>
+          </div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Routine urinalysis shows clear physical properties with absent proteinuria, glycosuria, or active inflammatory sediment.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Specimen clean, mid-stream void. No signs of active urinary tract infection."></div>
+        `;
+      } else if (t.includes('electrolyte')) {
+        html = `
+          <div class="grid-3">
+            <div class="form-group"><label>Serum Sodium (Na+) (mEq/L)</label><input type="text" id="fld_na" value="140"></div>
+            <div class="form-group"><label>Serum Potassium (K+) (mEq/L)</label><input type="text" id="fld_k" value="4.2"></div>
+            <div class="form-group"><label>Serum Chloride (Cl-) (mEq/L)</label><input type="text" id="fld_cl" value="102"></div>
+            <div class="form-group"><label>Serum Bicarbonate (HCO3-) (mEq/L)</label><input type="text" id="fld_hco3" value="24"></div>
+            <div class="form-group"><label>Serum Calcium (Total) (mg/dL)</label><input type="text" id="fld_ca" value="9.4"></div>
+          </div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Electrolyte balance and acid-base status are within physiological equilibrium.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Non-hemolyzed sample analyzed on ion-selective electrode (ISE)."></div>
+        `;
+      } else if (t.includes('esr') || t.includes('crp') || t.includes('blood group')) {
+        html = `
+          <div class="grid-3">
+            <div class="form-group"><label>ESR (Westergren 1st Hr) (mm/hr)</label><input type="text" id="fld_esr" value="12"></div>
+            <div class="form-group"><label>C-Reactive Protein (CRP) (mg/L)</label><input type="text" id="fld_crp" value="1.8"></div>
+            <div class="form-group"><label>ABO & Rh Blood Group</label><input type="text" id="fld_bg" value="O Positive (Rh+)"></div>
+          </div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Inflammatory markers are within normal limits. Blood grouping confirmed with forward and reverse typing.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Negative for acute phase inflammatory reaction."></div>
         `;
       } else if (t.includes('x-ray') || t.includes('xray') || t.includes('imaging') || t.includes('radiology') || t.includes('chest')) {
         html = `
           <div class="grid-3">
             <div class="form-group"><label>Examination View</label><input type="text" id="fld_xview" value="PA View / Standard Erect"></div>
-            <div class="form-group"><label>Lung Fields</label><input type="text" id="fld_xlungs" value="Clear bilateral lung fields. No consolidation."></div>
+            <div class="form-group"><label>Lung Fields</label><input type="text" id="fld_xlungs" value="Clear bilateral lung fields. No consolidation or effusion."></div>
             <div class="form-group"><label>Cardiac Silhouette</label><input type="text" id="fld_xheart" value="Normal cardiothoracic ratio (< 0.5)"></div>
             <div class="form-group"><label>Costophrenic Angles</label><input type="text" id="fld_xcpa" value="Sharp and clear bilaterally"></div>
             <div class="form-group"><label>Bony Thorax</label><input type="text" id="fld_xbone" value="Intact ribs and thoracic cage"></div>
           </div>
-          <div class="form-group"><label>Radiological Impression</label><textarea id="fld_interp" rows="2">Normal Chest Radiograph (PA View). No acute cardiopulmonary pathology.</textarea></div>
-          <div class="form-group"><label>Radiologist Remarks</label><input type="text" id="fld_remarks" value="Clinically correlate if persistent symptoms."></div>
+          <div class="form-group"><label>Radiological Impression</label><textarea id="fld_interp" rows="2">Normal Chest Radiograph (PA View). No acute cardiopulmonary pathology or active parenchymal infiltrate.</textarea></div>
+          <div class="form-group"><label>Radiologist Remarks</label><input type="text" id="fld_remarks" value="Clinically correlate if persistent respiratory symptoms."></div>
         `;
       } else if (t.includes('ecg')) {
         html = `
@@ -1245,13 +1301,13 @@
             <div class="form-group"><label>Rhythm</label><input type="text" id="fld_rhythm" value="Normal Sinus Rhythm"></div>
             <div class="form-group"><label>PR Interval (ms)</label><input type="text" id="fld_pr" value="154"></div>
           </div>
-          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Normal cardiac rhythm and axis. No acute ischemic changes detected.</textarea></div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Normal cardiac rhythm and axis. No acute ST-T wave ischemic changes or conduction delays detected.</textarea></div>
           <div class="form-group"><label>Doctor Recommendation</label><input type="text" id="fld_remarks" value="Routine annual cardiac evaluation."></div>
         `;
       } else {
         html = `
           <div class="form-group"><label>Primary Diagnostic Result</label><input type="text" id="fld_res" value="Normal Diagnostic Parameters"></div>
-          <div class="form-group"><label>Clinical Observations</label><textarea id="fld_interp" rows="2">Patient test results lie within normal diagnostic ranges.</textarea></div>
+          <div class="form-group"><label>Clinical Observations</label><textarea id="fld_interp" rows="2">Patient test results lie within standard reference diagnostic ranges.</textarea></div>
           <div class="form-group"><label>Pathologist Remarks</label><input type="text" id="fld_remarks" value="No pathological abnormality identified."></div>
         `;
       }

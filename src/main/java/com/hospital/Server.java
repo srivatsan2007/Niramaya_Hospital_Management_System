@@ -188,6 +188,13 @@ public class Server {
         addRoute(server, "/api/pharmacy/update-stock", new PharmacyUpdateStockHandler());
         addRoute(server, "/api/pharmacy/delete-medicine", new PharmacyDeleteMedicineHandler());
 
+        // Admin Medicine Inventory APIs
+        addRoute(server, "/api/admin/medicines", new PharmacyMedicinesHandler());
+        addRoute(server, "/api/admin/add-medicine", new PharmacyAddMedicineHandler());
+        addRoute(server, "/api/admin/edit-medicine", new PharmacyEditMedicineHandler());
+        addRoute(server, "/api/admin/update-stock", new PharmacyUpdateStockHandler());
+        addRoute(server, "/api/admin/delete-medicine", new PharmacyDeleteMedicineHandler());
+
         // Admin & Staff Profile Modules
         addRoute(server, "/api/admin/stats", new AdminStatsHandler());
         addRoute(server, "/api/admin/global-search", new AdminGlobalSearchHandler());
@@ -311,7 +318,7 @@ public class Server {
 
         // Seed initial demo Doctors if empty
         DoctorDAO doctorDAO = new DoctorDAO();
-        List<Doctor> docs = doctorDAO.getAllDoctors();
+        List<Doctor> docs = DoctorDirectoryCache.getDoctors();
         System.out.println("=========================================================");
         System.out.println(" [SERVER INIT] Live Doctors persisted in DB: " + docs.size());
         System.out.println("=========================================================");
@@ -348,6 +355,68 @@ public class Server {
                     && (requestPath.startsWith("/Reports/") || requestPath.startsWith("/reports/"))) {
                 String sub = requestPath.replaceFirst("(?i)^/reports/", "");
                 filePath = Paths.get("Reports").resolve(sub).toAbsolutePath().normalize();
+                if (!Files.exists(filePath)) {
+                    filePath = Paths.get("public", "Reports", sub).toAbsolutePath().normalize();
+                }
+            }
+
+            // AUTHORITATIVE DOCUMENT RECOVERY & 404 RESILIENCY
+            if (!Files.exists(filePath) && (requestPath.startsWith("/Reports/") || requestPath.startsWith("/reports/"))) {
+                String sub = requestPath.replaceFirst("(?i)^/reports/", "");
+                String cleanSub = sub.toLowerCase();
+                try {
+                    if (cleanSub.contains("labreport") || cleanSub.startsWith("labreport")) {
+                        String repId = null;
+                        if (sub.contains("_")) {
+                            String[] parts = sub.replace(".pdf", "").replace(".html", "").split("_");
+                            repId = parts[parts.length - 1];
+                        }
+                        com.hospital.model.LabReport rep = null;
+                        if (repId != null && !repId.isEmpty()) {
+                            rep = labReportDAO.getReportById(repId);
+                        }
+                        if (rep == null) {
+                            List<com.hospital.model.LabReport> allReps = labReportDAO.getAllReports();
+                            for (com.hospital.model.LabReport r : allReps) {
+                                if (sub.equalsIgnoreCase(r.getReportFile()) || (r.getReportId() != null && sub.contains(r.getReportId()))) {
+                                    rep = r;
+                                    break;
+                                }
+                            }
+                        }
+                        if (rep != null) {
+                            File gen = com.hospital.service.PDFGenerator.generateReportPDF(rep, null);
+                            if (gen != null && gen.exists()) {
+                                filePath = gen.toPath();
+                            }
+                        }
+                    } else if (cleanSub.contains("invoice") || cleanSub.contains("pharmacy")) {
+                        String tokenOrId = null;
+                        String[] parts = sub.replace(".pdf", "").replace(".html", "").split("_");
+                        tokenOrId = parts[parts.length - 1];
+                        com.hospital.model.PharmacyOrder ord = pharmacyOrderDAO.getOrderById(tokenOrId);
+                        if (ord == null && parts.length > 2) {
+                            ord = pharmacyOrderDAO.getOrderById(parts[1]);
+                        }
+                        if (ord == null) {
+                            for (com.hospital.model.PharmacyOrder o : pharmacyOrderDAO.getAllOrders()) {
+                                if (tokenOrId.equalsIgnoreCase(o.getPharmacyToken()) || tokenOrId.equalsIgnoreCase(o.getOrderId())) {
+                                    ord = o;
+                                    break;
+                                }
+                            }
+                        }
+                        if (ord != null) {
+                            List<com.hospital.model.PharmacyOrderItem> items = pharmacyOrderDAO.getOrderItems(ord.getOrderId());
+                            File gen = com.hospital.service.PDFGenerator.generatePharmacyInvoicePDF(ord, items, "Patient", "Consulting Doctor");
+                            if (gen != null && gen.exists()) {
+                                filePath = gen.toPath();
+                            }
+                        }
+                    }
+                } catch (Exception recEx) {
+                    System.err.println("[Document Recovery Error] " + recEx.getMessage());
+                }
             }
 
             if (!Files.exists(filePath) || Files.isDirectory(filePath)) {
@@ -356,8 +425,26 @@ public class Server {
             }
 
             byte[] bytes = Files.readAllBytes(filePath);
-            exchange.getResponseHeaders().set("Content-Type", contentType(filePath.toString()));
+            String ct = contentType(filePath.toString());
+            // If file contains HTML markers, ensure text/html is served for browser preview
+            if (bytes.length > 4 && bytes[0] == '<') {
+                ct = "text/html; charset=utf-8";
+            } else if (bytes.length > 4 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F') {
+                ct = "application/pdf";
+            }
+
+            exchange.getResponseHeaders().set("Content-Type", ct);
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+
+            String query = exchange.getRequestURI().getQuery();
+            boolean isDownload = query != null && (query.contains("download=true") || query.contains("download=1"));
+            String fileName = filePath.getFileName().toString();
+            if (isDownload) {
+                exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+            } else {
+                exchange.getResponseHeaders().set("Content-Disposition", "inline; filename=\"" + fileName + "\"");
+            }
+
             exchange.sendResponseHeaders(200, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(bytes);
@@ -2330,7 +2417,11 @@ public class Server {
             Map<String, String> data = parseJsonFlat(body);
 
             Medicine m = new Medicine();
-            m.setMedicineId(medicineDAO.generateAutoMedicineId());
+            String customId = data.getOrDefault("medicineId", data.getOrDefault("code", "")).trim();
+            if (customId.isEmpty()) {
+                customId = medicineDAO.generateAutoMedicineId();
+            }
+            m.setMedicineId(customId);
             String name = data.getOrDefault("medicineName", "").trim();
             m.setMedicineName(name);
             m.setGenericName(data.getOrDefault("genericName", name).trim());
@@ -2396,14 +2487,49 @@ public class Server {
                 return;
             }
 
-            med.setSellingPrice(tryParseDouble(data.getOrDefault("sellingPrice", String.valueOf(med.getSellingPrice())),
-                    med.getSellingPrice()));
-            med.setStockQuantity(tryParseInt(data.getOrDefault("stockQuantity", String.valueOf(med.getStockQuantity())),
-                    med.getStockQuantity()));
-            med.setExpiryDate(data.getOrDefault("expiryDate", med.getExpiryDate()).trim());
-            med.setRackNumber(data.getOrDefault("rackNumber", med.getRackNumber()).trim());
-            med.setStorageInstructions(data.getOrDefault("storageInstructions", med.getStorageInstructions()).trim());
-            med.setDescription(data.getOrDefault("description", med.getDescription()).trim());
+            String name = data.getOrDefault("medicineName", "").trim();
+            if (!name.isEmpty()) med.setMedicineName(name);
+            String genericName = data.getOrDefault("genericName", "").trim();
+            if (!genericName.isEmpty()) med.setGenericName(genericName);
+            String category = data.getOrDefault("category", "").trim();
+            if (!category.isEmpty()) med.setCategory(category);
+            String strength = data.getOrDefault("strength", "").trim();
+            if (!strength.isEmpty()) med.setStrength(strength);
+            String dosageForm = data.getOrDefault("dosageForm", data.getOrDefault("unit", "")).trim();
+            if (!dosageForm.isEmpty()) med.setDosageForm(dosageForm);
+            String manufacturer = data.getOrDefault("manufacturer", data.getOrDefault("brand", "")).trim();
+            if (!manufacturer.isEmpty()) med.setManufacturer(manufacturer);
+            String batchNumber = data.getOrDefault("batchNumber", "").trim();
+            if (!batchNumber.isEmpty()) med.setBatchNumber(batchNumber);
+            if (data.containsKey("purchasePrice")) {
+                med.setPurchasePrice(tryParseDouble(data.get("purchasePrice"), med.getPurchasePrice()));
+            }
+            if (data.containsKey("sellingPrice")) {
+                double sp = tryParseDouble(data.get("sellingPrice"), med.getSellingPrice());
+                med.setSellingPrice(sp);
+                med.setUnitPrice(sp);
+            }
+            if (data.containsKey("stockQuantity")) {
+                med.setStockQuantity(tryParseInt(data.get("stockQuantity"), med.getStockQuantity()));
+            }
+            if (data.containsKey("minimumStock") || data.containsKey("lowStockThreshold")) {
+                med.setMinimumStock(tryParseInt(data.getOrDefault("minimumStock", data.get("lowStockThreshold")), med.getMinimumStock()));
+            }
+            if (data.containsKey("expiryDate")) {
+                med.setExpiryDate(data.get("expiryDate").trim());
+            }
+            if (data.containsKey("rackNumber")) {
+                med.setRackNumber(data.get("rackNumber").trim());
+            }
+            if (data.containsKey("supplierName")) {
+                med.setSupplierName(data.get("supplierName").trim());
+            }
+            if (data.containsKey("storageInstructions")) {
+                med.setStorageInstructions(data.get("storageInstructions").trim());
+            }
+            if (data.containsKey("description")) {
+                med.setDescription(data.get("description").trim());
+            }
 
             boolean ok = medicineDAO.updateMedicine(med);
             send(exchange, 200, "application/json", String.format("{\"success\":%b}", ok));
@@ -2426,6 +2552,25 @@ public class Server {
             int quantity = tryParseInt(data.getOrDefault("quantity", "0"), 0);
             String reason = data.getOrDefault("reason", "Adjustment").trim();
             String remarks = data.getOrDefault("remarks", "").trim();
+
+            if ((data.containsKey("newStock") || data.containsKey("stockQuantity")) && quantity == 0) {
+                int target = tryParseInt(data.getOrDefault("newStock", data.get("stockQuantity")), 0);
+                Medicine cur = medicineDAO.getMedicineById(medicineId);
+                if (cur == null) cur = medicineDAO.getMedicineByName(medicineId);
+                if (cur != null) {
+                    int diff = target - cur.getStockQuantity();
+                    if (diff >= 0) {
+                        actionType = "Increase";
+                        quantity = diff;
+                    } else {
+                        actionType = "Decrease";
+                        quantity = Math.abs(diff);
+                    }
+                } else {
+                    actionType = "Increase";
+                    quantity = target;
+                }
+            }
 
             com.hospital.service.StockManager stockMgr = new com.hospital.service.StockManager();
             boolean ok = stockMgr.updateStock(medicineId, actionType, quantity, reason, remarks);
@@ -5996,6 +6141,32 @@ public class Server {
     // =========================================================================
     // BILINGUAL TAMIL AND ENGLISH PATIENT ASSISTANT HANDLER
     // =========================================================================
+
+
+    private static class DoctorDirectoryCache {
+        private static volatile List<Doctor> cachedDoctors = null;
+        private static volatile long lastCacheTime = 0;
+        private static final long TTL_MS = 20000; // 20 seconds TTL
+
+        public static List<Doctor> getDoctors() {
+            long now = System.currentTimeMillis();
+            if (cachedDoctors != null && (now - lastCacheTime < TTL_MS)) {
+                return cachedDoctors;
+            }
+            synchronized (DoctorDirectoryCache.class) {
+                if (cachedDoctors == null || (now - lastCacheTime >= TTL_MS)) {
+                    cachedDoctors = doctorDAO.getAllDoctors();
+                    lastCacheTime = now;
+                }
+            }
+            return cachedDoctors;
+        }
+
+        public static void invalidate() {
+            cachedDoctors = null;
+            lastCacheTime = 0;
+        }
+    }
 
     static class PatientAssistantHandler implements HttpHandler {
         @Override
