@@ -431,6 +431,7 @@
       <table class="pharm-table">
         <thead>
           <tr>
+            <th>Queue Pos</th>
             <th>Pharmacy Token</th>
             <th>Order ID</th>
             <th>Patient ID</th>
@@ -438,7 +439,7 @@
             <th>Total Amount (₹)</th>
             <th>Payment</th>
             <th>Order Status</th>
-            <th>Order Date</th>
+            <th>Est. Dispense</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -446,6 +447,9 @@
           <!-- Dynamic Rows -->
         </tbody>
       </table>
+      <div style="font-size:0.75rem; color:#64748B; padding:12px 20px; font-style:italic; background:#F8FAFC; border-top:1px solid #E2E8F0;">
+        * Dispensing times and queue positions are transparent rule-based estimations (~6 min per order) computed from active hospital prescriptions and may vary.
+      </div>
     </div>
   </div>
 
@@ -1169,25 +1173,28 @@
     tbody.innerHTML = '';
 
     if (orders.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748B;">No pending medicine orders in today's active queue. 🟢</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748B;">No pending medicine orders in today's active queue. 🟢</td></tr>`;
       return;
     }
 
-    orders.forEach(o => {
+    orders.forEach((o, idx) => {
       const tr = document.createElement('tr');
       const amt = (typeof o.totalAmount === 'number' && !isNaN(o.totalAmount)) ? o.totalAmount : parseFloat(o.totalAmount || 0);
       const isPaid = (o.paymentStatus || '').toLowerCase() === 'paid';
       const isDispensed = (o.orderStatus || '').toLowerCase().includes('dispensed') || (o.orderStatus || '').toLowerCase().includes('completed');
+      const queuePos = idx + 1;
+      const estDispense = queuePos * 6;
 
       tr.innerHTML = `
+        <td><span class="status-pill instock" style="background:#0284C7; color:#fff; font-weight:700;">#${queuePos}</span></td>
         <td><b style="font-family:'Sora'; color:var(--pharm-navy);">${o.pharmacyToken || '-'}</b></td>
         <td><code>${o.orderId || '-'}</code></td>
         <td><b>${o.patientId || '-'}</b></td>
         <td>${o.doctorId || '-'}</td>
         <td><b style="color:var(--pharm-emerald);">₹${amt.toFixed(2)}</b></td>
         <td><span class="status-pill ${isPaid ? 'instock' : 'lowstock'}">${isPaid ? '✓ Paid' : '⏳ Unpaid'}</span></td>
-        <td><span class="status-pill ${isDispensed ? 'instock' : 'lowstock'}">${o.orderStatus || 'Pending'}</span></td>
-        <td>${o.orderDate || 'Today'}</td>
+        <td><span class="status-pill ${isDispensed ? 'instock' : 'lowstock'}">${o.orderStatus || 'Prescription Received'}</span></td>
+        <td><b style="color:#0284C7;">~${estDispense}m</b> <span style="font-size:0.7rem; color:#64748B;">(approx)</span></td>
         <td>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-ghost" style="padding:6px 10px; font-size:0.8rem;" onclick="openItemsModal('${o.orderId}', '${o.pharmacyToken}')">📋 Items</button>

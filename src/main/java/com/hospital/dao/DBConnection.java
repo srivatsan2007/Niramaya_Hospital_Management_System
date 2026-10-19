@@ -1553,6 +1553,25 @@ public class DBConnection {
                     "created_at VARCHAR(50)" +
                     ");");
 
+            stmt.execute("CREATE TABLE IF NOT EXISTS post_discharge_followups (" +
+                    "followup_id VARCHAR(50) PRIMARY KEY, " +
+                    "admission_id VARCHAR(50) NOT NULL, " +
+                    "patient_id VARCHAR(50) NOT NULL, " +
+                    "patient_name VARCHAR(100) NOT NULL, " +
+                    "doctor_id VARCHAR(50), " +
+                    "doctor_name VARCHAR(100), " +
+                    "discharge_date VARCHAR(50), " +
+                    "followup_date VARCHAR(50) NOT NULL, " +
+                    "discharge_instructions TEXT, " +
+                    "clinical_notes TEXT, " +
+                    "status VARCHAR(50) DEFAULT 'Pending', " +
+                    "outcome_notes TEXT, " +
+                    "contacted_by VARCHAR(100), " +
+                    "contacted_at VARCHAR(50), " +
+                    "followup_appointment_id VARCHAR(50), " +
+                    "created_at VARCHAR(50)" +
+                    ");");
+
 
             // --- POPULATE COMPREHENSIVE SEED DATA FOR ALL MODULES IF EMPTY ---
             // 1. Doctors Seed
@@ -1796,7 +1815,7 @@ public class DBConnection {
             "patient_vitals", "nursing_notes", "medication_administration",
             "patient_monitoring", "nurse_shift", "injection_records",
             "inventory_requests", "emergency_alerts", "contact_queries",
-            "operation_reports", "birth_reports", "ipd_beds", "ipd_admissions"
+            "operation_reports", "birth_reports", "ipd_beds", "ipd_admissions", "post_discharge_followups"
         };
         System.out.println("=========================================================");
         System.out.println(" Verifying PostgreSQL / Database Tables Status...");

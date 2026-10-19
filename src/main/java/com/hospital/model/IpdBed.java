@@ -13,11 +13,17 @@ public class IpdBed {
     private String status; // Available, Occupied, Under Maintenance
     private String currentAdmissionId;
     private String currentPatientName;
+    private String currentPatientId;
 
     public IpdBed() {}
 
     public IpdBed(String bedId, String blockName, String wardType, String roomNumber, String bedNumber,
                   double dailyCharge, String status, String currentAdmissionId, String currentPatientName) {
+        this(bedId, blockName, wardType, roomNumber, bedNumber, dailyCharge, status, currentAdmissionId, currentPatientName, null);
+    }
+
+    public IpdBed(String bedId, String blockName, String wardType, String roomNumber, String bedNumber,
+                  double dailyCharge, String status, String currentAdmissionId, String currentPatientName, String currentPatientId) {
         this.bedId = bedId;
         this.blockName = blockName;
         this.wardType = wardType;
@@ -27,6 +33,7 @@ public class IpdBed {
         this.status = status != null ? status : "Available";
         this.currentAdmissionId = currentAdmissionId;
         this.currentPatientName = currentPatientName;
+        this.currentPatientId = currentPatientId;
     }
 
     public String getBedId() { return bedId; }
@@ -55,4 +62,7 @@ public class IpdBed {
 
     public String getCurrentPatientName() { return currentPatientName; }
     public void setCurrentPatientName(String currentPatientName) { this.currentPatientName = currentPatientName; }
+
+    public String getCurrentPatientId() { return currentPatientId; }
+    public void setCurrentPatientId(String currentPatientId) { this.currentPatientId = currentPatientId; }
 }

@@ -360,7 +360,8 @@
         <li class="nurse-nav-item" onclick="showTab('tab-notes', this)">📝 Nursing Progress Notes</li>
         <li class="nurse-nav-item" onclick="showTab('tab-injections', this)">💉 Injection Records</li>
         <li class="nurse-nav-item" onclick="showTab('tab-emergency', this)">🚨 Emergency SOS Alerts</li>
-        <li class="nurse-nav-item" onclick="showTab('tab-inventory', this)">📦 Consumables Supply</li>
+        <li class="nurse-nav-item" onclick="showTab('tab-smart-queue', this)">⏱️ Pre-Consultation Smart Queue</li>
+        <li class="nurse-nav-item" onclick="showTab('tab-nurse-followups', this)">📋 Post-Discharge Follow-ups</li>
         <li class="nurse-nav-item" onclick="showTab('tab-profile', this)">👤 Nurse Profile</li>
         <li class="nurse-nav-item" onclick="showTab('tab-ipd-beds', this)">🛏️ IPD Ward & Bed Allocation</li>
       </ul>
@@ -434,6 +435,38 @@
           <div id="nurseLiveDoctorsPills"
             style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
             <!-- Dynamically populated live doctor cards -->
+          </div>
+        <!-- SMART QUEUE PRE-CONSULTATION VITALS ASSESSMENT -->
+        <div class="nurse-card" style="border: 2px solid #0284C7; background: #F0F9FF; margin-bottom: 24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+            <div>
+              <h3 style="margin:0; font-size:1.1rem; color:#0369A1; display:flex; align-items:center; gap:8px;">
+                <span>⏱️ Pre-Consultation Vitals Assessment Queue (Smart Queue)</span>
+                <span id="badgeNurseQueueCount" style="background:#0284C7; color:#fff; font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:700;">0 Waiting</span>
+              </h3>
+              <p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748B;">Patients awaiting initial vital measurements before doctor consultation. Rule-based estimation: ~6 min per patient (approximate).</p>
+            </div>
+            <button class="btn-nurse" onclick="loadNurseSmartQueue()" style="background:#0284C7; font-size:0.8rem; padding:6px 14px;">🔄 Refresh Queue</button>
+          </div>
+          <table class="nurse-table">
+            <thead>
+              <tr>
+                <th>Queue Order</th>
+                <th>Appt Token</th>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th>Doctor</th>
+                <th>Est. Wait Time</th>
+                <th>Assessment Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyNurseSmartQueue">
+              <tr><td colspan="8" style="text-align:center; padding:18px; color:#64748B;">Loading pre-consultation queue...</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:0.75rem; color:#64748B; margin-top:10px; font-style:italic;">
+            * Waiting times and queue positions are transparent rule-based estimations (~6 min per assessment). Completing vitals updates the workflow status so the doctor sees the patient is ready.
           </div>
         </div>
 
@@ -777,6 +810,75 @@
               </tr>
             </tbody>
           </table>
+      <!-- TAB 11: PRE-CONSULTATION SMART QUEUE FULL VIEW -->
+      <div id="tab-smart-queue" class="tab-pane" style="display: none;">
+        <div class="nurse-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <h3 style="margin:0;">⏱️ Pre-Consultation Vitals Assessment Queue</h3>
+              <p style="font-size:0.85rem; color:#64748B; margin-top:4px;">Assess patients in priority queue order. Rule-based estimation: ~6 min/patient.</p>
+            </div>
+            <button class="btn-nurse" onclick="loadNurseSmartQueue()">🔄 Refresh Queue</button>
+          </div>
+          <table class="nurse-table">
+            <thead>
+              <tr>
+                <th>Queue Order</th>
+                <th>Appt Token</th>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th>Assigned Doctor</th>
+                <th>Est. Wait Time</th>
+                <th>Assessment Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyNurseSmartQueueFull">
+              <tr><td colspan="8" style="text-align:center; padding:20px; color:#64748B;">Loading smart queue...</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:0.75rem; color:#64748B; margin-top:10px; font-style:italic;">
+            * Waiting times are approximate rule-based estimates. Completing vitals updates the patient workflow so the doctor sees they are ready for consultation.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 12: INPATIENT POST-DISCHARGE FOLLOW-UPS -->
+      <div id="tab-nurse-followups" class="tab-pane" style="display: none;">
+        <div class="nurse-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <h3 style="margin:0;">📋 Inpatient Post-Discharge Follow-up Register</h3>
+              <p style="font-size:0.85rem; color:#64748B; margin-top:4px;">Review discharged patients, recovery care plans, follow-up dates, and record nursing outreach outcomes.</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <select id="nurseFollowupFilter" style="padding:6px 12px; border:1px solid #CBD5E1; border-radius:8px;" onchange="renderNurseFollowupsTable()">
+                <option value="ALL">All Follow-ups</option>
+                <option value="Pending">Pending</option>
+                <option value="Overdue">⚠️ Overdue</option>
+                <option value="Completed">Completed</option>
+                <option value="Unable to Reach">Unable to Reach</option>
+              </select>
+              <button class="btn-nurse" onclick="loadNurseFollowups()">🔄 Refresh</button>
+            </div>
+          </div>
+          <table class="nurse-table">
+            <thead>
+              <tr>
+                <th>Follow-up ID</th>
+                <th>Admission Ref</th>
+                <th>Patient Details</th>
+                <th>Discharged</th>
+                <th>Target Due Date</th>
+                <th>Discharge Instructions</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyNurseFollowups">
+              <tr><td colspan="8" style="text-align:center; padding:20px; color:#64748B;">Loading follow-up records...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </main>
@@ -816,6 +918,40 @@
           <button type="button" onclick="closeModal('modal-vitals')"
             style="padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
           <button type="submit" class="btn-nurse">Save Vitals</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Nurse Record Follow-up Outcome -->
+  <div class="modal-overlay" id="modal-nurse-followup">
+    <div class="modal-content" style="max-width: 520px;">
+      <h3 style="margin-top: 0; color:#0D9488;">📝 Record Post-Discharge Follow-up</h3>
+      <form onsubmit="handleSaveNurseFollowup(event)">
+        <input type="hidden" id="nFupId">
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:12px; border-radius:8px; margin-bottom:12px; font-size:0.85rem;">
+          <div><b>Patient:</b> <span id="nFupPatient">-</span></div>
+          <div><b>Discharge Instructions:</b> <span id="nFupInstructions">-</span></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.8rem; font-weight:700;">Follow-up Status *</label>
+          <select id="nFupStatus" style="width:100%; padding:8px; margin-top:4px;" required>
+            <option value="Completed">Completed (Contacted / Checked)</option>
+            <option value="Pending">Pending (Awaiting Contact)</option>
+            <option value="Unable to Reach">Unable to Reach</option>
+          </select>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.8rem; font-weight:700;">Nursing Notes / Observations *</label>
+          <textarea id="nFupNotes" rows="3" style="width:100%; padding:8px; margin-top:4px;" placeholder="Record patient recovery, vitals compliance, symptom resolution, or feedback..." required></textarea>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:0.8rem; font-weight:700;">Schedule Next Follow-up (Optional)</label>
+          <input type="date" id="nFupNextDate" style="width:100%; padding:8px; margin-top:4px;">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" onclick="closeModal('modal-nurse-followup')" style="padding:10px 16px; border:none; border-radius:8px; cursor:pointer;">Cancel</button>
+          <button type="submit" class="btn-nurse">Save Outcome</button>
         </div>
       </form>
     </div>
@@ -1034,6 +1170,8 @@
         refreshNurseData();
         loadNurseIpdBeds();
         loadNurseAvailableDoctors();
+        loadNurseSmartQueue();
+        loadNurseFollowups();
       });
 
       // -------------------------------------------------------------
@@ -1201,6 +1339,156 @@
         document.getElementById(tabId).style.display = 'block';
         if (el) el.classList.add('active');
         if (tabId === 'tab-ipd-beds') loadNurseIpdBeds();
+        if (tabId === 'tab-smart-queue' || tabId === 'tab-dashboard') loadNurseSmartQueue();
+        if (tabId === 'tab-nurse-followups') loadNurseFollowups();
+      }
+
+      // -------------------------------------------------------------
+      // SMART QUEUE PRE-CONSULTATION PREDICTION MODULE FOR NURSING
+      // -------------------------------------------------------------
+      window.cachedNurseQueue = [];
+
+      async function loadNurseSmartQueue() {
+        try {
+          const res = await fetch('/api/queue/nurse');
+          if (!res.ok) return;
+          const data = await res.json();
+          window.cachedNurseQueue = Array.isArray(data.queue) ? data.queue : [];
+          
+          const badge = document.getElementById('badgeNurseQueueCount');
+          if (badge) badge.textContent = `${data.totalWaiting || window.cachedNurseQueue.length} Waiting`;
+
+          renderNurseSmartQueueRows('tbodyNurseSmartQueue', window.cachedNurseQueue.slice(0, 10));
+          renderNurseSmartQueueRows('tbodyNurseSmartQueueFull', window.cachedNurseQueue);
+        } catch (e) {
+          console.warn('Could not load nurse smart queue:', e);
+        }
+      }
+
+      function renderNurseSmartQueueRows(tbodyId, list) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+
+        if (!list || list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748B;">No patients waiting for pre-consultation vitals assessment. Queue is clear! 🟢</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(item => {
+          const statusBadge = item.status === 'Completed'
+            ? '<span class="badge badge-success">Completed</span>'
+            : (item.status === 'In Assessment' ? '<span class="badge badge-warning" style="background:#FEF3C7; color:#92400E;">In Assessment</span>' : '<span class="badge badge-warning">Waiting</span>');
+
+          return `
+            <tr>
+              <td><span style="background:#0284C7; color:#fff; font-size:0.75rem; padding:3px 8px; border-radius:10px; font-weight:700;">#${item.queuePosition}</span></td>
+              <td><b>${item.appointmentId}</b></td>
+              <td>${item.patientId}</td>
+              <td><b>${item.patientName || 'Patient'}</b></td>
+              <td>${item.doctorName || 'Dr. Medical Officer'}</td>
+              <td><b style="color:#0284C7;">~${item.estimatedWaitMinutes} mins</b> <span style="font-size:0.7rem; color:#64748B;">(approx)</span></td>
+              <td>${statusBadge}</td>
+              <td>
+                <button class="btn-nurse" style="padding:4px 10px; font-size:0.8rem; background:#0284C7;" onclick="openVitalsModalForPatient('${item.patientId}', '${item.patientName}', '${item.appointmentId}')">🩸 Measure Vitals</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // -------------------------------------------------------------
+      // INPATIENT POST-DISCHARGE FOLLOW-UPS FOR NURSING
+      // -------------------------------------------------------------
+      window.cachedNurseFollowups = [];
+
+      async function loadNurseFollowups() {
+        const tbody = document.getElementById('tbodyNurseFollowups');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748B;">Loading follow-ups from database...</td></tr>';
+        try {
+          const res = await fetch('/api/ipd/followups');
+          const data = await res.json();
+          window.cachedNurseFollowups = Array.isArray(data) ? data : [];
+          renderNurseFollowupsTable();
+        } catch(e) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#EF4444; padding:20px;">Failed to load follow-up records.</td></tr>';
+        }
+      }
+
+      function renderNurseFollowupsTable() {
+        const tbody = document.getElementById('tbodyNurseFollowups');
+        if (!tbody) return;
+        const filter = document.getElementById('nurseFollowupFilter')?.value || 'ALL';
+        let list = window.cachedNurseFollowups || [];
+
+        if (filter !== 'ALL') {
+          list = list.filter(f => f.status === filter);
+        }
+
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748B;">No post-discharge follow-up records found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(f => {
+          let badgeColor = '#D97706';
+          let badgeBg = '#FEF3C7';
+          if (f.status === 'Completed') { badgeColor = '#059669'; badgeBg = '#D1FAE5'; }
+          else if (f.status === 'Overdue') { badgeColor = '#DC2626'; badgeBg = '#FEE2E2'; }
+
+          return `
+            <tr>
+              <td><b>${f.followupId}</b></td>
+              <td>${f.admissionId || '-'}</td>
+              <td><b>${f.patientName || 'Patient'}</b> (${f.patientId})</td>
+              <td>${f.dischargeDate || '-'}</td>
+              <td><b style="color:${f.status === 'Overdue' ? '#DC2626' : '#0284C7'};">${f.followupDate || '-'}</b></td>
+              <td style="max-width:220px; white-space:normal; font-size:0.8rem;">${f.dischargeInstructions || '-'}</td>
+              <td><span style="background:${badgeBg}; color:${badgeColor}; font-weight:700; padding:3px 8px; border-radius:10px; font-size:0.75rem;">${f.status}</span></td>
+              <td>
+                <button class="btn-nurse" style="padding:4px 10px; font-size:0.8rem;" onclick="openNurseFollowupModal('${f.followupId}')">📝 Record</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function openNurseFollowupModal(fId) {
+        const f = (window.cachedNurseFollowups || []).find(x => x.followupId === fId);
+        if (!f) return;
+        document.getElementById('nFupId').value = f.followupId;
+        document.getElementById('nFupPatient').textContent = `${f.patientName} (${f.patientId})`;
+        document.getElementById('nFupInstructions').textContent = f.dischargeInstructions || 'Standard discharge care';
+        document.getElementById('nFupStatus').value = f.status === 'Overdue' ? 'Completed' : (f.status || 'Completed');
+        document.getElementById('nFupNotes').value = f.outcomeNotes || '';
+        document.getElementById('nFupNextDate').value = '';
+        openModal('modal-nurse-followup');
+      }
+
+      async function handleSaveNurseFollowup(e) {
+        e.preventDefault();
+        const followupId = document.getElementById('nFupId').value;
+        const status = document.getElementById('nFupStatus').value;
+        const outcomeNotes = document.getElementById('nFupNotes').value;
+        const nextFollowupDate = document.getElementById('nFupNextDate').value;
+
+        try {
+          const res = await fetch('/api/ipd/followups/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ followupId, status, outcomeNotes, nextFollowupDate })
+          });
+          const result = await res.json();
+          if (result.success) {
+            closeModal('modal-nurse-followup');
+            alertToast('✅ Post-discharge follow-up recorded successfully!');
+            loadNurseFollowups();
+          } else {
+            alert('Failed to update follow-up: ' + (result.error || 'Server error'));
+          }
+        } catch(err) {
+          alert('Network error updating follow-up');
+        }
       }
 
       function openModal(id) { document.getElementById(id).classList.add('show'); }
@@ -1228,6 +1516,8 @@
 
           document.getElementById('statPatients').textContent = pts.length;
           loadNurseIpdBeds();
+          loadNurseSmartQueue();
+          loadNurseFollowups();
 
           let ptHtml = '';
           if (pts.length === 0) {

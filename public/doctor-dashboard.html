@@ -778,6 +778,9 @@
       <a class="menu-item" onclick="switchNav('dashIpdWard', this)">
         <span class="icon">🛏️</span> IPD Ward Rounds
       </a>
+      <a class="menu-item" onclick="switchNav('dashFollowups', this)">
+        <span class="icon">🩺</span> Post-Discharge Follow-ups
+      </a>
       <a class="menu-item" onclick="switchNav('dashProfile', this)">
         <span class="icon">👤</span> My Profile
       </a>
@@ -885,21 +888,30 @@
           </div>
         </div>
 
+        <!-- HIGH LOAD WARNING BANNER -->
+        <div id="docHighLoadAlert" style="display:none; background:#FEF2F2; border:1px solid #F87171; color:#991B1B; padding:12px 18px; border-radius:12px; margin-bottom:18px; font-weight:600; display:flex; align-items:center; gap:10px;">
+          <span>⚠️</span> <span id="docHighLoadAlertText">Doctor queue is experiencing unusually high load (> 5 patients waiting).</span>
+        </div>
+
         <!-- RECENT APPOINTMENTS QUEUE PANEL -->
         <div class="panel">
           <div class="panel-head">
-            <h3 class="panel-title">📋 Today's Live Patient Queue</h3>
+            <div>
+              <h3 class="panel-title">📋 Today's Live Patient Queue & Smart Queue Predictor</h3>
+              <p style="font-size:0.78rem; color:var(--ink-soft); margin-top:3px;">Ordered consultation queue with nurse assessment verification and real-time wait times.</p>
+            </div>
             <button class="btn btn-primary btn-sm" onclick="switchNav('dashAppts')">View All Appointments →</button>
           </div>
           <table class="dtable">
             <thead>
               <tr>
+                <th>Queue Pos</th>
                 <th>Appt ID</th>
                 <th>Patient ID</th>
                 <th>Patient Name</th>
                 <th>Age / Gender</th>
                 <th>Time Slot</th>
-                <th>Status</th>
+                <th>Vitals & Readiness</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -907,6 +919,9 @@
               <!-- Rendered via JS -->
             </tbody>
           </table>
+          <div style="font-size:0.75rem; color:var(--ink-soft); margin-top:12px; font-style:italic;">
+            * Queue positions and waiting times are transparent rule-based estimations (~15 min per consultation) computed from live database records and may vary based on clinical acuity.
+          </div>
         </div>
       </section>
 
@@ -1239,6 +1254,46 @@
       </section>
 
 
+      <!-- ================= POST-DISCHARGE FOLLOW-UPS ================= -->
+      <section id="dashFollowups" class="dash-view">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3 class="panel-title">🩺 Inpatient Post-Discharge Follow-up Register</h3>
+              <p style="font-size:0.78rem; color:var(--ink-soft); margin-top:2px;">Track discharged inpatients, clinical instructions, target recovery dates, and log consultation outcomes.</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <select id="docFollowupFilter" class="form-control" style="width:160px; padding:6px 12px;" onchange="renderDoctorFollowupsTable()">
+                <option value="ALL">All Follow-ups</option>
+                <option value="Pending">Pending</option>
+                <option value="Overdue">⚠️ Overdue</option>
+                <option value="Completed">Completed</option>
+                <option value="Unable to Reach">Unable to Reach</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="loadDoctorFollowups()">🔄 Refresh</button>
+            </div>
+          </div>
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>Follow-up ID</th>
+                <th>Admission Ref</th>
+                <th>Patient Details</th>
+                <th>Discharged</th>
+                <th>Target Due Date</th>
+                <th>Discharge Instructions</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyDocFollowups">
+              <tr><td colspan="8" style="text-align:center; padding:20px;">Loading follow-ups...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
       <!-- ================= 7. MY PROFILE ================= -->
       <section id="dashProfile" class="dash-view">
         <div class="panel">
@@ -1500,8 +1555,42 @@
         </div>
       </div>
     </div>
+  <!-- MODAL: RECORD POST-DISCHARGE FOLLOW-UP OUTCOME -->
+  <div class="modal" id="modalDocFollowupOutcome" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; width:95%; max-width:540px; padding:24px; box-shadow:var(--shadow-lg);">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:16px;">
+        <h3 style="font-family:'Sora'; font-size:1.15rem; color:var(--ink); margin:0;">📝 Record Follow-up Outcome</h3>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeDocFollowupModal()">✕</button>
+      </div>
+      <form onsubmit="handleSaveFollowupOutcome(event)">
+        <input type="hidden" id="fupModalId">
+        <div style="background:#F8FAFC; border:1px solid var(--border); padding:12px; border-radius:8px; margin-bottom:14px; font-size:0.85rem;">
+          <div><b>Patient:</b> <span id="fupModalPatient">-</span></div>
+          <div><b>Discharge Summary:</b> <span id="fupModalInstructions">-</span></div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.8rem; font-weight:700;">Follow-up Status *</label>
+          <select id="fupModalStatus" class="form-control" style="width:100%; padding:8px 12px;" required>
+            <option value="Completed">Completed (Consultation / Assessment Done)</option>
+            <option value="Pending">Pending (Awaiting Contact / Test)</option>
+            <option value="Unable to Reach">Unable to Reach (No Response)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.8rem; font-weight:700;">Clinical Notes & Recovery Observations *</label>
+          <textarea id="fupModalNotes" class="form-control" rows="3" style="width:100%; padding:8px 12px;" placeholder="Document patient recovery progress, vitals compliance, symptom resolution, or medication changes..." required></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:18px;">
+          <label style="font-size:0.8rem; font-weight:700;">Schedule Next Follow-up (Optional)</label>
+          <input type="date" id="fupModalNextDate" class="form-control" style="width:100%; padding:8px 12px;">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-outline" onclick="closeDocFollowupModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">💾 Save Outcome</button>
+        </div>
+      </form>
+    </div>
   </div>
-
 
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
@@ -1779,6 +1868,7 @@
       if (viewId === 'dashSurgeries') loadDoctorSurgeries();
       if (viewId === 'dashBirths') loadDoctorBirths();
       if (viewId === 'dashIpdWard') loadDoctorIpdWard();
+      if (viewId === 'dashFollowups') loadDoctorFollowups();
     }
 
     // -------------------------------------------------------------
@@ -1894,15 +1984,18 @@
     async function loadDashboardData() {
       let todaysAppts = [];
       let completedAppts = [];
+      let queueData = null;
       const currentDocId = sessionStorage.getItem('niramaya_employee_code') || docProfile.doctorId || docProfile.name || currentUserEmail;
       
       try {
-        const [resToday, resComp] = await Promise.all([
+        const [resToday, resComp, resQ] = await Promise.all([
           fetch('/api/doctor/todays-patients?doctor=' + encodeURIComponent(currentDocId)),
-          fetch('/api/doctor/completed-consultations?doctor=' + encodeURIComponent(currentDocId))
+          fetch('/api/doctor/completed-consultations?doctor=' + encodeURIComponent(currentDocId)),
+          fetch('/api/queue/doctor?doctor=' + encodeURIComponent(currentDocId))
         ]);
         todaysAppts = await resToday.json();
         completedAppts = await resComp.json();
+        if (resQ.ok) queueData = await resQ.json();
       } catch(e) {
         todaysAppts = getDocAppts();
       }
@@ -1930,33 +2023,67 @@
       document.getElementById('statPendingAppts').textContent = pendingCount;
       document.getElementById('statTotalPatients').textContent = new Set([...appts, ...completedAppts].map(a => a.patientId)).size || (appts.length + completedCount);
 
+      // Warning alert for high queue load (> 5 patients)
+      const alertEl = document.getElementById('docHighLoadAlert');
+      const alertTextEl = document.getElementById('docHighLoadAlertText');
+      if (queueData && queueData.highLoadWarning) {
+        if (alertEl) alertEl.style.display = 'flex';
+        if (alertTextEl) alertTextEl.textContent = `High Queue Load Alert: ${queueData.waitingCount} patients currently waiting in your consultation queue (Estimated wait ~${queueData.nextWaitMinutes} mins).`;
+      } else if (alertEl) {
+        alertEl.style.display = 'none';
+      }
+
       if (appts.length > 0) {
-        document.getElementById('statNextAppt').textContent = appts[0].slotTime;
-        document.getElementById('statNextPatient').textContent = appts[0].patientId || 'Upcoming token';
+        const estWait = queueData && queueData.nextWaitMinutes ? `~${queueData.nextWaitMinutes}m` : '15m';
+        document.getElementById('statNextAppt').textContent = `${appts[0].slotTime} (${estWait})`;
+        document.getElementById('statNextPatient').textContent = `${appts[0].patientId || 'Next token'} · Est wait`;
       } else {
         document.getElementById('statNextAppt').textContent = '--:--';
         document.getElementById('statNextPatient').textContent = 'No queue';
       }
 
-      // Home Table (Today's Work Only)
+      // Home Table (Today's Live Queue with Readiness & Order)
       const tbody = document.getElementById('tbodyHomeAppts');
       if (appts.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--ink-soft);">📋 No active appointments in today's queue. All consultations completed!</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--ink-soft);">📋 No active appointments in today's queue. All consultations completed!</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = appts.map(a => {
+      tbody.innerHTML = appts.map((a, idx) => {
+        let qPos = idx + 1;
+        let estWait = qPos * 15;
+        let isReady = false;
+        let nurseStatus = 'Pending Assessment';
+
+        if (queueData && Array.isArray(queueData.queue)) {
+          const matchQ = queueData.queue.find(q => q.appointmentId === a.token || q.patientId === a.patientId);
+          if (matchQ) {
+            qPos = matchQ.queuePosition;
+            estWait = matchQ.estimatedWaitMinutes;
+            isReady = matchQ.isReadyForConsultation;
+            nurseStatus = matchQ.nurseAssessmentStatus;
+          }
+        }
+
+        const readyBadge = isReady 
+          ? `<span class="badge-status badge-completed" title="Pre-consultation nurse assessment complete">🟢 Ready for Consult</span>`
+          : `<span class="badge-status badge-pending" title="Nurse vitals not yet logged">⏳ Awaiting Vitals</span>`;
+
         const isPending = a.status.includes('PENDING') || a.status.includes('WAITING') || a.status.includes('UNPAID');
         const approveBtn = isPending ? `<button class="btn btn-sm" style="background:#059669; color:#fff; border:none; padding:4px 8px; font-weight:600;" onclick="approveDoctorAppointment('${a.token}')">✅ Accept</button>` : '';
         const cancelBtn = a.status !== 'CANCELLED' ? `<button class="btn btn-sm" style="background:#DC2626; color:#fff; border:none; padding:4px 8px; font-weight:600;" onclick="cancelDoctorAppointment('${a.token}')">❌ Cancel</button>` : '';
         return `
         <tr>
+          <td>
+            <span class="badge" style="background:#0D6EFD; color:#fff; font-size:0.75rem; padding:3px 8px; border-radius:10px;">#${qPos}</span>
+            <span style="font-size:0.72rem; color:var(--ink-soft); display:block; margin-top:2px;">~${estWait}m est.*</span>
+          </td>
           <td><b>${a.token}</b></td>
           <td>${a.patientId}</td>
           <td><b>${a.patientName}</b></td>
           <td>${a.ageGender}</td>
           <td>${a.slotTime}</td>
-          <td><span class="badge-status ${a.status === 'CONFIRMED' ? 'badge-completed' : (a.status === 'CANCELLED' ? 'badge-cancelled' : 'badge-pending')}">${a.status}</span></td>
+          <td>${readyBadge}</td>
           <td style="display:flex; gap:6px; flex-wrap:wrap;">
             ${approveBtn}
             <button class="btn btn-primary btn-sm" onclick="startPrescriptionForAppt('${a.patientId}', '${a.patientName}', '${a.ageGender}', '${a.token}')">📝 Write Rx</button>
@@ -1965,6 +2092,106 @@
           </td>
         </tr>
       `}).join('');
+    }
+
+    // -------------------------------------------------------------
+    // POST-DISCHARGE FOLLOW-UP MODULE FOR DOCTORS
+    // -------------------------------------------------------------
+    window.allDocFollowups = [];
+
+    async function loadDoctorFollowups() {
+      const tbody = document.getElementById('tbodyDocFollowups');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Loading follow-ups from database...</td></tr>';
+      try {
+        const res = await fetch('/api/ipd/followups');
+        const data = await res.json();
+        window.allDocFollowups = Array.isArray(data) ? data : [];
+        renderDoctorFollowupsTable();
+      } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#EF4444; padding:20px;">Failed to load follow-up records.</td></tr>';
+      }
+    }
+
+    function renderDoctorFollowupsTable() {
+      const tbody = document.getElementById('tbodyDocFollowups');
+      if (!tbody) return;
+      const filter = document.getElementById('docFollowupFilter')?.value || 'ALL';
+      let list = window.allDocFollowups || [];
+
+      if (filter !== 'ALL') {
+        list = list.filter(f => f.status === filter);
+      }
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--ink-soft);">No post-discharge follow-up records found matching filter.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(f => {
+        let badgeClass = 'badge-pending';
+        if (f.status === 'Completed') badgeClass = 'badge-completed';
+        else if (f.status === 'Overdue') badgeClass = 'badge-cancelled';
+
+        return `
+          <tr>
+            <td><b>${f.followupId}</b></td>
+            <td>${f.admissionId || '-'}</td>
+            <td><b>${f.patientName || 'Patient'}</b> (${f.patientId})</td>
+            <td>${f.dischargeDate || '-'}</td>
+            <td><b style="color:${f.status === 'Overdue' ? '#DC2626' : 'var(--primary)'};">${f.followupDate || '-'}</b></td>
+            <td style="max-width:220px; white-space:normal; font-size:0.8rem;">${f.dischargeInstructions || '-'}</td>
+            <td><span class="badge-status ${badgeClass}">${f.status}</span></td>
+            <td>
+              <button class="btn btn-primary btn-sm" onclick="openDocFollowupModal('${f.followupId}')">📝 Record Outcome</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openDocFollowupModal(fId) {
+      const f = (window.allDocFollowups || []).find(x => x.followupId === fId);
+      if (!f) return;
+      document.getElementById('fupModalId').value = f.followupId;
+      document.getElementById('fupModalPatient').textContent = `${f.patientName} (${f.patientId})`;
+      document.getElementById('fupModalInstructions').textContent = f.dischargeInstructions || 'Standard discharge care';
+      document.getElementById('fupModalStatus').value = f.status === 'Overdue' ? 'Completed' : (f.status || 'Completed');
+      document.getElementById('fupModalNotes').value = f.outcomeNotes || '';
+      document.getElementById('fupModalNextDate').value = '';
+      const modal = document.getElementById('modalDocFollowupOutcome');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeDocFollowupModal() {
+      const modal = document.getElementById('modalDocFollowupOutcome');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function handleSaveFollowupOutcome(e) {
+      e.preventDefault();
+      const followupId = document.getElementById('fupModalId').value;
+      const status = document.getElementById('fupModalStatus').value;
+      const outcomeNotes = document.getElementById('fupModalNotes').value;
+      const nextFollowupDate = document.getElementById('fupModalNextDate').value;
+
+      try {
+        const res = await fetch('/api/ipd/followups/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ followupId, status, outcomeNotes, nextFollowupDate })
+        });
+        const result = await res.json();
+        if (result.success) {
+          showToast('✅ Follow-up outcome recorded successfully!');
+          closeDocFollowupModal();
+          loadDoctorFollowups();
+        } else {
+          alert('Failed to update follow-up: ' + (result.error || 'Server error'));
+        }
+      } catch(err) {
+        alert('Network error updating follow-up');
+      }
     }
 
     async function approveDoctorAppointment(apptId) {

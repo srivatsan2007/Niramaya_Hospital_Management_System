@@ -760,6 +760,9 @@
       <div class="nav-item" onclick="switchSection('secIpdBeds', this)">
         <span>🛏️</span> <span>IPD & Bed Allocation</span>
       </div>
+      <div class="nav-item" onclick="switchSection('secDoctorQueue', this)">
+        <span>⏱️</span> <span>Smart Queue & Load</span>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -1230,6 +1233,58 @@
             </table>
           </div>
         </div>
+
+        <!-- Post-Discharge Follow-up Register -->
+        <div class="card" style="margin-top:24px;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div class="card-title">📋 Post-Discharge Follow-up Register</div>
+              <p style="font-size:0.8rem; color:var(--text-muted);">Inpatient post-discharge follow-ups and review appointment scheduling</p>
+            </div>
+            <span class="badge badge-info" id="badgeFollowupsCount">0 Follow-ups</span>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Follow-up ID</th>
+                  <th>Patient Details</th>
+                  <th>Attending Doctor</th>
+                  <th>Discharge Date</th>
+                  <th>Follow-up Target</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyFollowups">
+                <tr><td colspan="7" style="text-align:center; padding:24px;">Loading follow-ups...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 7. RECEPTIONIST SMART QUEUE MONITOR ================= -->
+      <section id="secDoctorQueue" class="view-section">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div class="card-title">⏱️ Smart Queue Prediction & Doctor Load Monitor</div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
+                Live patient queue positions, estimated waiting times (15 min/patient), and doctor workload warnings.
+              </p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="loadDoctorQueueOverview()">🔄 Refresh Queues</button>
+          </div>
+          <div style="padding:16px 20px;">
+            <div style="background:rgba(10,178,167,0.08); border-left:4px solid var(--teal); padding:10px 14px; border-radius:6px; font-size:0.82rem; margin-bottom:16px;">
+              ℹ️ <strong>Transparent Rule-Based Estimation:</strong> Waiting times are calculated from real appointment and check-in records. Estimates are approximate and subject to clinical emergency priority.
+            </div>
+            <div id="gridDoctorQueueCards" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
+              <!-- Dynamically populated doctor queue cards -->
+            </div>
+          </div>
+        </div>
       </section>
 
     </main>
@@ -1406,6 +1461,9 @@
       setInterval(() => {
         loadCounterPayments(true);
         loadAppointments(true);
+        loadIpdData();
+        loadDoctorQueueOverview();
+        loadFollowups();
       }, 12000);
     });
 
@@ -1447,7 +1505,8 @@
         secDoctorAvailability: 'Doctor Schedules & Slot Availability',
         secWalkinBooking: 'On-the-Spot Walk-in Booking',
         secCounterPayments: 'Pay at Counter Payment Collections',
-        secIpdBeds: 'Inpatient Department (IPD) & Bed Status'
+        secIpdBeds: 'Inpatient Department (IPD) & Bed Status',
+        secDoctorQueue: 'Smart Queue Prediction & Doctor Load Monitor'
       };
       document.getElementById('pageHeading').textContent = headings[secId] || 'Receptionist Portal';
     }
@@ -1469,6 +1528,8 @@
         loadDoctorAvailability(),
         loadCounterPayments(),
         loadIpdData(),
+        loadDoctorQueueOverview(),
+        loadFollowups(),
         loadTotalPatientsStat()
       ]);
       updateDashboardStats();
@@ -2358,6 +2419,125 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    // =============================================================
+    // SMART QUEUE MONITOR & POST-DISCHARGE FOLLOW-UPS CONTROLLERS
+    // =============================================================
+    async function loadDoctorQueueOverview() {
+      try {
+        const res = await fetch('/api/queue/overview');
+        if (!res.ok) return;
+        const data = await res.json();
+        const grid = document.getElementById('gridDoctorQueueCards');
+        if (!grid) return;
+        if (!data.doctorQueues || data.doctorQueues.length === 0) {
+          grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No active doctor queues.</div>';
+          return;
+        }
+        grid.innerHTML = data.doctorQueues.map(d => {
+          const isHigh = d.highLoadWarning;
+          const badgeClass = isHigh ? 'badge-danger' : (d.waitingCount > 0 ? 'badge-info' : 'badge-success');
+          const badgeText = isHigh ? '⚠️ High Load (>5 Waiting)' : (d.waitingCount > 0 ? `${d.waitingCount} Waiting` : 'Queue Clear');
+
+          return `
+            <div style="border:1.5px solid ${isHigh ? '#EF4444' : 'var(--border-color)'}; background:var(--paper); border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                  <div>
+                    <strong style="font-size:1.05rem; color:var(--text-main); font-family:'Sora';">${escapeHTML(d.doctorName)}</strong>
+                    <div style="font-size:0.75rem; color:var(--teal); font-weight:600;">${escapeHTML(d.specialization)}</div>
+                  </div>
+                  <span class="badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:8px;">
+                  Patients in Queue: <strong>${d.waitingCount}</strong>
+                </div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">
+                  Est. Waiting Time: <strong>~${d.estimatedWaitMinutes} mins</strong> <span style="font-size:0.7rem; color:var(--text-muted);">(approx)</span>
+                </div>
+              </div>
+              <div style="margin-top:14px; padding-top:10px; border-top:1px dashed var(--border-color);">
+                <button class="btn btn-primary btn-sm" style="width:100%;" onclick="bookInDoctorQueue('${escapeHTML(d.doctorName)}')">+ Register Patient Here</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Failed to load doctor queue overview:', e);
+      }
+    }
+
+    function bookInDoctorQueue(docName) {
+      switchSection('secWalkinBooking', document.querySelector('.nav-item:nth-child(4)'));
+      const sel = document.getElementById('walkinDoctor');
+      if (sel) {
+        for (let i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value.includes(docName)) {
+            sel.selectedIndex = i;
+            break;
+          }
+        }
+      }
+    }
+
+    async function loadFollowups() {
+      try {
+        const res = await fetch('/api/ipd/followups');
+        if (!res.ok) return;
+        const list = await res.json();
+        const badge = document.getElementById('badgeFollowupsCount');
+        if (badge) badge.textContent = `${list.length} Records`;
+        const tbody = document.getElementById('tbodyFollowups');
+        if (!tbody) return;
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">No post-discharge follow-ups recorded yet.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(f => {
+          let badgeClass = 'badge-warning';
+          if (f.status === 'Completed' || f.status === 'Appointment Scheduled') badgeClass = 'badge-success';
+          else if (f.status === 'Overdue') badgeClass = 'badge-danger';
+          else if (f.status === 'Unable to Reach') badgeClass = 'badge-purple';
+
+          return `
+            <tr>
+              <td><strong style="color:var(--teal); font-family:'JetBrains Mono';">${escapeHTML(f.followupId)}</strong><br><small style="color:var(--text-muted);">${escapeHTML(f.admissionId)}</small></td>
+              <td>
+                <div style="font-weight:700;">${escapeHTML(f.patientName)}</div>
+                <small style="color:var(--text-muted);">${escapeHTML(f.patientId)}</small>
+              </td>
+              <td><strong>${escapeHTML(f.doctorName || 'Attending Physician')}</strong></td>
+              <td>${escapeHTML(f.dischargeDate || '--')}</td>
+              <td><strong style="color:var(--teal);">${escapeHTML(f.followupDate || '--')}</strong></td>
+              <td><span class="badge ${badgeClass}">${escapeHTML(f.status || 'Pending')}</span></td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick="scheduleFollowupBooking('${escapeHTML(f.followupId)}', '${escapeHTML(f.patientId)}', '${escapeHTML(f.patientName)}', '${escapeHTML(f.doctorName)}')">📅 Book Appt</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Failed to load follow-ups:', e);
+      }
+    }
+
+    function scheduleFollowupBooking(folId, pId, pName, docName) {
+      switchSection('secWalkinBooking', document.querySelector('.nav-item:nth-child(4)'));
+      const pIdEl = document.getElementById('walkinPatientId');
+      if (pIdEl) pIdEl.value = pId;
+      const pNameEl = document.getElementById('walkinPatientName');
+      if (pNameEl) pNameEl.value = pName;
+      const sel = document.getElementById('walkinDoctor');
+      if (sel && docName) {
+        for (let i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value.includes(docName)) {
+            sel.selectedIndex = i;
+            break;
+          }
+        }
+      }
+      window.activeLinkingFollowupId = folId;
     }
   </script>
   <script src="assets/js/mobile-responsive.js"></script>

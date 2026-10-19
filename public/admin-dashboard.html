@@ -1031,6 +1031,17 @@
         </div>
       </li>
 
+      <!-- ⏱️ Smart Queue Overview -->
+      <li class="nav-item">
+        <div class="nav-header" onclick="switchNavView('viewSmartQueue', this)">
+          <div class="nav-title-group">
+            <span>⏱️</span>
+            <span>Hospital-wide Queues</span>
+          </div>
+          <span class="badge-count" id="cntHospitalQueue" style="background:#0AB2A7; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:10px;">0</span>
+        </div>
+      </li>
+
       <!-- 🗄️ Database Management Center -->
       <li class="nav-item">
         <div class="nav-header" onclick="switchNavView('viewDatabaseManager', this)">
@@ -1930,6 +1941,97 @@
               </thead>
               <tbody id="tbodyIpdAdmissions">
                 <tr><td colspan="10" style="text-align:center; padding:20px;">Loading inpatients...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Inpatient Post-Discharge Follow-up Register -->
+        <div class="card" style="margin-top:24px;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div class="card-title">📋 Inpatient Post-Discharge Follow-up Register</div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Follow-up compliance, clinical reviews, and discharge status monitoring</p>
+            </div>
+            <span class="badge badge-info" id="badgeAdminFollowups">0 Follow-ups</span>
+          </div>
+          <div class="table-container" style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Follow-up ID</th>
+                  <th>Patient Details</th>
+                  <th>Attending Doctor</th>
+                  <th>Discharge Date</th>
+                  <th>Follow-up Date</th>
+                  <th>Status</th>
+                  <th>Outcome Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAdminFollowups">
+                <tr><td colspan="8" style="text-align:center; padding:20px;">Loading follow-ups...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 10.9 HOSPITAL-WIDE SMART QUEUE OVERVIEW ================= -->
+      <section id="viewSmartQueue" class="view-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">⏱️ Hospital-Wide Smart Queue Prediction Overview</h1>
+            <p class="page-subtitle">Multi-department live queues, wait time estimations, and high-demand bottleneck alerts</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadAdminHospitalQueue()">🔄 Refresh Queues</button>
+        </div>
+
+        <div class="stats-overview-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">OPD Doctor Queue</div>
+            <div class="stat-val" id="statQueueDoctor" style="color:var(--primary);">0</div>
+            <small style="color:var(--text-muted);">Avg Wait: <span id="statQueueDoctorWait">0m</span></small>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Nursing Assessment</div>
+            <div class="stat-val" id="statQueueNurse" style="color:#F59E0B;">0</div>
+            <small style="color:var(--text-muted);">Avg Wait: <span id="statQueueNurseWait">0m</span></small>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Diagnostic Lab Queue</div>
+            <div class="stat-val" id="statQueueLab" style="color:#8B5CF6;">0</div>
+            <small style="color:var(--text-muted);">Avg Wait: <span id="statQueueLabWait">0m</span></small>
+          </div>
+          <div class="stat-card" style="background:var(--paper); border:1px solid var(--border-color); border-radius:12px; padding:18px;">
+            <div class="stat-lbl">Pharmacy Dispensing</div>
+            <div class="stat-val" id="statQueuePharm" style="color:#10B981;">0</div>
+            <small style="color:var(--text-muted);">Avg Wait: <span id="statQueuePharmWait">0m</span></small>
+          </div>
+        </div>
+
+        <div style="background:rgba(10,178,167,0.08); border-left:4px solid #0AB2A7; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:0.84rem;">
+          ℹ️ <strong>Rule-Based Queue Prediction Notice:</strong> Waiting times are calculated dynamically from authentic database records (OPD ~15 min/patient, Nursing ~6 min/patient, Lab ~15-30 min/test, Pharmacy ~6 min/order). Estimates are approximate and subject to clinical emergency prioritization.
+        </div>
+
+        <!-- Doctor Queues Table with High Load Warning -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Doctor Consultation Queues & Workload Monitor</div>
+          </div>
+          <div class="table-container" style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Doctor Name</th>
+                  <th>Department</th>
+                  <th>Waiting Patients</th>
+                  <th>Estimated Waiting Time</th>
+                  <th>Workload Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAdminDoctorQueues">
+                <tr><td colspan="5" style="text-align:center; padding:20px;">Loading doctor queues...</td></tr>
               </tbody>
             </table>
           </div>
@@ -2896,6 +2998,9 @@
 
     setInterval(() => {
       loadLiveDoctorAvailability();
+      loadIpdBedsData();
+      loadAdminHospitalQueue();
+      loadAdminFollowups();
     }, 5000);
 
     async function loadCounterPaymentsTable() {
@@ -3771,11 +3876,14 @@
 
             <div style="margin-top:auto; padding-top:6px;">
               ${b.status === 'Available' ? `
-                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="openAdmitPatientModal('${escapeHTML(b.bedId)}')">+ Admit Here</button>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="openAdmitPatientModal('${escapeHTML(b.bedId)}')">+ Admit</button>
+                  <button class="btn btn-secondary btn-sm" style="color:var(--warning);" title="Mark Under Maintenance" onclick="setBedMaintenance('${escapeHTML(b.bedId)}')">🔧 Maint</button>
+                </div>
               ` : b.status === 'Occupied' ? `
                 <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="findAndDischargeBed('${escapeHTML(b.bedId)}')">Discharge</button>
               ` : `
-                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="setBedAvailable('${escapeHTML(b.bedId)}')">Set Available</button>
+                <button class="btn btn-secondary btn-sm" style="width:100%; color:var(--success);" onclick="setBedAvailable('${escapeHTML(b.bedId)}')">✓ Set Available</button>
               `}
             </div>
           </div>
@@ -3987,6 +4095,151 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    async function setBedMaintenance(bedId) {
+      if (!confirm(`Mark Bed ${bedId} as Under Maintenance? (Blocks new admissions)`)) return;
+      try {
+        const res = await fetch("/api/ipd/beds", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bedId: bedId, status: "Under Maintenance" })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadIpdBedsData();
+          try {
+            const ch = new BroadcastChannel('niramaya_ipd_sync_channel');
+            ch.postMessage({ type: 'REFRESH_BEDS', bedId: bedId, timestamp: Date.now() });
+          } catch(e){}
+        } else {
+          alert("Could not mark bed under maintenance: " + data.message);
+        }
+      } catch(err) {
+        alert("Failed to update bed status: " + err.message);
+      }
+    }
+
+    async function loadAdminHospitalQueue() {
+      try {
+        const res = await fetch('/api/queue/overview');
+        if (!res.ok) return;
+        const d = await res.json();
+        const docQ = document.getElementById('statQueueDoctor');
+        if (docQ) docQ.textContent = d.totalDoctorWaiting;
+        const docWait = document.getElementById('statQueueDoctorWait');
+        if (docWait) docWait.textContent = d.avgDoctorWaitMinutes + 'm';
+
+        const nurseQ = document.getElementById('statQueueNurse');
+        if (nurseQ) nurseQ.textContent = d.totalNurseWaiting;
+        const nurseWait = document.getElementById('statQueueNurseWait');
+        if (nurseWait) nurseWait.textContent = d.avgNurseWaitMinutes + 'm';
+
+        const labQ = document.getElementById('statQueueLab');
+        if (labQ) labQ.textContent = d.totalLabWaiting;
+        const labWait = document.getElementById('statQueueLabWait');
+        if (labWait) labWait.textContent = d.avgLabWaitMinutes + 'm';
+
+        const pharmQ = document.getElementById('statQueuePharm');
+        if (pharmQ) pharmQ.textContent = d.totalPharmacyWaiting;
+        const pharmWait = document.getElementById('statQueuePharmWait');
+        if (pharmWait) pharmWait.textContent = d.avgPharmacyWaitMinutes + 'm';
+
+        const totalWaiting = d.totalDoctorWaiting + d.totalNurseWaiting + d.totalLabWaiting + d.totalPharmacyWaiting;
+        const cntEl = document.getElementById('cntHospitalQueue');
+        if (cntEl) cntEl.textContent = totalWaiting;
+
+        const tbody = document.getElementById('tbodyAdminDoctorQueues');
+        if (tbody && d.doctorQueues) {
+          if (d.doctorQueues.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:var(--text-muted);">No active doctor queues.</td></tr>';
+          } else {
+            tbody.innerHTML = d.doctorQueues.map(doc => {
+              const badgeClass = doc.highLoadWarning ? 'background:#FEE2E2; color:#DC2626;' : (doc.waitingCount > 0 ? 'background:#EFF6FF; color:#2563EB;' : 'background:#ECFDF5; color:#059669;');
+              const statusLabel = doc.highLoadWarning ? '⚠️ High Load (>5 Patients)' : (doc.waitingCount > 0 ? 'Active Queue' : 'Queue Clear');
+
+              return `
+                <tr>
+                  <td><strong>${escapeHTML(doc.doctorName)}</strong></td>
+                  <td>${escapeHTML(doc.specialization)}</td>
+                  <td><strong>${doc.waitingCount}</strong></td>
+                  <td>~${doc.estimatedWaitMinutes} mins</td>
+                  <td><span style="font-size:0.75rem; font-weight:700; padding:4px 8px; border-radius:6px; ${badgeClass}">${statusLabel}</span></td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+      } catch(e){}
+    }
+
+    async function loadAdminFollowups() {
+      try {
+        const res = await fetch('/api/ipd/followups');
+        if (!res.ok) return;
+        const list = await res.json();
+        const badge = document.getElementById('badgeAdminFollowups');
+        if (badge) badge.textContent = `${list.length} Follow-ups`;
+
+        const tbody = document.getElementById('tbodyAdminFollowups');
+        if (!tbody) return;
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">No post-discharge follow-ups recorded yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(f => {
+          let badgeStyle = 'background:#FEF3C7; color:#D97706;';
+          if (f.status === 'Completed' || f.status === 'Appointment Scheduled') badgeStyle = 'background:#D1FAE5; color:#059669;';
+          else if (f.status === 'Overdue') badgeStyle = 'background:#FEE2E2; color:#DC2626;';
+          else if (f.status === 'Unable to Reach') badgeStyle = 'background:#EDE9FE; color:#7C3AED;';
+
+          return `
+            <tr>
+              <td><strong style="color:var(--primary); font-family:'JetBrains Mono';">${escapeHTML(f.followupId)}</strong><br><small style="color:var(--text-muted);">${escapeHTML(f.admissionId)}</small></td>
+              <td>
+                <div style="font-weight:700;">${escapeHTML(f.patientName)}</div>
+                <small style="color:var(--text-muted);">${escapeHTML(f.patientId)}</small>
+              </td>
+              <td><strong>${escapeHTML(f.doctorName || 'Attending Physician')}</strong></td>
+              <td>${escapeHTML(f.dischargeDate || '--')}</td>
+              <td><strong style="color:var(--primary);">${escapeHTML(f.followupDate || '--')}</strong></td>
+              <td><span style="font-size:0.75rem; font-weight:700; padding:4px 8px; border-radius:6px; ${badgeStyle}">${escapeHTML(f.status || 'Pending')}</span></td>
+              <td><small>${escapeHTML(f.outcomeNotes || f.dischargeInstructions || 'Routine Review')}</small></td>
+              <td>
+                ${f.status !== 'Completed' ? `
+                  <button class="btn btn-secondary btn-sm" onclick="markFollowupComplete('${escapeHTML(f.followupId)}')">Mark Done</button>
+                ` : `<span style="font-size:0.75rem; color:#059669; font-weight:700;">✓ Completed</span>`}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch(e){}
+    }
+
+    async function markFollowupComplete(folId) {
+      const notes = prompt("Enter follow-up outcome notes:", "Patient contacted, vitals stable, review completed.");
+      if (notes === null) return;
+      try {
+        const res = await fetch('/api/ipd/followups/update', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            followupId: folId,
+            status: 'Completed',
+            outcomeNotes: notes,
+            contactedBy: 'Hospital Administrator'
+          })
+        });
+        const d = await res.json();
+        if (d.success) {
+          loadAdminFollowups();
+        } else {
+          alert("Error: " + d.message);
+        }
+      } catch(err) {
+        alert("Update failed: " + err.message);
+      }
     }
     // Real-time synchronization listeners for IPD and Payments
     try {

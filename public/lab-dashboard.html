@@ -387,14 +387,15 @@
         <table>
           <thead>
             <tr>
+              <th>Queue Pos</th>
               <th>Booking ID</th>
               <th>Patient ID</th>
               <th>Patient Name</th>
               <th>Age / Gender</th>
               <th>Doctor Name</th>
-              <th>Department</th>
               <th>Test Name</th>
-              <th>Booking Date</th>
+              <th>Est. Turnaround</th>
+              <th>Status</th>
               <th>Payment</th>
               <th>Action</th>
             </tr>
@@ -403,6 +404,9 @@
             <!-- Dynamic Queue Rows -->
           </tbody>
         </table>
+        <div style="font-size:0.75rem; color:#64748B; padding:12px 20px; font-style:italic; background:#F8FAFC; border-top:1px solid var(--border);">
+          * Turnaround times and queue positions are transparent rule-based estimations (~15m for basic diagnostics like CBC/Sugar, ~30m for panels like Lipid/Liver) calculated from live test orders and may vary.
+        </div>
       </div>
 
       <!-- Tab: Completed Reports -->
@@ -842,12 +846,18 @@
 
       let pend = 0, comp = 0;
 
-      list.forEach(b => {
+      list.forEach((b, idx) => {
         const st = b.status || 'Pending';
         const pay = b.paymentStatus || 'Paid';
 
         if (st === 'Pending' || st === 'CONFIRMED') pend++;
         else comp++;
+
+        const queuePos = idx + 1;
+        const testName = b.testName || 'Diagnostics';
+        const isFastTest = testName.toLowerCase().includes('blood') || testName.toLowerCase().includes('sugar') || testName.toLowerCase().includes('cbc') || testName.toLowerCase().includes('glucose');
+        const estWait = queuePos * (isFastTest ? 15 : 30);
+        const testStatus = b.status || (pay.toLowerCase() === 'paid' ? 'In Progress' : 'Pending Payment');
 
         // Priority real doctor resolution
         let docName = b.doctorName;
@@ -881,14 +891,15 @@
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
+          <td><span class="badge" style="background:#0D6EFD; color:#fff; font-weight:700;">#${queuePos}</span></td>
           <td><strong>${b.bookingId}</strong></td>
           <td>${b.patientId || '-'}</td>
           <td><strong>${pName}</strong></td>
           <td>${pAgeGender}</td>
           <td><strong style="color:#0F2A4A;">${docName}</strong></td>
-          <td>${b.department || 'Cardiology'}</td>
           <td><strong style="color:var(--primary);">${b.testName}</strong></td>
-          <td>${b.bookingDate || 'Today'}</td>
+          <td><b style="color:#0D6EFD;">~${estWait}m</b> <span style="font-size:0.7rem; color:#64748B;">(approx)</span></td>
+          <td><span class="badge ${testStatus === 'Completed' ? 'badge-completed' : 'badge-pending'}">${testStatus}</span></td>
           <td>
             ${isPaid 
               ? `<span style="color:#059669; font-weight:600;"><i class="fa-solid fa-circle-check"></i> ${pay}</span>`

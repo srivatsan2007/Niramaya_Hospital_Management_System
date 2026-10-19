@@ -66,6 +66,7 @@ public class Server {
     private static final BirthReportDAO birthReportDAO = new BirthReportDAO();
     private static final IpdDAO ipdDAO = new IpdDAO();
     private static final LoginSecurityDAO loginSecurityDAO = new LoginSecurityDAO();
+    private static final FollowUpDAO followUpDAO = new FollowUpDAO();
 
     public static String hashPassword(String rawPassword) {
         if (rawPassword == null || rawPassword.isEmpty()) return "";
@@ -272,6 +273,23 @@ public class Server {
         addRoute(server, "/api/ipd/beds", new IpdBedsHandler());
         addRoute(server, "/api/ipd/admissions", new IpdAdmissionsHandler());
         addRoute(server, "/api/ipd/discharge", new IpdDischargeHandler());
+
+        // Smart Queue Prediction APIs
+        addRoute(server, "/api/queue/overview", new QueueOverviewHandler());
+        addRoute(server, "/api/queue/doctor", new QueueDoctorHandler());
+        addRoute(server, "/api/queue/nurse", new QueueNurseHandler());
+        addRoute(server, "/api/queue/lab", new QueueLabHandler());
+        addRoute(server, "/api/queue/pharmacy", new QueuePharmacyHandler());
+        addRoute(server, "/api/queue/patient", new QueuePatientHandler());
+
+        // Post-Discharge Follow-up APIs
+        addRoute(server, "/api/ipd/followups", new IpdFollowupsHandler());
+        addRoute(server, "/api/ipd/followups/update", new IpdFollowupUpdateHandler());
+        addRoute(server, "/api/ipd/followups/schedule-appointment", new IpdFollowupScheduleAppointmentHandler());
+
+        // Bilingual Tamil and English Patient Assistant API
+        addRoute(server, "/api/patient/assistant", new PatientAssistantHandler());
+
 
         // Seed initial demo Pharmacy Orders if empty
         if (pharmacyOrderDAO.getAllOrders().isEmpty()) {
@@ -5210,12 +5228,14 @@ public class Server {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < list.size(); i++) {
             IpdBed b = list.get(i);
+            String pId = b.getCurrentPatientId() != null ? b.getCurrentPatientId() : "";
             sb.append(String.format(
-                "{\"bedId\":\"%s\",\"blockName\":\"%s\",\"wardType\":\"%s\",\"roomNumber\":\"%s\",\"bedNumber\":\"%s\",\"dailyCharge\":%.2f,\"status\":\"%s\",\"currentAdmissionId\":\"%s\",\"currentPatientName\":\"%s\"}",
+                "{\"bedId\":\"%s\",\"blockName\":\"%s\",\"wardType\":\"%s\",\"roomNumber\":\"%s\",\"bedNumber\":\"%s\",\"dailyCharge\":%.2f,\"status\":\"%s\",\"currentAdmissionId\":\"%s\",\"currentPatientName\":\"%s\",\"patientId\":\"%s\",\"currentPatientId\":\"%s\"}",
                 escape(b.getBedId()), escape(b.getBlockName()), escape(b.getWardType()),
                 escape(b.getRoomNumber()), escape(b.getBedNumber()), b.getDailyCharge(),
                 escape(b.getStatus()), escape(b.getCurrentAdmissionId() != null ? b.getCurrentAdmissionId() : ""),
-                escape(b.getCurrentPatientName() != null ? b.getCurrentPatientName() : "")
+                escape(b.getCurrentPatientName() != null ? b.getCurrentPatientName() : ""),
+                escape(pId), escape(pId)
             ));
             if (i < list.size() - 1) sb.append(",");
         }
@@ -5301,7 +5321,11 @@ public class Server {
                 int patientAge = 30;
                 try { patientAge = Integer.parseInt(m.getOrDefault("patientAge", "30").trim()); } catch (Exception ignored) {}
                 String patientPhone = m.getOrDefault("patientPhone", "+91 98765 43210").trim();
-                String bedId = m.getOrDefault("bedId", "BED-A101-2").trim();
+                String bedId = m.getOrDefault("bedId", "").trim();
+                if (bedId.isEmpty()) {
+                    send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"bedId is required for admission\"}");
+                    return;
+                }
                 String blockName = m.getOrDefault("blockName", "Block A - North Wing").trim();
                 String wardType = m.getOrDefault("wardType", "General Ward").trim();
                 String roomNumber = m.getOrDefault("roomNumber", "A-101").trim();
@@ -5319,9 +5343,10 @@ public class Server {
                         admissionDate, expectedDischargeDate, null, diagnosis, "Admitted", advancePaid, now);
 
                 boolean ok = ipdDAO.admitPatient(adm);
-                send(exchange, 200, "application/json", String.format(
+                int statusCode = ok ? 200 : 400;
+                send(exchange, statusCode, "application/json", String.format(
                         "{\"success\":%b,\"admissionId\":\"%s\",\"bedId\":\"%s\",\"message\":\"%s\"}",
-                        ok, escape(admissionId), escape(bedId), ok ? "Patient admitted successfully (Admission ID: " + admissionId + ", Bed: " + bedId + ")" : "Failed to admit patient"));
+                        ok, escape(admissionId), escape(bedId), ok ? "Patient admitted successfully (Admission ID: " + admissionId + ", Bed: " + bedId + ")" : "Failed to admit patient: Bed is unavailable, occupied, or under maintenance"));
             } else {
                 send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
             }
@@ -5371,5 +5396,810 @@ public class Server {
                     ok, ok ? "Inpatient " + escape(admissionId) + " successfully discharged. Bed freed." : "Failed to discharge patient"));
         }
     }
+
+    // =========================================================================
+    // POST-DISCHARGE FOLLOW-UP HANDLERS
+    // =========================================================================
+
+    private static String formatFollowupsJsonList(List<PostDischargeFollowup> list) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            PostDischargeFollowup f = list.get(i);
+            sb.append(String.format(
+                "{\"followupId\":\"%s\",\"admissionId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"dischargeDate\":\"%s\",\"followupDate\":\"%s\",\"dischargeInstructions\":\"%s\",\"clinicalNotes\":\"%s\",\"status\":\"%s\",\"outcomeNotes\":\"%s\",\"contactedBy\":\"%s\",\"contactedAt\":\"%s\",\"followupAppointmentId\":\"%s\",\"createdAt\":\"%s\"}",
+                escape(f.getFollowupId()), escape(f.getAdmissionId()), escape(f.getPatientId()),
+                escape(f.getPatientName()), escape(f.getDoctorId()), escape(f.getDoctorName()),
+                escape(f.getDischargeDate()), escape(f.getFollowupDate()), escape(f.getDischargeInstructions()),
+                escape(f.getClinicalNotes()), escape(f.getStatus()), escape(f.getOutcomeNotes()),
+                escape(f.getContactedBy()), escape(f.getContactedAt()), escape(f.getFollowupAppointmentId()),
+                escape(f.getCreatedAt())
+            ));
+            if (i < list.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    // GET & POST /api/ipd/followups
+    static class IpdFollowupsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String method = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(method)) {
+                Map<String, String> q = parseQueryParams(exchange.getRequestURI());
+                List<PostDischargeFollowup> list;
+                if (q.containsKey("patientId")) {
+                    list = followUpDAO.getFollowUpsByPatient(q.get("patientId"));
+                } else if (q.containsKey("doctorId")) {
+                    list = followUpDAO.getFollowUpsByDoctor(q.get("doctorId"));
+                } else {
+                    list = followUpDAO.getAllFollowUps();
+                }
+                send(exchange, 200, "application/json", formatFollowupsJsonList(list));
+            } else if ("POST".equalsIgnoreCase(method)) {
+                String body = readRequestBodyStr(exchange);
+                Map<String, String> m = parseJsonFlat(body);
+                String folId = m.getOrDefault("followupId", "FOL-" + (100000 + new Random().nextInt(900000))).trim();
+                String admissionId = m.getOrDefault("admissionId", "").trim();
+                String patientId = m.getOrDefault("patientId", "").trim();
+                String patientName = m.getOrDefault("patientName", "Patient").trim();
+                String doctorId = m.getOrDefault("doctorId", "").trim();
+                String doctorName = m.getOrDefault("doctorName", "Attending Physician").trim();
+                String dischargeDate = m.getOrDefault("dischargeDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
+                String followupDate = m.getOrDefault("followupDate", java.time.LocalDate.now().plusDays(7).toString()).trim();
+                String instructions = m.getOrDefault("dischargeInstructions", "Follow prescribed discharge medications and clinical instructions.").trim();
+                String clinicalNotes = m.getOrDefault("clinicalNotes", "").trim();
+                String status = m.getOrDefault("status", "Pending").trim();
+                String now = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+
+                PostDischargeFollowup fol = new PostDischargeFollowup(
+                        folId, admissionId, patientId, patientName, doctorId, doctorName,
+                        dischargeDate, followupDate, instructions, clinicalNotes, status,
+                        null, null, null, null, now
+                );
+                boolean ok = followUpDAO.createFollowUp(fol);
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":%b,\"followupId\":\"%s\",\"message\":\"%s\"}",
+                        ok, escape(folId), ok ? "Follow-up record created successfully" : "Failed to create follow-up record"));
+            } else {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+            }
+        }
+    }
+
+    // POST /api/ipd/followups/update
+    static class IpdFollowupUpdateHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod()) && !"PUT".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = readRequestBodyStr(exchange);
+            Map<String, String> m = parseJsonFlat(body);
+            String followupId = m.getOrDefault("followupId", "").trim();
+            String status = m.getOrDefault("status", "Completed").trim();
+            String outcomeNotes = m.getOrDefault("outcomeNotes", "").trim();
+            String clinicalNotes = m.getOrDefault("clinicalNotes", null);
+            String contactedBy = m.getOrDefault("contactedBy", "Clinical Staff").trim();
+            String contactedAt = m.getOrDefault("contactedAt", new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())).trim();
+
+            if (followupId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"followupId is required\"}");
+                return;
+            }
+
+            boolean ok = followUpDAO.updateFollowUpOutcome(followupId, status, outcomeNotes, clinicalNotes, contactedBy, contactedAt);
+            send(exchange, 200, "application/json", String.format(
+                    "{\"success\":%b,\"message\":\"%s\"}",
+                    ok, ok ? "Follow-up outcome updated successfully" : "Failed to update follow-up record"));
+        }
+    }
+
+    // POST /api/ipd/followups/schedule-appointment
+    static class IpdFollowupScheduleAppointmentHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = readRequestBodyStr(exchange);
+            Map<String, String> m = parseJsonFlat(body);
+            String followupId = m.getOrDefault("followupId", "").trim();
+            String appointmentId = m.getOrDefault("appointmentId", "").trim();
+
+            if (followupId.isEmpty()) {
+                send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"followupId is required\"}");
+                return;
+            }
+
+            if (appointmentId.isEmpty()) {
+                appointmentId = "APT-" + (10000 + new Random().nextInt(90000));
+                String date = m.getOrDefault("appointmentDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
+                String time = m.getOrDefault("appointmentTime", "10:00 AM").trim();
+                String docId = m.getOrDefault("doctorId", "DOC10084").trim();
+                PostDischargeFollowup f = followUpDAO.getFollowUpById(followupId);
+                String pId = f != null ? f.getPatientId() : "PT100842";
+                String pName = f != null ? f.getPatientName() : "Inpatient Followup";
+                String docName = f != null ? f.getDoctorName() : "Dr. Ananya Rao";
+
+                Appointment newAppt = new Appointment();
+                newAppt.setAppointmentId(appointmentId);
+                newAppt.setPatientId(pId);
+                newAppt.setPatientName(pName);
+                newAppt.setDoctorId(docId);
+                newAppt.setDoctorName(docName);
+                newAppt.setDepartment("General Medicine");
+                newAppt.setAppointmentDate(date);
+                newAppt.setAppointmentTime(time);
+                newAppt.setStatus("Confirmed");
+                appointmentDAO.createAppointment(newAppt);
+            }
+
+            boolean ok = followUpDAO.linkFollowUpAppointment(followupId, appointmentId);
+            send(exchange, 200, "application/json", String.format(
+                    "{\"success\":%b,\"appointmentId\":\"%s\",\"message\":\"%s\"}",
+                    ok, escape(appointmentId), ok ? "Follow-up appointment linked successfully" : "Failed to link appointment"));
+        }
+    }
+
+    // =========================================================================
+    // SMART QUEUE PREDICTION HANDLERS
+    // =========================================================================
+
+    // GET /api/queue/overview
+    static class QueueOverviewHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+
+            List<Doctor> docs = doctorDAO.getAllDoctors();
+            List<NurseAssignment> nurseTasks = nurseDAO.getTodaysAssignedPatients(null);
+            List<LabBooking> labBookings = labBookingDAO.getTodaysLabOrders();
+            List<PharmacyOrder> pharmOrders = pharmacyOrderDAO.getTodaysMedicineOrders();
+
+            int waitingDoctorPatients = 0;
+            StringBuilder docBreakdown = new StringBuilder("[");
+            for (int i = 0; i < docs.size(); i++) {
+                Doctor d = docs.get(i);
+                List<Appointment> docAppts = appointmentDAO.getTodaysPatientsForDoctor(d.getDoctorId());
+                int count = docAppts != null ? docAppts.size() : 0;
+                waitingDoctorPatients += count;
+                int estWait = count * 15;
+                boolean highLoad = count > 5;
+                docBreakdown.append(String.format(
+                    "{\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"specialization\":\"%s\",\"waitingCount\":%d,\"estimatedWaitMinutes\":%d,\"highLoadWarning\":%b}",
+                    escape(d.getDoctorId()), escape(d.getName()), escape(d.getSpecialization()), count, estWait, highLoad
+                ));
+                if (i < docs.size() - 1) docBreakdown.append(",");
+            }
+            docBreakdown.append("]");
+
+            int waitingNurse = nurseTasks != null ? nurseTasks.size() : 0;
+            int waitingLab = 0;
+            if (labBookings != null) {
+                for (LabBooking b : labBookings) {
+                    if (!"Completed".equalsIgnoreCase(b.getStatus()) && !"Report Ready".equalsIgnoreCase(b.getStatus())) waitingLab++;
+                }
+            }
+            int waitingPharm = 0;
+            if (pharmOrders != null) {
+                for (PharmacyOrder p : pharmOrders) {
+                    if (!"Dispensed".equalsIgnoreCase(p.getOrderStatus()) && !"Cancelled".equalsIgnoreCase(p.getOrderStatus())) waitingPharm++;
+                }
+            }
+
+            int avgDoctorWait = waitingDoctorPatients > 0 ? (waitingDoctorPatients * 15) / Math.max(1, docs.size()) : 0;
+            int avgNurseWait = waitingNurse * 6;
+            int avgLabWait = waitingLab * 20;
+            int avgPharmWait = waitingPharm * 6;
+
+            String json = String.format(
+                "{\"success\":true,\"totalDoctorWaiting\":%d,\"opdWaiting\":%d,\"totalNurseWaiting\":%d,\"nurseWaiting\":%d,\"totalLabWaiting\":%d,\"labWaiting\":%d,\"totalPharmacyWaiting\":%d,\"pharmacyWaiting\":%d,\"avgDoctorWaitMinutes\":%d,\"avgNurseWaitMinutes\":%d,\"avgLabWaitMinutes\":%d,\"avgPharmacyWaitMinutes\":%d,\"doctorQueues\":%s,\"approximateNotice\":\"Estimated waiting times are approximate algorithmic estimates subject to clinical urgency.\"}",
+                waitingDoctorPatients, waitingDoctorPatients, waitingNurse, waitingNurse, waitingLab, waitingLab, waitingPharm, waitingPharm, avgDoctorWait, avgNurseWait, avgLabWait, avgPharmWait, docBreakdown.toString()
+            );
+
+            send(exchange, 200, "application/json", json);
+        }
+    }
+
+    // GET /api/queue/doctor
+    static class QueueDoctorHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            Map<String, String> q = parseQueryParams(exchange.getRequestURI());
+            String doc = q.getOrDefault("doctor", q.getOrDefault("doctorId", q.get("email")));
+            List<Appointment> list = appointmentDAO.getTodaysPatientsForDoctor(doc);
+            if (list == null) list = new ArrayList<>();
+
+            int totalWaiting = list.size();
+            boolean highLoad = totalWaiting > 5;
+            int estWaitPerPatient = 15;
+
+            StringBuilder sb = new StringBuilder("{");
+            sb.append("\"success\":true,");
+            sb.append("\"doctor\":\"").append(escape(doc != null ? doc : "All")).append("\",");
+            sb.append("\"totalWaiting\":").append(totalWaiting).append(",");
+            sb.append("\"highLoadWarning\":").append(highLoad).append(",");
+            sb.append("\"estimatedNextPatientMinutes\":").append(totalWaiting > 0 ? 15 : 0).append(",");
+            sb.append("\"nextWaitMinutes\":").append(totalWaiting > 0 ? 15 : 0).append(",");
+            sb.append("\"approximateNotice\":\"Estimated waiting times are approximate and subject to clinical urgency.\",");
+            sb.append("\"queue\":[");
+
+            for (int i = 0; i < list.size(); i++) {
+                Appointment a = list.get(i);
+                int pos = i + 1;
+                int patientsAhead = i;
+                int estWait = patientsAhead * estWaitPerPatient;
+
+                boolean hasVitals = false;
+                if (a.getAppointmentId() != null && !a.getAppointmentId().isEmpty()) {
+                    hasVitals = (nurseDAO.getVitalsForAppointment(a.getAppointmentId()) != null);
+                }
+
+                sb.append(String.format(
+                    "{\"position\":%d,\"patientsAhead\":%d,\"estimatedWaitMinutes\":%d,\"appointmentId\":\"%s\",\"token\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"appointmentTime\":\"%s\",\"doctorName\":\"%s\",\"status\":\"%s\",\"isReadyForConsultation\":%b,\"nurseCheckStatus\":\"%s\"}",
+                    pos, patientsAhead, estWait, escape(a.getAppointmentId()), escape(a.getAppointmentId()),
+                    escape(a.getPatientId()), escape(a.getPatientName()),
+                    escape(a.getAppointmentTime()), escape(a.getDoctorName()),
+                    escape(a.getStatus()), hasVitals, hasVitals ? "Completed" : "Pending Nurse Assessment"
+                ));
+                if (i < list.size() - 1) sb.append(",");
+            }
+            sb.append("]}");
+            send(exchange, 200, "application/json", sb.toString());
+        }
+    }
+
+    // GET /api/queue/nurse
+    static class QueueNurseHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            Map<String, String> q = parseQueryParams(exchange.getRequestURI());
+            String nurseId = q.get("nurseId");
+            List<NurseAssignment> list = nurseDAO.getTodaysAssignedPatients(nurseId);
+            if (list == null) list = new ArrayList<>();
+
+            StringBuilder sb = new StringBuilder("{");
+            sb.append("\"success\":true,");
+            sb.append("\"totalAwaitingAssessment\":").append(list.size()).append(",");
+            sb.append("\"averageAssessmentMinutes\":6,");
+            sb.append("\"approximateNotice\":\"Assessment waiting times are approximate (calculated at ~6 min per patient).\",");
+            sb.append("\"queue\":[");
+
+            for (int i = 0; i < list.size(); i++) {
+                NurseAssignment a = list.get(i);
+                int pos = i + 1;
+                int patientsAhead = i;
+                int estWait = patientsAhead * 6;
+
+                sb.append(String.format(
+                    "{\"position\":%d,\"patientsAhead\":%d,\"estimatedWaitMinutes\":%d,\"assignmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorName\":\"%s\",\"ward\":\"%s\",\"roomNumber\":\"%s\",\"status\":\"%s\"}",
+                    pos, patientsAhead, estWait, escape(a.getAssignmentId()), escape(a.getPatientId()),
+                    escape(a.getPatientName()), escape(a.getDoctorName()), escape(a.getWard()),
+                    escape(a.getRoomNumber()), escape(a.getStatus())
+                ));
+                if (i < list.size() - 1) sb.append(",");
+            }
+            sb.append("]}");
+            send(exchange, 200, "application/json", sb.toString());
+        }
+    }
+
+    // GET /api/queue/lab
+    static class QueueLabHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            List<LabBooking> all = labBookingDAO.getTodaysLabOrders();
+            List<LabBooking> active = new ArrayList<>();
+            if (all != null) {
+                for (LabBooking b : all) {
+                    if (!"Completed".equalsIgnoreCase(b.getStatus()) && !"Report Ready".equalsIgnoreCase(b.getStatus())) {
+                        active.add(b);
+                    }
+                }
+            }
+
+            StringBuilder sb = new StringBuilder("{");
+            sb.append("\"success\":true,");
+            sb.append("\"totalPendingTests\":").append(active.size()).append(",");
+            sb.append("\"approximateNotice\":\"Diagnostic test turnaround times are approximate and vary by analyzer workflow.\",");
+            sb.append("\"queue\":[");
+
+            int cumulativeWait = 0;
+            for (int i = 0; i < active.size(); i++) {
+                LabBooking b = active.get(i);
+                String tName = b.getTestName() != null ? b.getTestName() : "";
+                int testMinutes = 20;
+                if (tName.toLowerCase().contains("sugar") || tName.toLowerCase().contains("cbc") || tName.toLowerCase().contains("hemogram")) {
+                    testMinutes = 15;
+                } else if (tName.toLowerCase().contains("lipid") || tName.toLowerCase().contains("liver") || tName.toLowerCase().contains("kidney") || tName.toLowerCase().contains("thyroid")) {
+                    testMinutes = 30;
+                }
+
+                sb.append(String.format(
+                    "{\"position\":%d,\"testsAhead\":%d,\"estimatedWaitMinutes\":%d,\"bookingId\":\"%s\",\"testName\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"bookingTime\":\"%s\"}",
+                    i + 1, i, cumulativeWait, escape(b.getBookingId()), escape(b.getTestName()),
+                    escape(b.getPatientId()), escape(b.getPatientName()), escape(b.getStatus()),
+                    escape(b.getPaymentStatus()), escape(b.getBookingTime())
+                ));
+                cumulativeWait += testMinutes;
+                if (i < active.size() - 1) sb.append(",");
+            }
+            sb.append("]}");
+            send(exchange, 200, "application/json", sb.toString());
+        }
+    }
+
+    // GET /api/queue/pharmacy
+    static class QueuePharmacyHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            List<PharmacyOrder> all = pharmacyOrderDAO.getTodaysMedicineOrders();
+            List<PharmacyOrder> active = new ArrayList<>();
+            if (all != null) {
+                for (PharmacyOrder p : all) {
+                    if (!"Dispensed".equalsIgnoreCase(p.getOrderStatus()) && !"Cancelled".equalsIgnoreCase(p.getOrderStatus())) {
+                        active.add(p);
+                    }
+                }
+            }
+
+            StringBuilder sb = new StringBuilder("{");
+            sb.append("\"success\":true,");
+            sb.append("\"totalPendingOrders\":").append(active.size()).append(",");
+            sb.append("\"averageDispensingMinutes\":6,");
+            sb.append("\"approximateNotice\":\"Pharmacy dispensing estimates are calculated at ~6 min per order.\",");
+            sb.append("\"queue\":[");
+
+            for (int i = 0; i < active.size(); i++) {
+                PharmacyOrder p = active.get(i);
+                int pos = i + 1;
+                int ordersAhead = i;
+                int estWait = ordersAhead * 6;
+
+                sb.append(String.format(
+                    "{\"position\":%d,\"ordersAhead\":%d,\"estimatedWaitMinutes\":%d,\"orderId\":\"%s\",\"patientId\":\"%s\",\"totalAmount\":%.2f,\"paymentStatus\":\"%s\",\"orderStatus\":\"%s\",\"orderedTime\":\"%s\"}",
+                    pos, ordersAhead, estWait, escape(p.getOrderId()), escape(p.getPatientId()),
+                    p.getTotalAmount(), escape(p.getPaymentStatus()), escape(p.getOrderStatus()),
+                    escape(p.getOrderDate())
+                ));
+                if (i < active.size() - 1) sb.append(",");
+            }
+            sb.append("]}");
+            send(exchange, 200, "application/json", sb.toString());
+        }
+    }
+
+    // GET /api/queue/patient
+    static class QueuePatientHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            Map<String, String> q = parseQueryParams(exchange.getRequestURI());
+            String patientId = q.getOrDefault("patientId", "PT100842").trim();
+
+            // 1. Doctor Appointment Queue
+            List<Appointment> appts = appointmentDAO.getTodaysAppointmentsForPatient(patientId);
+            Appointment activeAppt = null;
+            if (appts != null) {
+                for (Appointment a : appts) {
+                    if (!"COMPLETED".equalsIgnoreCase(a.getStatus()) && !"CANCELLED".equalsIgnoreCase(a.getStatus())) {
+                        activeAppt = a;
+                        break;
+                    }
+                }
+            }
+
+            int docQueuePos = -1;
+            int docPatientsAhead = -1;
+            int docEstimatedWait = -1;
+            boolean isReady = false;
+            String docName = "";
+            String token = "";
+            String apptStatus = "No active appointment";
+
+            if (activeAppt != null) {
+                docName = activeAppt.getDoctorName() != null ? activeAppt.getDoctorName() : "Doctor";
+                token = activeAppt.getAppointmentId() != null ? activeAppt.getAppointmentId() : "";
+                apptStatus = activeAppt.getStatus();
+                List<Appointment> docQueue = appointmentDAO.getTodaysPatientsForDoctor(activeAppt.getDoctorId());
+                if (docQueue != null) {
+                    for (int i = 0; i < docQueue.size(); i++) {
+                        if (docQueue.get(i).getAppointmentId().equalsIgnoreCase(activeAppt.getAppointmentId())) {
+                            docQueuePos = i + 1;
+                            docPatientsAhead = i;
+                            docEstimatedWait = docPatientsAhead * 15;
+                            break;
+                        }
+                    }
+                }
+                if (docQueuePos == -1) {
+                    docQueuePos = 1;
+                    docPatientsAhead = 0;
+                    docEstimatedWait = 0;
+                }
+                boolean hasVitals = (nurseDAO.getVitalsForAppointment(activeAppt.getAppointmentId()) != null);
+                isReady = hasVitals;
+            }
+
+            // 2. Nurse Assessment Queue
+            List<NurseAssignment> nurseTasks = nurseDAO.getTodaysAssignedPatients(null);
+            int nursePos = -1;
+            int nurseWait = -1;
+            if (nurseTasks != null) {
+                for (int i = 0; i < nurseTasks.size(); i++) {
+                    if (patientId.equalsIgnoreCase(nurseTasks.get(i).getPatientId())) {
+                        nursePos = i + 1;
+                        nurseWait = i * 6;
+                        break;
+                    }
+                }
+            }
+
+            // 3. Lab Queue
+            List<LabBooking> labList = labBookingDAO.getTodaysLabOrders();
+            int labPos = -1;
+            int labWait = -1;
+            String labTestName = "";
+            String labStatus = "";
+            int labPendingCount = 0;
+            if (labList != null) {
+                for (LabBooking b : labList) {
+                    if (!"Completed".equalsIgnoreCase(b.getStatus()) && !"Report Ready".equalsIgnoreCase(b.getStatus())) {
+                        labPendingCount++;
+                        if (labPos == -1 && patientId.equalsIgnoreCase(b.getPatientId())) {
+                            labPos = labPendingCount;
+                            labWait = (labPendingCount - 1) * 20;
+                            labTestName = b.getTestName() != null ? b.getTestName() : "Diagnostic Panel";
+                            labStatus = b.getStatus();
+                        }
+                    }
+                }
+            }
+
+            // 4. Pharmacy Queue
+            List<PharmacyOrder> pharmList = pharmacyOrderDAO.getTodaysMedicineOrders();
+            int pharmPos = -1;
+            int pharmWait = -1;
+            String pharmOrderId = "";
+            String pharmStatus = "";
+            int pharmPendingCount = 0;
+            if (pharmList != null) {
+                for (PharmacyOrder p : pharmList) {
+                    if (!"Dispensed".equalsIgnoreCase(p.getOrderStatus()) && !"Cancelled".equalsIgnoreCase(p.getOrderStatus())) {
+                        pharmPendingCount++;
+                        if (pharmPos == -1 && patientId.equalsIgnoreCase(p.getPatientId())) {
+                            pharmPos = pharmPendingCount;
+                            pharmWait = (pharmPendingCount - 1) * 6;
+                            pharmOrderId = p.getOrderId();
+                            pharmStatus = p.getOrderStatus();
+                        }
+                    }
+                }
+            }
+
+            StringBuilder queuesArr = new StringBuilder("[");
+            boolean firstQ = true;
+            if (docQueuePos != -1) {
+                queuesArr.append(String.format("{\"department\":\"Doctor OPD\",\"doctorName\":\"%s\",\"token\":\"%s\",\"position\":%d,\"estimatedWaitMinutes\":%d,\"status\":\"%s\"}", escape(docName), escape(token), docQueuePos, docEstimatedWait, escape(apptStatus)));
+                firstQ = false;
+            }
+            if (nursePos != -1) {
+                if (!firstQ) queuesArr.append(",");
+                queuesArr.append(String.format("{\"department\":\"Nurse Assessment\",\"position\":%d,\"estimatedWaitMinutes\":%d,\"status\":\"Assigned\"}", nursePos, nurseWait));
+                firstQ = false;
+            }
+            if (labPos != -1) {
+                if (!firstQ) queuesArr.append(",");
+                queuesArr.append(String.format("{\"department\":\"Laboratory\",\"testName\":\"%s\",\"position\":%d,\"estimatedWaitMinutes\":%d,\"status\":\"%s\"}", escape(labTestName), labPos, labWait, escape(labStatus)));
+                firstQ = false;
+            }
+            if (pharmPos != -1) {
+                if (!firstQ) queuesArr.append(",");
+                queuesArr.append(String.format("{\"department\":\"Pharmacy\",\"orderId\":\"%s\",\"position\":%d,\"estimatedWaitMinutes\":%d,\"status\":\"%s\"}", escape(pharmOrderId), pharmPos, pharmWait, escape(pharmStatus)));
+                firstQ = false;
+            }
+            queuesArr.append("]");
+
+            String json = String.format(
+                "{\"success\":true,\"patientId\":\"%s\",\"hasActiveAppointment\":%b,\"queues\":%s,\"doctorQueue\":{\"hasQueue\":%b,\"doctorName\":\"%s\",\"token\":\"%s\",\"queuePosition\":%d,\"patientsAhead\":%d,\"estimatedWaitMinutes\":%d,\"appointmentStatus\":\"%s\",\"isReadyForConsultation\":%b},\"nurseQueue\":{\"hasQueue\":%b,\"queuePosition\":%d,\"estimatedWaitMinutes\":%d},\"labQueue\":{\"hasQueue\":%b,\"testName\":\"%s\",\"queuePosition\":%d,\"estimatedWaitMinutes\":%d,\"status\":\"%s\"},\"pharmacyQueue\":{\"hasQueue\":%b,\"orderId\":\"%s\",\"queuePosition\":%d,\"estimatedWaitMinutes\":%d,\"status\":\"%s\"},\"disclaimer\":\"Waiting times are approximate algorithmic estimates subject to clinical urgency. Emergency cases receive immediate priority.\"}",
+                escape(patientId), (activeAppt != null), queuesArr.toString(),
+                (docQueuePos != -1), escape(docName), escape(token), docQueuePos, docPatientsAhead, docEstimatedWait, escape(apptStatus), isReady,
+                (nursePos != -1), nursePos, nurseWait,
+                (labPos != -1), escape(labTestName), labPos, labWait, escape(labStatus),
+                (pharmPos != -1), escape(pharmOrderId), pharmPos, pharmWait, escape(pharmStatus)
+            );
+            send(exchange, 200, "application/json", json);
+        }
+    }
+
+    // =========================================================================
+    // BILINGUAL TAMIL AND ENGLISH PATIENT ASSISTANT HANDLER
+    // =========================================================================
+
+    static class PatientAssistantHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String body = readRequestBodyStr(exchange);
+            Map<String, String> map = parseJsonFlat(body);
+            String rawQuery = map.getOrDefault("query", map.getOrDefault("message", "")).trim();
+            String lang = map.getOrDefault("language", "en").trim().toLowerCase();
+            boolean isTa = "ta".equalsIgnoreCase(lang) || "tamil".equalsIgnoreCase(lang);
+            String patientId = map.getOrDefault("patientId", "PT100842").trim();
+
+            if (rawQuery.isEmpty()) {
+                String errMsg = isTa ? "தயவுசெய்து ஒரு கேள்வியை உள்ளிடவும்." : "Please enter a question or query.";
+                send(exchange, 400, "application/json", String.format("{\"success\":false,\"message\":\"%s\"}", escape(errMsg)));
+                return;
+            }
+
+            String qLower = rawQuery.toLowerCase();
+
+            // 1. Healthcare Safety & Emergency Triage
+            boolean isEmergency = qLower.contains("chest pain") || qLower.contains("heart attack") ||
+                    qLower.contains("breath") || qLower.contains("unconscious") || qLower.contains("severe bleed") ||
+                    qLower.contains("stroke") || qLower.contains("poison") || qLower.contains("suicide") ||
+                    qLower.contains("seizure") || qLower.contains("நெஞ்சு வலி") || qLower.contains("மாரடைப்பு") ||
+                    qLower.contains("மூச்சு") || qLower.contains("மயக்கம்") || qLower.contains("இரத்தப்போக்கு") ||
+                    qLower.contains("ரத்தப்போக்கு") || qLower.contains("வலிப்பு") || qLower.contains("விஷம்");
+
+            if (isEmergency) {
+                String title = isTa ? "🚨 அவசர மருத்துவ எச்சரிக்கை (Emergency Alert)" : "🚨 IMMEDIATE MEDICAL EMERGENCY ALERT";
+                String text = isTa ?
+                        "உங்கள் அறிகுறிகள் உடனடியாக கவனிக்கப்பட வேண்டிய அவசர மருத்துவ நிலையை குறிக்கின்றன.\\n" +
+                        "• தயவுசெய்து உடனடியாக 108 என்ற அவசர எண்ணை அழைக்கவும்.\\n" +
+                        "• அல்லது நிராமயா மருத்துவமனையின் 24x7 அவசர சிகிச்சைப் பிரிவுக்கு (பிளாக் சி, தரைத்தளம்) உடனடியாக வரவும்.\\n" +
+                        "• மருத்துவமனை அவசர உதவி எண்: +91 98765 43210.\\n" +
+                        "கவனிக்க: நோயாளி உதவியாளர் ஒரு மருத்துவ நிபுணரின் நேரடி சிகிச்சைக்கு மாற்றாகாது." :
+                        "Your reported symptoms indicate a potential medical emergency requiring immediate clinical intervention.\\n" +
+                        "• Call 108 Emergency Medical Services immediately.\\n" +
+                        "• Or proceed immediately to Niramaya 24x7 Emergency & Trauma Center (Block C, Ground Floor).\\n" +
+                        "• Emergency Helpline: +91 98765 43210.\\n" +
+                        "Notice: This assistant provides administrative guidance and does not replace emergency medical diagnosis or treatment.";
+
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":true,\"isEmergency\":true,\"category\":\"EMERGENCY\",\"title\":\"%s\",\"response\":\"%s\",\"reply\":\"%s\",\"language\":\"%s\"}",
+                        escape(title), escape(text), escape(text), escape(lang)));
+                return;
+            }
+
+            // 2. Authenticated Real Data Retrieval
+            String category = "GENERAL";
+            String title;
+            StringBuilder resp = new StringBuilder();
+
+            if (qLower.contains("queue") || qLower.contains("wait") || qLower.contains("position") ||
+                qLower.contains("வரிசை") || qLower.contains("காத்திருப்பு") || qLower.contains("நேரம்")) {
+                category = "QUEUE";
+                title = isTa ? "நேரலை வரிசை நிலை (Live Queue Status)" : "Live Queue & Waiting Time Status";
+                List<Appointment> appts = appointmentDAO.getTodaysAppointmentsForPatient(patientId);
+                Appointment active = null;
+                if (appts != null) {
+                    for (Appointment a : appts) {
+                        if (!"COMPLETED".equalsIgnoreCase(a.getStatus()) && !"CANCELLED".equalsIgnoreCase(a.getStatus())) {
+                            active = a;
+                            break;
+                        }
+                    }
+                }
+                if (active != null) {
+                    List<Appointment> docQueue = appointmentDAO.getTodaysPatientsForDoctor(active.getDoctorId());
+                    int pos = 1;
+                    if (docQueue != null) {
+                        for (int i = 0; i < docQueue.size(); i++) {
+                            if (docQueue.get(i).getAppointmentId().equalsIgnoreCase(active.getAppointmentId())) {
+                                pos = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                    int waitMins = Math.max(0, (pos - 1) * 15);
+                    if (isTa) {
+                        resp.append(String.format("தங்களுக்கு %s மருத்துவரிடம் இன்று முன்பதிவு உள்ளது.\\n", active.getDoctorName()));
+                        resp.append(String.format("• டோக்கன் எண்: %s\\n", active.getAppointmentId()));
+                        resp.append(String.format("• தற்போதைய வரிசை எண்: #%d\\n", pos));
+                        resp.append(String.format("• முன்பாக உள்ள நோயாளிகள்: %d\\n", pos - 1));
+                        resp.append(String.format("• உத்தேச காத்திருப்பு நேரம்: ~%d நிமிடங்கள் (தோராயமானது — அவசர சிகிச்சைக்கு முன்னுரிமை அளிக்கப்படும்)\\n", waitMins));
+                        resp.append(String.format("• நிலை: %s", active.getStatus()));
+                    } else {
+                        resp.append(String.format("You have an active appointment today with %s.\\n", active.getDoctorName()));
+                        resp.append(String.format("• Token: %s\\n", active.getAppointmentId()));
+                        resp.append(String.format("• Queue Position: #%d\\n", pos));
+                        resp.append(String.format("• Patients Ahead: %d\\n", pos - 1));
+                        resp.append(String.format("• Estimated Wait Time: ~%d minutes (Approximate — subject to clinical urgency)\\n", waitMins));
+                        resp.append(String.format("• Status: %s", active.getStatus()));
+                    }
+                } else {
+                    resp.append(isTa ?
+                            "இன்றைய வரிசையில் உங்களுக்கான முன்பதிவு எதுவும் இல்லை. தேவைப்பட்டால் 'முன்பதிவு செய்' பிரிவில் பதிவு செய்யலாம்." :
+                            "You have no active appointments waiting in today's queue. You can schedule a new consultation via the 'Book Appointment' section.");
+                }
+            } else if (qLower.contains("doctor") || qLower.contains("specialist") || qLower.contains("cardiolog") ||
+                       qLower.contains("pediatric") || qLower.contains("ortho") || qLower.contains("neuro") ||
+                       qLower.contains("மருத்துவர்") || qLower.contains("டாக்டர்") || qLower.contains("இருப்பு")) {
+                category = "DOCTORS";
+                title = isTa ? "மருத்துவர்கள் கிடைக்கும் விவரம் (Doctor Availability)" : "Doctor Availability & Specialists";
+                List<Doctor> docs = doctorDAO.getAllDoctors();
+                if (docs != null && !docs.isEmpty()) {
+                    if (isTa) {
+                        resp.append("நிராமயா மருத்துவமனையில் தற்போது கிடைக்கும் மருத்துவர்கள்:\\n");
+                        int shown = 0;
+                        for (Doctor d : docs) {
+                            if (shown++ >= 4) break;
+                            String dName = d.getName() != null ? d.getName() : "Doctor";
+                            if (!dName.startsWith("Dr.") && !dName.startsWith("Dr ")) dName = "Dr. " + dName;
+                            resp.append(String.format("• %s (%s) — அறை: %s | கட்டணம்: ₹%.0f | நிலை: %s\\n",
+                                    dName, d.getSpecialization(), "OPD-101",
+                                    d.getConsultationFee(), d.getAvailableStatus()));
+                        }
+                    } else {
+                        resp.append("Available doctors at Niramaya Hospital:\\n");
+                        int shown = 0;
+                        for (Doctor d : docs) {
+                            if (shown++ >= 4) break;
+                            String dName = d.getName() != null ? d.getName() : "Doctor";
+                            if (!dName.startsWith("Dr.") && !dName.startsWith("Dr ")) dName = "Dr. " + dName;
+                            resp.append(String.format("• %s (%s) — Room: %s | Fee: ₹%.0f | Status: %s\\n",
+                                    dName, d.getSpecialization(), "OPD-101",
+                                    d.getConsultationFee(), d.getAvailableStatus()));
+                        }
+                    }
+                } else {
+                    resp.append(isTa ? "மருத்துவர்கள் தகவல் தற்போது புதுப்பிக்கப்படுகிறது." : "Doctor directory is currently updating.");
+                }
+            } else if (qLower.contains("lab") || qLower.contains("test") || qLower.contains("blood") || qLower.contains("report") ||
+                       qLower.contains("ஆய்வகம்") || qLower.contains("பரிசோதனை") || qLower.contains("முடிவு") || qLower.contains("அறிக்கை")) {
+                category = "LAB";
+                title = isTa ? "ஆய்வக பரிசோதனை விவரங்கள் (Laboratory Reports)" : "Laboratory Test Bookings & Reports";
+                List<LabBooking> labs = labBookingDAO.getBookingsByPatient(patientId);
+                if (labs != null && !labs.isEmpty()) {
+                    if (isTa) {
+                        resp.append("தங்களின் சமீபத்திய ஆய்வக சோதனைகள்:\\n");
+                        int count = 0;
+                        for (LabBooking b : labs) {
+                            if (count++ >= 3) break;
+                            resp.append(String.format("• %s (முன்பதிவு: %s) — நிலை: %s | கட்டணம்: %s\\n",
+                                    b.getTestName(), b.getBookingId(), b.getStatus(), b.getPaymentStatus()));
+                        }
+                    } else {
+                        resp.append("Your recent laboratory bookings:\\n");
+                        int count = 0;
+                        for (LabBooking b : labs) {
+                            if (count++ >= 3) break;
+                            resp.append(String.format("• %s (Booking: %s) — Status: %s | Payment: %s\\n",
+                                    b.getTestName(), b.getBookingId(), b.getStatus(), b.getPaymentStatus()));
+                        }
+                    }
+                } else {
+                    resp.append(isTa ?
+                            "தங்களிடம் தற்போது நிலுவையில் உள்ள ஆய்வக சோதனைகள் எதுவும் இல்லை. 'ஆய்வகம்' பிரிவில் புதிய சோதனையை பதிவு செய்யலாம்." :
+                            "No recent lab test records found for your patient ID. You can book diagnostic tests in the Laboratory section.");
+                }
+            } else if (qLower.contains("pharmacy") || qLower.contains("medicine") || qLower.contains("prescription") ||
+                       qLower.contains("order") || qLower.contains("drug") || qLower.contains("மருந்தகம்") ||
+                       qLower.contains("மருந்து") || qLower.contains("மாத்திரை") || qLower.contains("விநியோகம்")) {
+                category = "PHARMACY";
+                title = isTa ? "மருந்தக ஆர்டர் விவரம் (Pharmacy & Medicines)" : "Pharmacy Orders & Dispensing Status";
+                List<PharmacyOrder> orders = pharmacyOrderDAO.getOrdersByPatient(patientId);
+                if (orders != null && !orders.isEmpty()) {
+                    PharmacyOrder latest = orders.get(0);
+                    if (isTa) {
+                        resp.append(String.format("தங்களின் சமீபத்திய மருந்தக ஆர்டர் (#%s):\\n", latest.getOrderId()));
+                        resp.append(String.format("• நிலை: %s\\n", latest.getOrderStatus()));
+                        resp.append(String.format("• தொகை: ₹%.2f (%s)\\n", latest.getTotalAmount(), latest.getPaymentStatus()));
+                        resp.append(String.format("• தேதி: %s\\n", latest.getOrderDate()));
+                    } else {
+                        resp.append(String.format("Your latest pharmacy order (#%s):\\n", latest.getOrderId()));
+                        resp.append(String.format("• Status: %s\\n", latest.getOrderStatus()));
+                        resp.append(String.format("• Amount: ₹%.2f (%s)\\n", latest.getTotalAmount(), latest.getPaymentStatus()));
+                        resp.append(String.format("• Ordered: %s\\n", latest.getOrderDate()));
+                    }
+                } else {
+                    resp.append(isTa ?
+                            "தங்களிடம் பதிவு செய்யப்பட்ட மருந்தக ஆர்டர்கள் எதுவும் இல்லை." :
+                            "No pharmacy orders found linked to your patient profile.");
+                }
+            } else if (qLower.contains("bed") || qLower.contains("ipd") || qLower.contains("admit") ||
+                       qLower.contains("admission") || qLower.contains("discharge") || qLower.contains("ward") ||
+                       qLower.contains("படுக்கை") || qLower.contains("அனுமதி") || qLower.contains("வார்டு")) {
+                category = "IPD";
+                title = isTa ? "உள்நோயாளி & படுக்கை விவரம் (Inpatient & Bed Allocation)" : "Inpatient Department (IPD) & Bed Status";
+                List<IpdAdmission> adms = ipdDAO.getAdmissionsByPatient(patientId);
+                IpdAdmission active = null;
+                if (adms != null) {
+                    for (IpdAdmission a : adms) {
+                        if ("Admitted".equalsIgnoreCase(a.getStatus())) { active = a; break; }
+                    }
+                }
+                if (active != null) {
+                    if (isTa) {
+                        resp.append("தங்களுக்கு உள்நோயாளி அனுமதி (IPD) உள்ளது:\\n");
+                        resp.append(String.format("• அனுமதி எண்: %s\\n", active.getAdmissionId()));
+                        resp.append(String.format("• படுக்கை: %s (%s, அறை: %s)\\n", active.getBedNumber(), active.getBlockName(), active.getRoomNumber()));
+                        resp.append(String.format("• மருத்துவர்: %s\\n", active.getAttendingDoctor()));
+                        resp.append(String.format("• அனுமதி தேதி: %s\\n", active.getAdmissionDate()));
+                    } else {
+                        resp.append("You have an active Inpatient (IPD) admission:\\n");
+                        resp.append(String.format("• Admission ID: %s\\n", active.getAdmissionId()));
+                        resp.append(String.format("• Bed: %s (%s, Room: %s)\\n", active.getBedNumber(), active.getBlockName(), active.getRoomNumber()));
+                        resp.append(String.format("• Attending Doctor: %s\\n", active.getAttendingDoctor()));
+                        resp.append(String.format("• Admitted On: %s\\n", active.getAdmissionDate()));
+                    }
+                } else {
+                    resp.append(isTa ?
+                            "தற்போது தாங்கள் உள்நோயாளியாக அனுமதிக்கப்படவில்லை. தேவையானால் வரவேற்பு அல்லது மருத்துவரை அணுகவும்." :
+                            "You do not have an active Inpatient (IPD) admission record at this time.");
+                }
+            } else if (qLower.contains("bill") || qLower.contains("payment") || qLower.contains("invoice") ||
+                       qLower.contains("fee") || qLower.contains("cost") || qLower.contains("கட்டணம்") ||
+                       qLower.contains("ரசீது") || qLower.contains("பணம்")) {
+                category = "BILLING";
+                title = isTa ? "மருத்துவமனை கட்டணம் & ரசீது (Billing & Invoices)" : "Billing, Invoices & Payment Summary";
+                if (isTa) {
+                    resp.append("தங்களின் மருத்துவமனை கட்டண விவரங்கள்:\\n");
+                    resp.append("• ஆலோசனைக் கட்டணம் மற்றும் மருந்தக பில்களை வரவேற்பு கவுண்டர் அல்லது ஆன்லைன் வழியாக செலுத்தலாம்.\\n");
+                    resp.append("• கட்டண ரசீதுகளை 'இன்வாய்ஸ்' பக்கத்தில் பதிவிறக்கம் செய்து கொள்ளலாம்.");
+                } else {
+                    resp.append("Hospital Billing & Invoice Overview:\\n");
+                    resp.append("• Consultation fees, pharmacy bills, and lab tests can be cleared at the Reception Desk or online.\\n");
+                    resp.append("• Official receipts with QR verification are downloadable in your Invoices tab.");
+                }
+            } else {
+                title = isTa ? "நிராமயா நோயாளி உதவி மையம் (Patient Assistant)" : "Niramaya Patient Assistant Guidance";
+                if (isTa) {
+                    resp.append("வணக்கம்! நிராமயா மருத்துவமனை நோயாளி உதவியாளர்:\\n");
+                    resp.append("• மருத்துவர் முன்பதிவு மற்றும் வரிசை நிலையை அறியலாம்.\\n");
+                    resp.append("• ஆய்வக சோதனைகள் மற்றும் முடிவுகளை சரிபார்க்கலாம்.\\n");
+                    resp.append("• மருந்தக மருந்துகள் மற்றும் படுக்கை நிலையை அறியலாம்.\\n");
+                    resp.append("• மருத்துவமனை நேரங்கள்: புறநோயாளிகள் பிரிவு (OPD) காலை 8:00 - இரவு 8:00 மணி வரை. அவசர சிகிச்சை 24x7 இயங்கும்.");
+                } else {
+                    resp.append("Welcome! Niramaya Patient Assistant can help you with:\\n");
+                    resp.append("• Doctor appointments and live queue position tracking.\\n");
+                    resp.append("• Laboratory test bookings and ready reports.\\n");
+                    resp.append("• Pharmacy prescriptions and dispensing progress.\\n");
+                    resp.append("• Hospital Timings: OPD 8:00 AM - 8:00 PM, 24x7 Emergency Services.");
+                }
+            }
+
+            // Append Safety & Clinical Disclaimer
+            String disclaimer = isTa ?
+                    "\\n\\nℹ️ வழிகாட்டுதல் குறிப்பு: இந்த உதவியாளர் நிர்வாக விவரங்களை மட்டுமே வழங்கும்; மருத்துவரின் நேரடி பரிசோதனைக்கு மாற்றாகாது (Clinical Disclaimer)." :
+                    "\\n\\nℹ️ Clinical Disclaimer: This assistant provides administrative guidance and does not replace professional clinical diagnosis.";
+            resp.append(disclaimer);
+
+            send(exchange, 200, "application/json", String.format(
+                    "{\"success\":true,\"isEmergency\":false,\"category\":\"%s\",\"title\":\"%s\",\"response\":\"%s\",\"reply\":\"%s\",\"disclaimer\":\"%s\",\"language\":\"%s\"}",
+                    escape(category), escape(title), escape(resp.toString()), escape(resp.toString()), escape(disclaimer.trim()), escape(lang)));
+        }
+    }
 }
+
 

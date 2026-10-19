@@ -85,3 +85,6 @@
 .\src\main\java\com\hospital\service\QRCodeGenerator.java
 .\src\main\java\com\hospital\service\ReportGenerator.java
 .\src\main\java\com\hospital\service\StockManager.java
+.\src\main\java\com\hospital\dao\FollowUpDAO.java
+.\src\main\java\com\hospital\model\PostDischargeFollowup.java
+

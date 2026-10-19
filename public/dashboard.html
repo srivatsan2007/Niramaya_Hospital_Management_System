@@ -62,6 +62,11 @@
         </div>
       </div>
       <div class="top-actions">
+        <!-- Bilingual Language Selector Toggle -->
+        <div style="display:flex; align-items:center; background:var(--bg); border:1.5px solid var(--line); border-radius:20px; padding:2px 4px; gap:4px; margin-right:4px;">
+          <button type="button" id="btnLangEn" onclick="switchAssistantLanguage('en')" style="border:none; background:var(--teal); color:#fff; font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:14px; cursor:pointer;">EN</button>
+          <button type="button" id="btnLangTa" onclick="switchAssistantLanguage('ta')" style="border:none; background:transparent; color:var(--ink); font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:14px; cursor:pointer;">தமிழ்</button>
+        </div>
         <button class="icon-btn" title="Search">🔍</button>
         <button class="icon-btn" id="btnNotifications" title="Notifications" style="position:relative;">🔔<span class="ping" id="notifBadge"></span></button>
         <div class="user-chip" id="userChip" style="cursor:pointer;" title="View & Edit Profile">
@@ -230,6 +235,44 @@
             <b style="display:block; font-size:0.9rem; color:var(--blue-900);">Book an Ambulance</b>
             <span style="font-size:0.75rem; color:var(--teal-500); font-weight:700;">Emergency Pickup</span>
           </div>
+        </div>
+      </div>
+
+      <!-- SMART QUEUE ESTIMATION & POSITION CARD -->
+      <div class="panel" id="smartQueuePanel" style="margin-bottom:24px; background:linear-gradient(135deg, #0F2A4A 0%, #1A365D 100%); color:#fff; border-radius:16px; padding:22px 24px; box-shadow:0 8px 24px rgba(15,42,74,0.18);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:1.4rem;">⏱️</span>
+              <h3 style="font-size:1.25rem; font-family:'Sora'; margin:0; color:#fff;" id="lblQueueTitle">Live Queue & Wait Time Estimator</h3>
+            </div>
+            <p style="font-size:0.82rem; color:rgba(255,255,255,0.75); margin:4px 0 0;" id="lblQueueSubtitle">
+              Algorithmic wait time prediction based on active doctor and nurse check-in queue.
+            </p>
+          </div>
+          <button type="button" class="btn btn-sm btn-teal" onclick="loadPatientLiveQueue()" style="font-size:0.78rem; padding:6px 12px;">🔄 Refresh Queue</button>
+        </div>
+
+        <div id="patientQueueContent">
+          <div style="text-align:center; padding:16px; color:rgba(255,255,255,0.8);">Loading your queue position...</div>
+        </div>
+
+        <div style="margin-top:12px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2); font-size:0.75rem; color:rgba(255,255,255,0.7);" id="lblQueueDisclaimer">
+          ℹ️ <strong>Approximate Notice:</strong> Estimated waiting time is approximate and subject to clinical urgency. Emergency patients receive immediate priority.
+        </div>
+      </div>
+
+      <!-- POST-DISCHARGE FOLLOW-UP CARE CARD (IF APPLICABLE) -->
+      <div class="panel" id="patientFollowupPanel" style="display:none; margin-bottom:24px; background:var(--paper); border:2px solid #0AB2A7; border-radius:16px; padding:20px 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.4rem;">📋</span>
+            <h3 style="font-size:1.15rem; color:var(--blue-900); margin:0;" id="lblFollowupTitle">Inpatient Post-Discharge Care Plan</h3>
+          </div>
+          <span class="status-pill ok" id="badgeFollowupStatus">Active Follow-up</span>
+        </div>
+        <div id="patientFollowupDetails" style="font-size:0.88rem; color:var(--ink);">
+          <!-- Dynamic follow-up details -->
         </div>
       </div>
 
@@ -7009,9 +7052,409 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
     setInterval(() => {
       if (typeof renderUserBookings === 'function') renderUserBookings();
     }, 6000);
+
+    // Initial load for Queue and Follow-up Care
+    loadPatientLiveQueue();
+    loadPatientFollowupPlan();
+    initAssistantChips();
+
+    setInterval(() => {
+      loadPatientLiveQueue(true);
+      loadPatientFollowupPlan(true);
+    }, 8000);
   });
+
+  // =========================================================================
+  // SMART QUEUE PREDICTION & POST-DISCHARGE FOLLOW-UP CONTROLLERS
+  // =========================================================================
+  async function loadPatientLiveQueue(silent = false) {
+    const pId = sessionStorage.getItem('niramaya_patient_id') || 'PT100842';
+    const container = document.getElementById('patientQueueContent');
+    if (!container) return;
+    try {
+      const res = await fetch('/api/queue/patient?patientId=' + encodeURIComponent(pId));
+      if (!res.ok) return;
+      const d = await res.json();
+      const currentLang = sessionStorage.getItem('niramaya_assistant_lang') || 'en';
+      const isTa = currentLang === 'ta';
+
+      if (!d.hasActiveAppointment && !d.nurseQueue?.hasQueue && !d.labQueue?.hasQueue && !d.pharmacyQueue?.hasQueue) {
+        container.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:rgba(255,255,255,0.08); border-radius:12px; padding:14px 18px;">
+            <div>
+              <strong style="font-size:1rem; color:#fff;">${isTa ? 'இன்றைய வரிசையில் செயலில் உள்ள முன்பதிவுகள் இல்லை' : 'No Active Queue Waiting Today'}</strong>
+              <div style="font-size:0.8rem; color:rgba(255,255,255,0.7); margin-top:2px;">
+                ${isTa ? 'புதிய மருத்துவ ஆலோசனையை பதிவு செய்ய கீழே உள்ள பொத்தானைப் பயன்படுத்தவும்.' : 'You have no scheduled consultations in the active waiting queue for today.'}
+              </div>
+            </div>
+            <button class="btn btn-sm btn-teal" onclick="document.getElementById('navItemAppointments').click()" style="padding:8px 16px;">
+              ${isTa ? '📅 முன்பதிவு செய்' : '📅 Book Appointment'}
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;">';
+
+      // 1. Doctor Consultation Queue
+      if (d.doctorQueue?.hasQueue) {
+        const dq = d.doctorQueue;
+        html += `
+          <div style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:14px;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:#A7F3D0; font-weight:700;">
+              ${isTa ? '🩺 மருத்துவர் ஆலோசனை வரிசை' : '🩺 Doctor Consultation Queue'}
+            </div>
+            <div style="font-size:1.05rem; font-weight:700; color:#fff; margin-top:4px;">${escapeHtml(dq.doctorName)}</div>
+            <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+              <span style="font-size:1.8rem; font-family:'Sora'; font-weight:700; color:#FCD34D;">#${dq.queuePosition}</span>
+              <span style="font-size:0.82rem; color:rgba(255,255,255,0.85);">${isTa ? 'தற்போதைய வரிசை எண்' : 'Queue Position'}</span>
+            </div>
+            <div style="font-size:0.8rem; color:rgba(255,255,255,0.8); margin-top:4px;">
+              ${isTa ? 'முன்பாக உள்ள நோயாளிகள்' : 'Patients Ahead'}: <strong>${dq.patientsAhead}</strong> | ${isTa ? 'டோக்கன்' : 'Token'}: <strong>${escapeHtml(dq.token)}</strong>
+            </div>
+            <div style="font-size:0.85rem; font-weight:700; color:#6EE7B7; margin-top:6px;">
+              ⏱️ ${isTa ? 'உத்தேச காத்திருப்பு' : 'Est. Waiting'}: ~${dq.estimatedWaitMinutes} ${isTa ? 'நிமிடங்கள்' : 'mins'}
+            </div>
+            <div style="margin-top:8px;">
+              <span style="font-size:0.72rem; padding:3px 8px; border-radius:10px; font-weight:700; ${dq.isReadyForConsultation ? 'background:#10B981; color:#fff;' : 'background:#F59E0B; color:#0F172A;'}">
+                ${dq.isReadyForConsultation ? (isTa ? 'ஆலோசனைக்கு தயார் ✓' : 'Ready for Consultation ✓') : (isTa ? 'செவிலியர் பரிசோதனை நிலுவை ⚠️' : 'Pending Nurse Vitals ⚠️')}
+              </span>
+            </div>
+          </div>
+        `;
+      }
+
+      // 2. Nurse Assessment Queue
+      if (d.nurseQueue?.hasQueue) {
+        html += `
+          <div style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:14px;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:#FDE68A; font-weight:700;">
+              ${isTa ? '🩸 செவிலியர் இரத்த அழுத்த/உயிர் அளவீடு' : '🩸 Nurse Vitals Assessment'}
+            </div>
+            <div style="display:flex; align-items:baseline; gap:8px; margin-top:8px;">
+              <span style="font-size:1.8rem; font-family:'Sora'; font-weight:700; color:#FDE68A;">#${d.nurseQueue.queuePosition}</span>
+              <span style="font-size:0.82rem; color:rgba(255,255,255,0.85);">${isTa ? 'செவிலியர் வரிசை' : 'Assessment Queue'}</span>
+            </div>
+            <div style="font-size:0.82rem; color:#6EE7B7; font-weight:700; margin-top:6px;">
+              ⏱️ ${isTa ? 'உத்தேச நேரம்' : 'Est. Time'}: ~${d.nurseQueue.estimatedWaitMinutes} ${isTa ? 'நிமிடங்கள்' : 'mins'}
+            </div>
+          </div>
+        `;
+      }
+
+      // 3. Lab Queue
+      if (d.labQueue?.hasQueue) {
+        html += `
+          <div style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:14px;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:#C4B5FD; font-weight:700;">
+              ${isTa ? '🧪 ஆய்வக சோதனை வரிசை' : '🧪 Diagnostic Lab Queue'}
+            </div>
+            <div style="font-size:0.95rem; font-weight:700; color:#fff; margin-top:4px;">${escapeHtml(d.labQueue.testName)}</div>
+            <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+              <span style="font-size:1.8rem; font-family:'Sora'; font-weight:700; color:#C4B5FD;">#${d.labQueue.queuePosition}</span>
+              <span style="font-size:0.82rem; color:rgba(255,255,255,0.85);">${isTa ? 'வரிசை எண்' : 'Queue Position'}</span>
+            </div>
+            <div style="font-size:0.82rem; color:#6EE7B7; font-weight:700; margin-top:6px;">
+              ⏱️ ${isTa ? 'உத்தேச நேரம்' : 'Est. Turnaround'}: ~${d.labQueue.estimatedWaitMinutes} ${isTa ? 'நிமிடங்கள்' : 'mins'}
+            </div>
+          </div>
+        `;
+      }
+
+      // 4. Pharmacy Queue
+      if (d.pharmacyQueue?.hasQueue) {
+        html += `
+          <div style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:14px;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:#93C5FD; font-weight:700;">
+              ${isTa ? '💊 மருந்தகம் விநியோக வரிசை' : '💊 Pharmacy Dispensing Queue'}
+            </div>
+            <div style="font-size:0.9rem; font-weight:700; color:#fff; margin-top:4px;">Order: ${escapeHtml(d.pharmacyQueue.orderId)}</div>
+            <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+              <span style="font-size:1.8rem; font-family:'Sora'; font-weight:700; color:#93C5FD;">#${d.pharmacyQueue.queuePosition}</span>
+              <span style="font-size:0.82rem; color:rgba(255,255,255,0.85);">${isTa ? 'விநியோக வரிசை' : 'Dispensing Order'}</span>
+            </div>
+            <div style="font-size:0.82rem; color:#6EE7B7; font-weight:700; margin-top:6px;">
+              ⏱️ ${isTa ? 'உத்தேச நேரம்' : 'Est. Dispensing'}: ~${d.pharmacyQueue.estimatedWaitMinutes} ${isTa ? 'நிமிடங்கள்' : 'mins'}
+            </div>
+          </div>
+        `;
+      }
+
+      html += '</div>';
+      container.innerHTML = html;
+    } catch(e) {
+      if (!silent) console.error('Failed to load patient queue:', e);
+    }
+  }
+
+  async function loadPatientFollowupPlan(silent = false) {
+    const pId = sessionStorage.getItem('niramaya_patient_id') || 'PT100842';
+    const panel = document.getElementById('patientFollowupPanel');
+    const details = document.getElementById('patientFollowupDetails');
+    if (!panel || !details) return;
+
+    try {
+      const res = await fetch('/api/ipd/followups?patientId=' + encodeURIComponent(pId));
+      if (!res.ok) return;
+      const list = await res.json();
+      if (!list || list.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+      const f = list[0];
+      panel.style.display = 'block';
+
+      const currentLang = sessionStorage.getItem('niramaya_assistant_lang') || 'en';
+      const isTa = currentLang === 'ta';
+
+      document.getElementById('badgeFollowupStatus').textContent = f.status || 'Active';
+      details.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:10px;">
+          <div>
+            <span style="font-size:0.75rem; color:var(--ink-soft); text-transform:uppercase; font-weight:700;">${isTa ? 'அனுமதி எண்' : 'Admission ID'}:</span>
+            <div style="font-weight:700; color:var(--blue-900);">${escapeHtml(f.admissionId)}</div>
+          </div>
+          <div>
+            <span style="font-size:0.75rem; color:var(--ink-soft); text-transform:uppercase; font-weight:700;">${isTa ? 'பரிந்துரைத்த மருத்துவர்' : 'Attending Doctor'}:</span>
+            <div style="font-weight:700;">${escapeHtml(f.doctorName || 'Attending Physician')}</div>
+          </div>
+          <div>
+            <span style="font-size:0.75rem; color:var(--ink-soft); text-transform:uppercase; font-weight:700;">${isTa ? 'டிஸ்சார்ஜ் தேதி' : 'Discharge Date'}:</span>
+            <div>${escapeHtml(f.dischargeDate || '--')}</div>
+          </div>
+          <div>
+            <span style="font-size:0.75rem; color:var(--ink-soft); text-transform:uppercase; font-weight:700;">${isTa ? 'அடுத்த பரிசீலனை தேதி' : 'Target Follow-up Date'}:</span>
+            <div style="font-weight:700; color:var(--teal-500); font-size:1.05rem;">${escapeHtml(f.followupDate || '--')}</div>
+          </div>
+        </div>
+        <div style="background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:8px;">
+          <strong style="color:var(--blue-900); font-size:0.82rem;">${isTa ? 'மருத்துவ குறிப்புகள் & வழிகாட்டுதல்கள்' : 'Discharge Instructions'}:</strong>
+          <p style="margin:4px 0 0; font-size:0.82rem; color:var(--ink-soft);">${escapeHtml(f.dischargeInstructions || 'Follow prescribed medications and rest.')}</p>
+        </div>
+      `;
+    } catch(e) {
+      if (!silent) console.error('Failed to load patient followup:', e);
+    }
+  }
+
+  // =========================================================================
+  // BILINGUAL TAMIL & ENGLISH PATIENT ASSISTANT CONTROLLERS
+  // =========================================================================
+  function togglePatientAssistant() {
+    const w = document.getElementById('assistantChatWindow');
+    if (!w) return;
+    if (w.style.display === 'none' || w.style.display === '') {
+      w.style.display = 'flex';
+      document.getElementById('inputAssistantQuery').focus();
+    } else {
+      w.style.display = 'none';
+    }
+  }
+
+  function switchAssistantLanguage(lang) {
+    sessionStorage.setItem('niramaya_assistant_lang', lang);
+    const isTa = lang === 'ta';
+
+    const btnEn = document.getElementById('btnLangEn');
+    const btnTa = document.getElementById('btnLangTa');
+    if (btnEn && btnTa) {
+      if (isTa) {
+        btnEn.style.background = 'transparent'; btnEn.style.color = 'var(--ink)';
+        btnTa.style.background = 'var(--teal)'; btnTa.style.color = '#fff';
+      } else {
+        btnEn.style.background = 'var(--teal)'; btnEn.style.color = '#fff';
+        btnTa.style.background = 'transparent'; btnTa.style.color = 'var(--ink)';
+      }
+    }
+
+    const astEn = document.getElementById('astLangEn');
+    const astTa = document.getElementById('astLangTa');
+    if (astEn && astTa) {
+      if (isTa) {
+        astEn.style.background = 'transparent';
+        astTa.style.background = '#0AB2A7';
+      } else {
+        astEn.style.background = '#0AB2A7';
+        astTa.style.background = 'transparent';
+      }
+    }
+
+    // Update Header & Welcome texts
+    const title = document.getElementById('astHeaderTitle');
+    const sub = document.getElementById('astHeaderSub');
+    const welcome = document.getElementById('astWelcomeMsg');
+    const input = document.getElementById('inputAssistantQuery');
+    const sendBtn = document.getElementById('btnSendAssistant');
+
+    if (isTa) {
+      if (title) title.textContent = 'நிராமயா நோயாளி உதவியாளர்';
+      if (sub) sub.textContent = 'இருமொழி நோயாளி வழிகாட்டி (தமிழ் / English)';
+      if (welcome) welcome.innerHTML = '👋 <strong>வணக்கம்! நான் உங்கள் நிராமயா நோயாளி உதவியாளர்.</strong><br>உங்கள் வரிசை எண், காத்திருப்பு நேரம், மருத்துவர்கள் இருப்பு, ஆய்வக முடிவுகள், மருந்தக நிலவரங்களை அறிய என்னிடம் கேளுங்கள்.';
+      if (input) input.placeholder = 'வரிசை, மருத்துவர், ஆய்வகம் அல்லது மருந்து பற்றி கேட்கவும்...';
+      if (sendBtn) sendBtn.textContent = 'அனுப்பு';
+      if (document.getElementById('lblQueueTitle')) document.getElementById('lblQueueTitle').textContent = 'நேரலை வரிசை & காத்திருப்பு நேரம்';
+      if (document.getElementById('lblQueueSubtitle')) document.getElementById('lblQueueSubtitle').textContent = 'மருத்துவர் மற்றும் செவிலியர் பணிச்சுமை அடிப்படையிலான நேரடி கணிப்பு.';
+    } else {
+      if (title) title.textContent = 'Niramaya Assistant';
+      if (sub) sub.textContent = 'Bilingual Patient Guide (English / தமிழ்)';
+      if (welcome) welcome.innerHTML = '👋 <strong>Hello! I am your Niramaya Patient Assistant.</strong><br>I can help you check your queue position, estimated waiting time, doctor schedules, lab test reports, pharmacy orders, and bed admission details.';
+      if (input) input.placeholder = 'Ask about queue, doctor, lab, or medicines...';
+      if (sendBtn) sendBtn.textContent = 'Send';
+      if (document.getElementById('lblQueueTitle')) document.getElementById('lblQueueTitle').textContent = 'Live Queue & Wait Time Estimator';
+      if (document.getElementById('lblQueueSubtitle')) document.getElementById('lblQueueSubtitle').textContent = 'Algorithmic wait time prediction based on active doctor and nurse check-in queue.';
+    }
+
+    initAssistantChips();
+    loadPatientLiveQueue();
+    loadPatientFollowupPlan();
+  }
+
+  function initAssistantChips() {
+    const chipsDiv = document.getElementById('astQuickChips');
+    if (!chipsDiv) return;
+    const currentLang = sessionStorage.getItem('niramaya_assistant_lang') || 'en';
+    const isTa = currentLang === 'ta';
+
+    const chips = isTa ? [
+      { text: '⏱️ என் வரிசை நிலை', q: 'என் வரிசை நிலை என்ன?' },
+      { text: '🩺 மருத்துவர்கள் இருப்பு', q: 'இன்று கிடைக்கும் மருத்துவர்கள் யார்?' },
+      { text: '🧪 ஆய்வக முடிவுகள்', q: 'எனது ஆய்வக சோதனை முடிவுகள் என்ன?' },
+      { text: '💊 மருந்தக நிலை', q: 'என் மருந்துகள் தயாராகிவிட்டதா?' },
+      { text: '🛏️ படுக்கை & அனுமதி', q: 'எனது படுக்கை மற்றும் அனுமதி விவரம் என்ன?' },
+      { text: '🚨 அவசர உதவி', q: 'அவசர சிகிச்சை உதவி தேவை' }
+    ] : [
+      { text: '⏱️ My Queue Position', q: 'What is my queue position and wait time?' },
+      { text: '🩺 Doctor Availability', q: 'Which doctors are available today?' },
+      { text: '🧪 My Lab Reports', q: 'What is the status of my lab test reports?' },
+      { text: '💊 Pharmacy Orders', q: 'Are my prescribed medicines dispensed?' },
+      { text: '🛏️ Bed & IPD Info', q: 'Show my inpatient bed and admission details' },
+      { text: '🚨 Emergency Help', q: 'Emergency medical helpline' }
+    ];
+
+    chipsDiv.innerHTML = chips.map(c => `
+      <button type="button" onclick="sendQuickQuery('${escapeHtml(c.q)}')" style="border:1px solid #CBD5E1; background:#F1F5F9; color:#0F172A; font-size:0.74rem; font-weight:600; padding:4px 10px; border-radius:12px; cursor:pointer; flex-shrink:0;">
+        ${c.text}
+      </button>
+    `).join('');
+  }
+
+  function sendQuickQuery(queryText) {
+    const input = document.getElementById('inputAssistantQuery');
+    if (input) {
+      input.value = queryText;
+      submitAssistantMessage(new Event('submit'));
+    }
+  }
+
+  async function submitAssistantMessage(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const input = document.getElementById('inputAssistantQuery');
+    const msgStream = document.getElementById('astMessages');
+    const query = input.value.trim();
+    if (!query) return;
+
+    input.value = '';
+    const currentLang = sessionStorage.getItem('niramaya_assistant_lang') || 'en';
+    const pId = sessionStorage.getItem('niramaya_patient_id') || 'PT100842';
+
+    // Render User Bubble
+    const userBubble = document.createElement('div');
+    userBubble.style.cssText = 'align-self:flex-end; background:#0AB2A7; color:#fff; border-radius:12px 12px 2px 12px; padding:8px 14px; max-width:85%; word-break:break-word;';
+    userBubble.textContent = query;
+    msgStream.appendChild(userBubble);
+    msgStream.scrollTop = msgStream.scrollHeight;
+
+    // Loading Bubble
+    const loadingBubble = document.createElement('div');
+    loadingBubble.style.cssText = 'align-self:flex-start; background:#fff; border:1px solid #E2E8F0; border-radius:12px; padding:10px 14px; font-size:0.8rem; color:#64748B;';
+    loadingBubble.textContent = currentLang === 'ta' ? 'பதிலை தேடுகிறது...' : 'Fetching answer from hospital records...';
+    msgStream.appendChild(loadingBubble);
+    msgStream.scrollTop = msgStream.scrollHeight;
+
+    try {
+      const res = await fetch('/api/patient/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query, language: currentLang, patientId: pId })
+      });
+      const data = await res.json();
+      msgStream.removeChild(loadingBubble);
+
+      const botBubble = document.createElement('div');
+      if (data.isEmergency) {
+        botBubble.style.cssText = 'align-self:flex-start; background:#FEF2F2; border:2px solid #EF4444; color:#991B1B; border-radius:12px; padding:12px 14px; max-width:92%;';
+        botBubble.innerHTML = `
+          <strong style="color:#DC2626; font-size:0.95rem; display:block; margin-bottom:6px;">${escapeHtml(data.title)}</strong>
+          <div style="white-space:pre-line; font-size:0.85rem; line-height:1.4;">${escapeHtml(data.response)}</div>
+          <div style="margin-top:10px;">
+            <a href="tel:108" style="display:inline-block; background:#DC2626; color:#fff; font-weight:700; text-decoration:none; padding:6px 14px; border-radius:8px; font-size:0.8rem;">📞 Call 108 Emergency</a>
+          </div>
+        `;
+      } else {
+        botBubble.style.cssText = 'align-self:flex-start; background:#fff; border:1px solid #E2E8F0; border-radius:12px 12px 12px 2px; padding:12px 14px; max-width:90%; box-shadow:0 2px 4px rgba(0,0,0,0.03); color:#0F172A;';
+        botBubble.innerHTML = `
+          <strong style="color:#0F2A4A; font-size:0.88rem; display:block; margin-bottom:4px;">${escapeHtml(data.title || 'Assistant')}</strong>
+          <div style="white-space:pre-line; font-size:0.84rem; line-height:1.45;">${escapeHtml(data.response)}</div>
+        `;
+      }
+      msgStream.appendChild(botBubble);
+      msgStream.scrollTop = msgStream.scrollHeight;
+    } catch(err) {
+      msgStream.removeChild(loadingBubble);
+      const errBubble = document.createElement('div');
+      errBubble.style.cssText = 'align-self:flex-start; background:#FEF2F2; color:#B91C1C; border-radius:12px; padding:8px 12px; font-size:0.8rem;';
+      errBubble.textContent = currentLang === 'ta' ? 'மன்னிக்கவும், தகவலைப் பெற முடியவில்லை. பின்னர் முயற்சிக்கவும்.' : 'Unable to connect to hospital assistant. Please try again.';
+      msgStream.appendChild(errBubble);
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 </script>
+
+  <!-- ================= BILINGUAL PATIENT ASSISTANT WIDGET ================= -->
+  <div id="patientAssistantWidget" style="position:fixed; bottom:24px; right:24px; z-index:9999; font-family:'Plus Jakarta Sans', sans-serif;">
+    <button type="button" id="btnToggleAssistant" onclick="togglePatientAssistant()" style="width:60px; height:60px; border-radius:50%; background:linear-gradient(135deg, #0AB2A7 0%, #089188 100%); color:#fff; border:none; box-shadow:0 8px 24px rgba(10,178,167,0.4); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.8rem; transition:transform 0.2s;" title="Open Bilingual Patient Assistant / நோயாளி உதவியாளர்">
+      💬
+    </button>
+
+    <div id="assistantChatWindow" style="display:none; position:absolute; bottom:74px; right:0; width:380px; max-width:calc(100vw - 32px); height:520px; max-height:calc(100vh - 120px); background:var(--paper, #fff); border-radius:18px; box-shadow:0 12px 36px rgba(15,42,74,0.22); border:1.5px solid var(--line, #E2E8F0); display:flex; flex-direction:column; overflow:hidden;">
+      <div style="background:linear-gradient(135deg, #0F2A4A 0%, #1A365D 100%); color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <b style="font-size:1rem; font-family:'Sora'; display:block;" id="astHeaderTitle">Niramaya Assistant</b>
+          <span style="font-size:0.72rem; color:#A0AEC0;" id="astHeaderSub">Bilingual Patient Guide (English / தமிழ்)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; background:rgba(255,255,255,0.15); border-radius:12px; padding:2px;">
+            <button type="button" onclick="switchAssistantLanguage('en')" id="astLangEn" style="border:none; background:#0AB2A7; color:#fff; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:10px; cursor:pointer;">EN</button>
+            <button type="button" onclick="switchAssistantLanguage('ta')" id="astLangTa" style="border:none; background:transparent; color:#fff; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:10px; cursor:pointer;">தமிழ்</button>
+          </div>
+          <button type="button" onclick="togglePatientAssistant()" style="background:transparent; border:none; color:#fff; font-size:1.2rem; cursor:pointer; line-height:1;">✖</button>
+        </div>
+      </div>
+
+      <div id="astMessages" style="flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px; font-size:0.84rem; background:var(--bg, #F8FAFC);">
+        <div style="background:#fff; border:1px solid #E2E8F0; border-radius:12px; padding:12px 14px; color:#0F172A; box-shadow:0 2px 4px rgba(0,0,0,0.03);" id="astWelcomeMsg">
+          👋 <strong>Hello! I am your Niramaya Patient Assistant.</strong><br>
+          I can help you check your queue position, estimated waiting time, doctor schedules, lab test reports, pharmacy orders, and bed admission details.
+        </div>
+      </div>
+
+      <div id="astQuickChips" style="padding:8px 12px; background:#fff; border-top:1px solid #E2E8F0; display:flex; gap:6px; overflow-x:auto; white-space:nowrap;">
+      </div>
+
+      <form id="formAssistantChat" onsubmit="submitAssistantMessage(event)" style="padding:10px 12px; background:#fff; border-top:1px solid #E2E8F0; display:flex; gap:8px; align-items:center; margin:0;">
+        <input type="text" id="inputAssistantQuery" placeholder="Ask about queue, doctor, lab, or medicines..." style="flex:1; padding:9px 12px; border-radius:10px; border:1.5px solid #CBD5E1; font-size:0.84rem; outline:none; font-family:inherit;">
+        <button type="submit" id="btnSendAssistant" style="background:#0AB2A7; color:#fff; border:none; border-radius:10px; padding:9px 14px; font-weight:700; cursor:pointer; font-size:0.85rem;">Send</button>
+      </form>
+    </div>
+  </div>
+
 <script src="assets/js/mobile-responsive.js"></script>
 <script src="assets/js/live-clock-logger.js"></script>
 </body>
 </html>
+
