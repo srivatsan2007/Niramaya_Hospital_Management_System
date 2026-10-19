@@ -18,8 +18,9 @@ COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/Reports ./Reports
 COPY --from=builder /app/niramaya_hospitals.db ./niramaya_hospitals.db
+RUN mkdir -p out Reports public/Reports && chmod -R 777 Reports public/Reports
 
 ENV PORT=8080
-EXPOSE 8080
+EXPOSE 8080 10000
 
 CMD ["java", "-cp", "out:lib/*", "com.hospital.Server"]

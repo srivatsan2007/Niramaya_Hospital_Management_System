@@ -133,8 +133,12 @@ public class Server {
     }
 
     public static void main(String[] args) throws IOException {
-        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
+        HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", PORT), 0);
         server.setExecutor(Executors.newFixedThreadPool(8));
+
+        // Render & Production Health Check Endpoints
+        addRoute(server, "/health", new HealthCheckHandler());
+        addRoute(server, "/api/health", new HealthCheckHandler());
 
         addRoute(server, "/api/login", new LoginHandler());
         addRoute(server, "/api/login-status", new LoginStatusHandler());
@@ -381,6 +385,21 @@ public class Server {
             if (lower.endsWith(".pdf"))
                 return "application/pdf";
             return "application/octet-stream";
+        }
+    }
+
+    // GET /health and /api/health (Render Production Health Checks)
+    static class HealthCheckHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            boolean dbConnected = false;
+            try (Connection conn = DBConnection.getConnection()) {
+                dbConnected = (conn != null && !conn.isClosed() && conn.isValid(2));
+            } catch (Exception ignored) {}
+            String json = String.format(
+                    "{\"status\":\"UP\",\"service\":\"Niramaya Smart Hospital Management System\",\"port\":%d,\"database\":\"%s\",\"timestamp\":%d}",
+                    PORT, dbConnected ? "CONNECTED" : "DEGRADED", System.currentTimeMillis());
+            send(exchange, 200, "application/json", json);
         }
     }
 

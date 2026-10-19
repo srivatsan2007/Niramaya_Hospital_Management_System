@@ -22,3 +22,11 @@ public/Reports/*.pdf
 sources_win.txt
 sources_linux.txt
 
+# Environment files and secrets
+.env
+.env.local
+.env.*.local
+
+# Scratch and temporary testing files
+scratch/
+

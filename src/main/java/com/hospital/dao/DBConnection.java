@@ -20,25 +20,91 @@ import java.util.concurrent.TimeUnit;
  */
 public class DBConnection {
 
-    // Neon PostgreSQL configuration parameters
+    // Dynamic PostgreSQL configuration parameters (supports Neon, Render, Supabase & standard PostgreSQL)
     private static final String DEFAULT_NEON_URL = "jdbc:postgresql://ep-old-boat-axlruvbe-pooler.c-4.us-east-2.aws.neon.tech:5432/neondb?sslmode=require&connectTimeout=5&socketTimeout=5";
-    private static final String POSTGRES_URL = System.getenv("NEON_DB_URL") != null ? 
-            System.getenv("NEON_DB_URL") : 
-            (System.getenv("POSTGRES_URL") != null ? System.getenv("POSTGRES_URL") : DEFAULT_NEON_URL);
-    private static final String POSTGRES_USER = System.getenv("NEON_DB_USER") != null ? 
-            System.getenv("NEON_DB_USER") : 
-            (System.getenv("POSTGRES_USER") != null ? System.getenv("POSTGRES_USER") : "neondb_owner");
-    private static final String POSTGRES_PASS = System.getenv("NEON_DB_PASS") != null ? 
-            System.getenv("NEON_DB_PASS") : 
-            (System.getenv("POSTGRES_PASS") != null ? System.getenv("POSTGRES_PASS") : "npg_u1LNWJ5fVmvs");
+    private static final String POSTGRES_URL = resolvePostgresUrl();
+    private static final String POSTGRES_USER = resolvePostgresUser();
+    private static final String POSTGRES_PASS = resolvePostgresPass();
+
+    private static String resolvePostgresUrl() {
+        String dbUrl = System.getenv("DATABASE_URL");
+        if (dbUrl != null && !dbUrl.trim().isEmpty()) {
+            dbUrl = dbUrl.trim();
+            if (dbUrl.startsWith("postgres://")) {
+                dbUrl = "jdbc:postgresql://" + dbUrl.substring("postgres://".length());
+            } else if (dbUrl.startsWith("postgresql://")) {
+                dbUrl = "jdbc:postgresql://" + dbUrl.substring("postgresql://".length());
+            }
+            if (!dbUrl.contains("sslmode=") && !dbUrl.contains("localhost")) {
+                dbUrl += (dbUrl.contains("?") ? "&" : "?") + "sslmode=require";
+            }
+            return dbUrl;
+        }
+        if (System.getenv("NEON_DB_URL") != null && !System.getenv("NEON_DB_URL").trim().isEmpty()) {
+            return System.getenv("NEON_DB_URL").trim();
+        }
+        if (System.getenv("POSTGRES_URL") != null && !System.getenv("POSTGRES_URL").trim().isEmpty()) {
+            return System.getenv("POSTGRES_URL").trim();
+        }
+        return DEFAULT_NEON_URL;
+    }
+
+    private static String resolvePostgresUser() {
+        if (System.getenv("NEON_DB_USER") != null && !System.getenv("NEON_DB_USER").trim().isEmpty()) {
+            return System.getenv("NEON_DB_USER").trim();
+        }
+        if (System.getenv("POSTGRES_USER") != null && !System.getenv("POSTGRES_USER").trim().isEmpty()) {
+            return System.getenv("POSTGRES_USER").trim();
+        }
+        String dbUrl = System.getenv("DATABASE_URL");
+        if (dbUrl != null && (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("jdbc:postgresql://"))) {
+            try {
+                String clean = dbUrl.replaceFirst("^(jdbc:)?postgres(ql)?://", "");
+                if (clean.contains("@")) {
+                    String creds = clean.substring(0, clean.indexOf("@"));
+                    if (creds.contains(":")) {
+                        return creds.substring(0, creds.indexOf(":"));
+                    } else if (!creds.isEmpty()) {
+                        return creds;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return "neondb_owner";
+    }
+
+    private static String resolvePostgresPass() {
+        if (System.getenv("NEON_DB_PASS") != null && !System.getenv("NEON_DB_PASS").trim().isEmpty()) {
+            return System.getenv("NEON_DB_PASS").trim();
+        }
+        if (System.getenv("POSTGRES_PASS") != null && !System.getenv("POSTGRES_PASS").trim().isEmpty()) {
+            return System.getenv("POSTGRES_PASS").trim();
+        }
+        String dbUrl = System.getenv("DATABASE_URL");
+        if (dbUrl != null && (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("jdbc:postgresql://"))) {
+            try {
+                String clean = dbUrl.replaceFirst("^(jdbc:)?postgres(ql)?://", "");
+                if (clean.contains("@")) {
+                    String creds = clean.substring(0, clean.indexOf("@"));
+                    if (creds.contains(":")) {
+                        return creds.substring(creds.indexOf(":") + 1);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return "npg_u1LNWJ5fVmvs";
+    }
 
     // Default MySQL configuration parameters
     private static final String MYSQL_URL = "jdbc:mysql://localhost:3306/niramaya_hospital?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true&connectTimeout=2000";
     private static final String MYSQL_USER = "root";
     private static final String MYSQL_PASS = "root";
 
-    // SQLite embedded database fallback file
-    private static final String SQLITE_URL = "jdbc:sqlite:niramaya_hospitals.db";
+    // SQLite embedded database fallback file (configurable for Render persistent disk)
+    private static final String SQLITE_PATH = System.getenv("SQLITE_PATH") != null ? 
+            System.getenv("SQLITE_PATH").trim() : 
+            (System.getenv("DB_PATH") != null ? System.getenv("DB_PATH").trim() : "niramaya_hospitals.db");
+    private static final String SQLITE_URL = "jdbc:sqlite:" + SQLITE_PATH;
 
     private static boolean isPostgreSQLAvailable = false;
     private static boolean isMySQLAvailable = false;
@@ -302,12 +368,14 @@ public class DBConnection {
 
         // 4. Verify Environment Variables
         Map<String, Boolean> envStatus = new java.util.LinkedHashMap<>();
+        envStatus.put("DATABASE_URL", System.getenv("DATABASE_URL") != null);
         envStatus.put("POSTGRES_URL", System.getenv("POSTGRES_URL") != null);
         envStatus.put("POSTGRES_USER", System.getenv("POSTGRES_USER") != null);
         envStatus.put("POSTGRES_PASS", System.getenv("POSTGRES_PASS") != null);
         envStatus.put("NEON_DB_URL", System.getenv("NEON_DB_URL") != null);
         envStatus.put("NEON_DB_USER", System.getenv("NEON_DB_USER") != null);
         envStatus.put("NEON_DB_PASS", System.getenv("NEON_DB_PASS") != null);
+        envStatus.put("SQLITE_PATH", System.getenv("SQLITE_PATH") != null);
         diag.put("environmentVariables", envStatus);
 
         // 5, 6, 7, 8. Connection Test & SELECT 1 Execution
@@ -468,8 +536,8 @@ public class DBConnection {
 
     private static Connection createRawConnection() throws SQLException {
         long now = System.currentTimeMillis();
-        // 1. Try Neon PostgreSQL if configured / available or if cooldown elapsed
-        boolean hasPgEnv = System.getenv("POSTGRES_URL") != null || System.getenv("NEON_DB_URL") != null;
+        // 1. Try Neon/Render PostgreSQL if configured / available or if cooldown elapsed
+        boolean hasPgEnv = System.getenv("DATABASE_URL") != null || System.getenv("POSTGRES_URL") != null || System.getenv("NEON_DB_URL") != null;
         if (isPostgreSQLAvailable || (hasPgEnv && (now - lastPostgresAttemptTime > POSTGRES_RETRY_INTERVAL_MS))) {
             try {
                 Class.forName("org.postgresql.Driver");
