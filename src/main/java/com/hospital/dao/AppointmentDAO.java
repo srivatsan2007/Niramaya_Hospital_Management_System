@@ -14,50 +14,108 @@ import java.util.List;
 public class AppointmentDAO {
 
     public boolean createAppointment(Appointment appt) {
+        if (appt == null || appt.getAppointmentId() == null || appt.getAppointmentId().trim().isEmpty()) {
+            return false;
+        }
+        String apptId = appt.getAppointmentId().trim();
         String pName = appt.getPatientName() != null && !appt.getPatientName().trim().isEmpty() ? appt.getPatientName().trim() : "Patient";
+        String docName = appt.getDoctorName() != null && !appt.getDoctorName().trim().isEmpty() ? appt.getDoctorName().trim() : "Dr. Medical Officer";
         String apptType = appt.getAppointmentType() != null ? appt.getAppointmentType() : "Online Booking";
-        String sql = "INSERT INTO appointments (appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status, appointment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, appt.getAppointmentId());
-            ps.setString(2, appt.getPatientId());
-            ps.setString(3, pName);
-            ps.setString(4, appt.getDoctorId());
-            ps.setString(5, appt.getDoctorName());
-            ps.setString(6, appt.getDepartment());
-            ps.setString(7, appt.getAppointmentDate());
-            ps.setString(8, appt.getAppointmentTime());
-            ps.setString(9, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
-            ps.setString(10, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
-            ps.setString(11, apptType);
+        String status = appt.getStatus() != null ? appt.getStatus() : "Confirmed";
+        String payStatus = appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid";
 
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            String fallbackSql = "INSERT INTO appointments (appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            try (Connection conn = DBConnection.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(fallbackSql)) {
-                ps.setString(1, appt.getAppointmentId());
-                ps.setString(2, appt.getPatientId());
-                ps.setString(3, pName);
-                ps.setString(4, appt.getDoctorId());
-                ps.setString(5, appt.getDoctorName());
-                ps.setString(6, appt.getDepartment());
-                ps.setString(7, appt.getAppointmentDate());
-                ps.setString(8, appt.getAppointmentTime());
-                ps.setString(9, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
-                ps.setString(10, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
-                return ps.executeUpdate() > 0;
-            } catch (SQLException ex) {
-                System.err.println("Error creating appointment: " + ex.getMessage());
-                return false;
+        String alt1 = apptId.startsWith("#") ? apptId.substring(1) : "#" + apptId;
+        String alt2 = apptId.replace("#", "");
+
+        try (Connection conn = DBConnection.getConnection()) {
+            // 1. Resolve patient name if generic
+            if (("Patient".equalsIgnoreCase(pName) || pName.toLowerCase().startsWith("patient ")) && appt.getPatientId() != null && !appt.getPatientId().isEmpty()) {
+                try (PreparedStatement psP = conn.prepareStatement("SELECT name FROM patients WHERE patient_id = ? OR email = ? LIMIT 1")) {
+                    psP.setString(1, appt.getPatientId());
+                    psP.setString(2, appt.getPatientId());
+                    try (ResultSet rsP = psP.executeQuery()) {
+                        if (rsP.next() && rsP.getString("name") != null && !rsP.getString("name").trim().isEmpty()) {
+                            pName = rsP.getString("name").trim();
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
+
+            // 2. Resolve doctor name if generic
+            if (("Doctor".equalsIgnoreCase(docName) || docName.contains("Attending") || docName.contains("Consulting")) && appt.getDoctorId() != null && !appt.getDoctorId().isEmpty()) {
+                try (PreparedStatement psD = conn.prepareStatement("SELECT name FROM doctors WHERE doctor_id = ? OR email = ? LIMIT 1")) {
+                    psD.setString(1, appt.getDoctorId());
+                    psD.setString(2, appt.getDoctorId());
+                    try (ResultSet rsD = psD.executeQuery()) {
+                        if (rsD.next() && rsD.getString("name") != null && !rsD.getString("name").trim().isEmpty()) {
+                            docName = rsD.getString("name").trim();
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            // 3. Check if appointment exists
+            boolean exists = false;
+            String checkSql = "SELECT COUNT(*) FROM appointments WHERE appointment_id = ? OR appointment_id = ? OR appointment_id = ?";
+            try (PreparedStatement psCheck = conn.prepareStatement(checkSql)) {
+                psCheck.setString(1, apptId);
+                psCheck.setString(2, alt1);
+                psCheck.setString(3, alt2);
+                try (ResultSet rs = psCheck.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        exists = true;
+                    }
+                }
+            }
+
+            if (exists) {
+                String updateSql = "UPDATE appointments SET patient_id = ?, patient_name = ?, doctor_id = ?, doctor_name = ?, department = ?, appointment_date = ?, appointment_time = ?, status = ?, payment_status = ?, appointment_type = ? WHERE appointment_id = ? OR appointment_id = ? OR appointment_id = ?";
+                try (PreparedStatement psUp = conn.prepareStatement(updateSql)) {
+                    psUp.setString(1, appt.getPatientId());
+                    psUp.setString(2, pName);
+                    psUp.setString(3, appt.getDoctorId());
+                    psUp.setString(4, docName);
+                    psUp.setString(5, appt.getDepartment());
+                    psUp.setString(6, appt.getAppointmentDate());
+                    psUp.setString(7, appt.getAppointmentTime());
+                    psUp.setString(8, status);
+                    psUp.setString(9, payStatus);
+                    psUp.setString(10, apptType);
+                    psUp.setString(11, apptId);
+                    psUp.setString(12, alt1);
+                    psUp.setString(13, alt2);
+                    return psUp.executeUpdate() > 0;
+                }
+            } else {
+                String insertSql = "INSERT INTO appointments (appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status, appointment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement psIns = conn.prepareStatement(insertSql)) {
+                    psIns.setString(1, apptId);
+                    psIns.setString(2, appt.getPatientId());
+                    psIns.setString(3, pName);
+                    psIns.setString(4, appt.getDoctorId());
+                    psIns.setString(5, docName);
+                    psIns.setString(6, appt.getDepartment());
+                    psIns.setString(7, appt.getAppointmentDate());
+                    psIns.setString(8, appt.getAppointmentTime());
+                    psIns.setString(9, status);
+                    psIns.setString(10, payStatus);
+                    psIns.setString(11, apptType);
+                    return psIns.executeUpdate() > 0;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error saving appointment: " + e.getMessage());
+            return false;
         }
     }
 
-    public boolean isSlotBooked(String doctorIdOrName, String date, String time) {
+    public boolean isSlotBooked(String doctorIdOrName, String date, String time, String excludeApptId) {
         if (doctorIdOrName == null || date == null || time == null) return false;
         String doc = doctorIdOrName.trim().toLowerCase();
-        String sql = "SELECT COUNT(*) FROM appointments WHERE (LOWER(doctor_id) = ? OR LOWER(doctor_name) = ? OR LOWER(doctor_name) LIKE ?) AND (appointment_date = ? OR (LOWER(?) = 'today' AND (LOWER(appointment_date) = 'today' OR SUBSTR(created_at,1,10) = ?))) AND appointment_time = ? AND UPPER(status) NOT IN ('CANCELLED', 'REJECTED')";
+        String excl = excludeApptId != null ? excludeApptId.trim() : "";
+        String altExcl1 = excl.startsWith("#") ? excl.substring(1) : "#" + excl;
+        String altExcl2 = excl.replace("#", "");
+        String sql = "SELECT COUNT(*) FROM appointments WHERE (LOWER(doctor_id) = ? OR LOWER(doctor_name) = ? OR LOWER(doctor_name) LIKE ?) AND (appointment_date = ? OR (LOWER(?) = 'today' AND (LOWER(appointment_date) = 'today' OR SUBSTR(created_at,1,10) = ?))) AND appointment_time = ? AND UPPER(status) NOT IN ('CANCELLED', 'REJECTED') AND (appointment_id != ? AND appointment_id != ? AND appointment_id != ?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             String todayStr = java.time.LocalDate.now().toString();
@@ -68,6 +126,9 @@ public class AppointmentDAO {
             ps.setString(5, date);
             ps.setString(6, todayStr);
             ps.setString(7, time);
+            ps.setString(8, excl);
+            ps.setString(9, altExcl1);
+            ps.setString(10, altExcl2);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1) > 0;
@@ -77,6 +138,10 @@ public class AppointmentDAO {
             System.err.println("Error checking slot booking: " + e.getMessage());
         }
         return false;
+    }
+
+    public boolean isSlotBooked(String doctorIdOrName, String date, String time) {
+        return isSlotBooked(doctorIdOrName, date, time, null);
     }
 
     public boolean updateAppointmentStatus(String appointmentId, String status) {
@@ -371,12 +436,44 @@ public class AppointmentDAO {
 
     public List<Appointment> getUnpaidAppointments() {
         List<Appointment> list = new ArrayList<>();
-        String sql = "SELECT * FROM appointments WHERE LOWER(payment_status) NOT LIKE '%paid%' OR LOWER(payment_status) LIKE '%pending%' OR LOWER(payment_status) LIKE '%unpaid%' OR LOWER(payment_status) LIKE '%offline%' OR LOWER(status) LIKE '%pending%' ORDER BY appointment_date DESC";
+        String sql = "SELECT * FROM appointments WHERE (" +
+                     "LOWER(COALESCE(payment_status, '')) IN ('unpaid', 'pending', 'pending counter', 'offline', 'offline (pay at desk)', 'payment pending', 'pay at desk', 'pending approval') " +
+                     "OR (LOWER(COALESCE(payment_status, '')) NOT LIKE '%paid%' AND LOWER(COALESCE(payment_status, '')) != 'paid') " +
+                     "OR (LOWER(COALESCE(payment_status, '')) LIKE '%offline%' AND LOWER(COALESCE(payment_status, '')) NOT LIKE '%counter verified%') " +
+                     ") AND LOWER(COALESCE(payment_status, '')) NOT LIKE '%paid via%' " +
+                     "AND LOWER(COALESCE(payment_status, '')) != 'paid' " +
+                     "AND UPPER(COALESCE(status, '')) NOT IN ('CANCELLED', 'REJECTED') " +
+                     "ORDER BY appointment_date DESC, created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(mapResultSetToAppointment(rs));
+                Appointment a = mapResultSetToAppointment(rs);
+                // Relational lookup for patient name if generic
+                if (a.getPatientName() == null || a.getPatientName().trim().isEmpty() || "Patient".equalsIgnoreCase(a.getPatientName()) || a.getPatientName().toLowerCase().startsWith("patient pt")) {
+                    try (PreparedStatement psP = conn.prepareStatement("SELECT name FROM patients WHERE patient_id = ? OR email = ? LIMIT 1")) {
+                        psP.setString(1, a.getPatientId());
+                        psP.setString(2, a.getPatientId());
+                        try (ResultSet rsP = psP.executeQuery()) {
+                            if (rsP.next() && rsP.getString("name") != null && !rsP.getString("name").trim().isEmpty()) {
+                                a.setPatientName(rsP.getString("name").trim());
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+                // Relational lookup for doctor name if generic
+                if (a.getDoctorName() == null || a.getDoctorName().trim().isEmpty() || a.getDoctorName().contains("Attending") || a.getDoctorName().contains("Consulting")) {
+                    try (PreparedStatement psD = conn.prepareStatement("SELECT name FROM doctors WHERE doctor_id = ? OR email = ? LIMIT 1")) {
+                        psD.setString(1, a.getDoctorId());
+                        psD.setString(2, a.getDoctorId());
+                        try (ResultSet rsD = psD.executeQuery()) {
+                            if (rsD.next() && rsD.getString("name") != null && !rsD.getString("name").trim().isEmpty()) {
+                                a.setDoctorName(rsD.getString("name").trim());
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+                list.add(a);
             }
         } catch (SQLException e) {
             System.err.println("Error fetching unpaid appointments: " + e.getMessage());
@@ -402,7 +499,9 @@ public class AppointmentDAO {
     public boolean markAppointmentPaidAtCounter(String appointmentId, String paymentMode) {
         if (appointmentId == null || appointmentId.trim().isEmpty()) return false;
         String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String updateSql = "UPDATE appointments SET payment_status = 'Paid', status = 'Confirmed' WHERE appointment_id = ?";
+        String alt1 = appointmentId.startsWith("#") ? appointmentId.substring(1) : "#" + appointmentId;
+        String alt2 = appointmentId.replace("#", "");
+        String updateSql = "UPDATE appointments SET payment_status = 'Paid', status = 'Confirmed' WHERE appointment_id = ? OR appointment_id = ? OR appointment_id = ?";
         
         try (Connection conn = DBConnection.getConnection()) {
             String patientId = "";
@@ -410,8 +509,10 @@ public class AppointmentDAO {
             double fee = 800.0;
 
             // 1. Fetch appointment details
-            try (PreparedStatement psSelect = conn.prepareStatement("SELECT * FROM appointments WHERE appointment_id = ?")) {
+            try (PreparedStatement psSelect = conn.prepareStatement("SELECT * FROM appointments WHERE appointment_id = ? OR appointment_id = ? OR appointment_id = ? LIMIT 1")) {
                 psSelect.setString(1, appointmentId);
+                psSelect.setString(2, alt1);
+                psSelect.setString(3, alt2);
                 try (ResultSet rs = psSelect.executeQuery()) {
                     if (rs.next()) {
                         patientId = rs.getString("patient_id");
@@ -424,16 +525,26 @@ public class AppointmentDAO {
             int rows = 0;
             try (PreparedStatement psUpdate = conn.prepareStatement(updateSql)) {
                 psUpdate.setString(1, appointmentId);
+                psUpdate.setString(2, alt1);
+                psUpdate.setString(3, alt2);
                 rows = psUpdate.executeUpdate();
             }
 
             if (rows == 0) {
                 String todayStr = java.time.LocalDate.now().toString();
-                String finalPid = !patientId.isEmpty() ? patientId : "PT" + (100000 + new java.util.Random().nextInt(900000));
-                String finalDoc = !doctorName.isEmpty() ? doctorName : "Attending Physician";
-                Appointment newAppt = new Appointment(appointmentId, finalPid, "DOC1001", finalDoc, "General Medicine", todayStr, "10:00 AM", "Confirmed", "Paid");
+                String finalPid = !patientId.isEmpty() ? patientId : "PT100842";
+                String finalDoc = !doctorName.isEmpty() ? doctorName : "Dr. Medical Officer";
+                Appointment newAppt = new Appointment(appointmentId, finalPid, "DOC10084", finalDoc, "General Medicine", todayStr, "10:00 AM", "Confirmed", "Paid");
                 createAppointment(newAppt);
             }
+
+            // Sync appointment_assignments if present
+            try (PreparedStatement psAsn = conn.prepareStatement("UPDATE appointment_assignments SET status = 'Assigned' WHERE (appointment_id = ? OR appointment_id = ? OR appointment_id = ?) AND UPPER(status) NOT IN ('VITALS_COMPLETED', 'COMPLETED')")) {
+                psAsn.setString(1, appointmentId);
+                psAsn.setString(2, alt1);
+                psAsn.setString(3, alt2);
+                psAsn.executeUpdate();
+            } catch (Exception ignored) {}
 
             // 3. Insert into Billing table
             try {
@@ -442,8 +553,8 @@ public class AppointmentDAO {
                 String insertBill = "INSERT INTO billing (bill_id, patient_id, bill_type, total_amount, paid_amount, payment_status, payment_method, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'Paid', ?, ?, ?)";
                 try (PreparedStatement psBill = conn.prepareStatement(insertBill)) {
                     psBill.setString(1, billId);
-                    psBill.setString(2, patientId);
-                    psBill.setString(3, "OPD Consultation - " + doctorName);
+                    psBill.setString(2, patientId.isEmpty() ? "PT100842" : patientId);
+                    psBill.setString(3, "OPD Consultation - " + (doctorName.isEmpty() ? "Medical Officer" : doctorName));
                     psBill.setDouble(4, fee);
                     psBill.setDouble(5, fee);
                     psBill.setString(6, payModeStr);
@@ -471,10 +582,11 @@ public class AppointmentDAO {
 
             return true;
         } catch (SQLException e) {
-            System.err.println("Error marking appointment as paid: " + e.getMessage());
+            System.err.println("Error marking appointment paid at counter: " + e.getMessage());
             return false;
         }
     }
+
 
     private Appointment mapResultSetToAppointment(ResultSet rs) throws SQLException {
         String patientName = "";

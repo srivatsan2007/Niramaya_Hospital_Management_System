@@ -252,35 +252,139 @@ public class NurseDAO {
 
     public List<NurseAssignment> getTodaysAssignedPatients(String nurseId) {
         List<NurseAssignment> list = new ArrayList<>();
+        java.util.Set<String> seenTokens = new java.util.HashSet<>();
+        java.util.Set<String> seenPatients = new java.util.HashSet<>();
         String todayStr = java.time.LocalDate.now().toString();
-        String sql = "SELECT * FROM appointment_assignments WHERE (appointment_date = ? OR LOWER(appointment_date) = 'today') AND UPPER(status) NOT IN ('VITALS_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY created_at DESC";
-        try (Connection conn = DBConnection.getValidatedConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, todayStr);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    NurseAssignment a = new NurseAssignment();
-                    a.setAssignmentId(rs.getString("assignment_id"));
-                    a.setNurseId(rs.getString("nurse_id"));
-                    a.setNurseName(rs.getString("nurse_name"));
-                    a.setPatientId(rs.getString("patient_id"));
-                    a.setPatientName(rs.getString("patient_name"));
-                    a.setDoctorName(rs.getString("doctor_name"));
-                    a.setWard("OPD / Ward");
-                    a.setRoomNumber("Cons-101");
-                    a.setBedNumber("N/A");
-                    a.setAdmissionDate(rs.getString("appointment_date"));
-                    a.setStatus(rs.getString("status"));
-                    a.setCreatedAt(rs.getString("created_at"));
-                    list.add(a);
+
+        try (Connection conn = DBConnection.getValidatedConnection()) {
+            // 1. Query appointment_assignments table for today
+            String sql = "SELECT * FROM appointment_assignments WHERE (appointment_date = ? OR LOWER(appointment_date) = 'today' OR created_at LIKE ?) AND UPPER(status) NOT IN ('VITALS_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY created_at DESC";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, todayStr);
+                ps.setString(2, todayStr + "%");
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String apptId = rs.getString("appointment_id");
+                        String pId = rs.getString("patient_id");
+                        if (pId == null || pId.trim().isEmpty()) continue; // Skip orphaned rows without patient
+                        String tokenKey = (apptId != null && !apptId.isEmpty()) ? apptId.replace("#", "").toLowerCase() : pId.toLowerCase();
+                        if (seenTokens.contains(tokenKey) || seenPatients.contains(pId.toLowerCase())) continue; // Deduplicate
+                        seenTokens.add(tokenKey);
+                        seenPatients.add(pId.toLowerCase());
+
+                        NurseAssignment a = new NurseAssignment();
+                        a.setAssignmentId(rs.getString("assignment_id"));
+                        a.setAppointmentId(apptId != null && !apptId.isEmpty() ? apptId : (rs.getString("assignment_id")));
+                        a.setNurseId(rs.getString("nurse_id"));
+                        a.setNurseName(rs.getString("nurse_name"));
+                        a.setPatientId(pId);
+                        
+                        // Resolve patient name
+                        String pName = rs.getString("patient_name");
+                        if (pName == null || pName.trim().isEmpty() || "Patient".equalsIgnoreCase(pName) || pName.toLowerCase().startsWith("patient pt")) {
+                            try (PreparedStatement psP = conn.prepareStatement("SELECT name FROM patients WHERE patient_id = ? OR email = ? LIMIT 1")) {
+                                psP.setString(1, pId);
+                                psP.setString(2, pId);
+                                try (ResultSet rsP = psP.executeQuery()) {
+                                    if (rsP.next() && rsP.getString("name") != null) pName = rsP.getString("name");
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                        a.setPatientName(pName != null && !pName.isEmpty() ? pName : "Patient");
+
+                        // Resolve doctor name
+                        String docName = rs.getString("doctor_name");
+                        if (docName == null || docName.trim().isEmpty() || docName.contains("Attending") || docName.contains("Consulting")) {
+                            String docId = rs.getString("doctor_id");
+                            if (docId != null && !docId.isEmpty()) {
+                                try (PreparedStatement psD = conn.prepareStatement("SELECT name FROM doctors WHERE doctor_id = ? OR email = ? LIMIT 1")) {
+                                    psD.setString(1, docId);
+                                    psD.setString(2, docId);
+                                    try (ResultSet rsD = psD.executeQuery()) {
+                                        if (rsD.next() && rsD.getString("name") != null) docName = rsD.getString("name");
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        a.setDoctorName(docName != null && !docName.isEmpty() ? docName : "Dr. Medical Officer");
+                        a.setWard("OPD / Ward");
+                        a.setRoomNumber("Cons-101");
+                        a.setBedNumber("N/A");
+                        a.setAdmissionDate(rs.getString("appointment_date"));
+                        a.setStatus(rs.getString("status"));
+                        a.setCreatedAt(rs.getString("created_at"));
+                        list.add(a);
+                    }
                 }
+            } catch (Exception e) {
+                System.err.println("Error fetching nurse today patients: " + e.getMessage());
+            }
+
+            // 2. Also check appointments table for any active today appointments not yet in list
+            try {
+                String sqlAppt = "SELECT appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status FROM appointments WHERE (appointment_date = ? OR LOWER(appointment_date) = 'today' OR created_at LIKE ?) AND UPPER(status) NOT IN ('VITALS_COMPLETED', 'READYFORCONSULT', 'COMPLETED', 'CANCELLED', 'REJECTED') ORDER BY appointment_time ASC";
+                try (PreparedStatement psAppt = conn.prepareStatement(sqlAppt)) {
+                    psAppt.setString(1, todayStr);
+                    psAppt.setString(2, todayStr + "%");
+                    try (ResultSet rsAppt = psAppt.executeQuery()) {
+                        while (rsAppt.next()) {
+                            String apptId = rsAppt.getString("appointment_id");
+                            String pId = rsAppt.getString("patient_id");
+                            if (pId == null || pId.trim().isEmpty()) continue;
+                            String tokenKey = (apptId != null && !apptId.isEmpty()) ? apptId.replace("#", "").toLowerCase() : pId.toLowerCase();
+                            if (seenTokens.contains(tokenKey) || seenPatients.contains(pId.toLowerCase())) continue;
+                            seenTokens.add(tokenKey);
+                            seenPatients.add(pId.toLowerCase());
+
+                            NurseAssignment a = new NurseAssignment();
+                            a.setAssignmentId("ASN-" + (100000 + new java.util.Random().nextInt(900000)));
+                            a.setAppointmentId(apptId);
+                            a.setNurseId(nurseId != null && !nurseId.isEmpty() ? nurseId : "NUR10084");
+                            a.setNurseName("Nurse Priya Sharma");
+                            a.setPatientId(pId);
+                            
+                            String pName = rsAppt.getString("patient_name");
+                            if (pName == null || pName.trim().isEmpty() || "Patient".equalsIgnoreCase(pName) || pName.toLowerCase().startsWith("patient pt")) {
+                                try (PreparedStatement psP = conn.prepareStatement("SELECT name FROM patients WHERE patient_id = ? OR email = ? LIMIT 1")) {
+                                    psP.setString(1, pId);
+                                    psP.setString(2, pId);
+                                    try (ResultSet rsP = psP.executeQuery()) {
+                                        if (rsP.next() && rsP.getString("name") != null) pName = rsP.getString("name");
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                            a.setPatientName(pName != null && !pName.isEmpty() ? pName : "Patient");
+
+                            String docName = rsAppt.getString("doctor_name");
+                            if (docName == null || docName.trim().isEmpty() || docName.contains("Attending") || docName.contains("Consulting")) {
+                                String docId = rsAppt.getString("doctor_id");
+                                if (docId != null && !docId.isEmpty()) {
+                                    try (PreparedStatement psD = conn.prepareStatement("SELECT name FROM doctors WHERE doctor_id = ? OR email = ? LIMIT 1")) {
+                                        psD.setString(1, docId);
+                                        psD.setString(2, docId);
+                                        try (ResultSet rsD = psD.executeQuery()) {
+                                            if (rsD.next() && rsD.getString("name") != null) docName = rsD.getString("name");
+                                        }
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                            a.setDoctorName(docName != null && !docName.isEmpty() ? docName : "Dr. Medical Officer");
+                            a.setWard("OPD / Ward");
+                            a.setRoomNumber("Cons-101");
+                            a.setBedNumber("N/A");
+                            a.setAdmissionDate(rsAppt.getString("appointment_date"));
+                            a.setStatus("Waiting");
+                            list.add(a);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Error checking today appointments for nurse queue: " + e.getMessage());
             }
         } catch (Exception e) {
-            System.err.println("Error fetching nurse today patients: " + e.getMessage());
+            System.err.println("Database connection error in getTodaysAssignedPatients: " + e.getMessage());
         }
-        if (list.isEmpty()) {
-            return getAssignedPatients(nurseId, null);
-        }
+
         return list;
     }
 
@@ -293,6 +397,7 @@ public class NurseDAO {
             while (rs.next()) {
                 NurseAssignment a = new NurseAssignment();
                 a.setAssignmentId(rs.getString("assignment_id"));
+                a.setAppointmentId(rs.getString("appointment_id"));
                 a.setNurseId(rs.getString("nurse_id"));
                 a.setNurseName(rs.getString("nurse_name"));
                 a.setPatientId(rs.getString("patient_id"));
@@ -313,18 +418,24 @@ public class NurseDAO {
     }
 
     public boolean completeVitalCheck(String assignmentId, String appointmentId) {
-        String sql1 = "UPDATE appointment_assignments SET status = 'VITALS_COMPLETED', vital_check_status = 'Completed' WHERE assignment_id = ? OR appointment_id = ?";
-        String sql2 = "UPDATE appointments SET status = 'VITALS_COMPLETED' WHERE appointment_id = ?";
+        String altAppt1 = appointmentId != null && appointmentId.startsWith("#") ? appointmentId.substring(1) : (appointmentId != null ? "#" + appointmentId : "");
+        String altAppt2 = appointmentId != null ? appointmentId.replace("#", "") : "";
+        String sql1 = "UPDATE appointment_assignments SET status = 'VITALS_COMPLETED', vital_check_status = 'Completed' WHERE assignment_id = ? OR appointment_id = ? OR appointment_id = ? OR appointment_id = ?";
+        String sql2 = "UPDATE appointments SET status = 'VITALS_COMPLETED' WHERE appointment_id = ? OR appointment_id = ? OR appointment_id = ?";
         String sql3 = "UPDATE nurse_assignments SET status = 'VITALS_COMPLETED' WHERE assignment_id = ? OR nurse_id = ?";
         try (Connection conn = DBConnection.getValidatedConnection()) {
             try (PreparedStatement ps = conn.prepareStatement(sql1)) {
                 ps.setString(1, assignmentId);
                 ps.setString(2, appointmentId != null ? appointmentId : assignmentId);
+                ps.setString(3, altAppt1);
+                ps.setString(4, altAppt2);
                 ps.executeUpdate();
             } catch(Exception ignored){}
-            if (appointmentId != null) {
+            if (appointmentId != null && !appointmentId.isEmpty()) {
                 try (PreparedStatement ps2 = conn.prepareStatement(sql2)) {
                     ps2.setString(1, appointmentId);
+                    ps2.setString(2, altAppt1);
+                    ps2.setString(3, altAppt2);
                     ps2.executeUpdate();
                 } catch(Exception ignored){}
             }
@@ -389,33 +500,68 @@ public class NurseDAO {
             } catch (Exception ignored) {}
         }
 
-        String assignmentId = "ASN-" + System.currentTimeMillis();
+        // Deduplication check: check if an assignment already exists for this appointment
+        String existingAsnId = null;
+        try (Connection conn = DBConnection.getValidatedConnection();
+             PreparedStatement psCheck = conn.prepareStatement("SELECT assignment_id FROM appointment_assignments WHERE appointment_id = ? OR appointment_id = ? OR appointment_id = ? LIMIT 1")) {
+            psCheck.setString(1, appointmentId);
+            psCheck.setString(2, appointmentId.startsWith("#") ? appointmentId.substring(1) : "#" + appointmentId);
+            psCheck.setString(3, appointmentId.replace("#", ""));
+            try (ResultSet rs = psCheck.executeQuery()) {
+                if (rs.next()) {
+                    existingAsnId = rs.getString("assignment_id");
+                }
+            }
+        } catch (Exception ignored) {}
+
+        String assignmentId = existingAsnId != null ? existingAsnId : ("ASN-" + System.currentTimeMillis());
         String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 
-        String sql = isPostgreSQL() ?
-            "INSERT INTO appointment_assignments (assignment_id, appointment_id, patient_id, patient_name, patient_age, patient_gender, doctor_id, doctor_name, nurse_id, nurse_name, appointment_time, appointment_date, status, vital_check_status, created_at) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Assigned', 'Pending', ?) ON CONFLICT (assignment_id) DO NOTHING;" :
-            "INSERT OR REPLACE INTO appointment_assignments (assignment_id, appointment_id, patient_id, patient_name, patient_age, patient_gender, doctor_id, doctor_name, nurse_id, nurse_name, appointment_time, appointment_date, status, vital_check_status, created_at) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Assigned', 'Pending', ?);";
+        if (existingAsnId != null) {
+            String updateSql = "UPDATE appointment_assignments SET patient_id = ?, patient_name = ?, patient_age = ?, patient_gender = ?, doctor_id = ?, doctor_name = ?, nurse_id = ?, nurse_name = ?, appointment_time = ?, appointment_date = ?, status = 'Assigned' WHERE assignment_id = ?";
+            try (Connection conn = DBConnection.getValidatedConnection();
+                 PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, patientId);
+                ps.setString(2, patientName);
+                ps.setString(3, patientAge);
+                ps.setString(4, patientGender);
+                ps.setString(5, doctorId);
+                ps.setString(6, doctorName);
+                ps.setString(7, nurseId);
+                ps.setString(8, nurseName);
+                ps.setString(9, appointmentTime);
+                ps.setString(10, appointmentDate);
+                ps.setString(11, existingAsnId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                DBConnection.logSQLException(e);
+            }
+        } else {
+            String sql = isPostgreSQL() ?
+                "INSERT INTO appointment_assignments (assignment_id, appointment_id, patient_id, patient_name, patient_age, patient_gender, doctor_id, doctor_name, nurse_id, nurse_name, appointment_time, appointment_date, status, vital_check_status, created_at) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Assigned', 'Pending', ?) ON CONFLICT (assignment_id) DO NOTHING;" :
+                "INSERT OR REPLACE INTO appointment_assignments (assignment_id, appointment_id, patient_id, patient_name, patient_age, patient_gender, doctor_id, doctor_name, nurse_id, nurse_name, appointment_time, appointment_date, status, vital_check_status, created_at) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Assigned', 'Pending', ?);";
 
-        try (Connection conn = DBConnection.getValidatedConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, assignmentId);
-            ps.setString(2, appointmentId);
-            ps.setString(3, patientId);
-            ps.setString(4, patientName);
-            ps.setString(5, patientAge);
-            ps.setString(6, patientGender);
-            ps.setString(7, doctorId);
-            ps.setString(8, doctorName);
-            ps.setString(9, nurseId);
-            ps.setString(10, nurseName);
-            ps.setString(11, appointmentTime);
-            ps.setString(12, appointmentDate);
-            ps.setString(13, now);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            DBConnection.logSQLException(e);
+            try (Connection conn = DBConnection.getValidatedConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, assignmentId);
+                ps.setString(2, appointmentId);
+                ps.setString(3, patientId);
+                ps.setString(4, patientName);
+                ps.setString(5, patientAge);
+                ps.setString(6, patientGender);
+                ps.setString(7, doctorId);
+                ps.setString(8, doctorName);
+                ps.setString(9, nurseId);
+                ps.setString(10, nurseName);
+                ps.setString(11, appointmentTime);
+                ps.setString(12, appointmentDate);
+                ps.setString(13, now);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                DBConnection.logSQLException(e);
+            }
         }
 
         try (Connection conn = DBConnection.getValidatedConnection();

@@ -4105,6 +4105,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
 
         activePendingBooking = {
           token: uniqueTokenStr,
+          docId: doc ? (doc.id || doc.docId || doc.doctorId || '') : docId,
           docEmail: doc ? (doc.email || '') : '',
           docName: doc ? doc.name : 'Doctor',
           dept: doc ? doc.dept : 'General Medicine',
@@ -4213,7 +4214,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
   });
 
   // Final Submit & Instant Bill Generation
-  document.getElementById('btnFinalPaySubmit')?.addEventListener('click', () => {
+  document.getElementById('btnFinalPaySubmit')?.addEventListener('click', async () => {
     if (!activePendingBooking) return;
 
     // Validate Patient Inputs
@@ -4266,6 +4267,36 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       }
     }
 
+    const targetDocId = activePendingBooking.docId || activePendingBooking.docEmail || activePendingBooking.docName;
+
+    // Persist to Neon PostgreSQL Database via JDBC API
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointmentId: activePendingBooking.token,
+          patientId: activePendingBooking.patientId,
+          patientName: activePendingBooking.patient,
+          doctorId: targetDocId,
+          doctorName: activePendingBooking.docName,
+          department: activePendingBooking.dept,
+          appointmentDate: activePendingBooking.date,
+          appointmentTime: activePendingBooking.time,
+          status: activePendingBooking.status || 'Confirmed',
+          paymentStatus: activePendingBooking.paymentStatus || 'Paid'
+        })
+      });
+      const data = await res.json();
+      if (data && data.appointmentId) {
+        activePendingBooking.token = data.appointmentId;
+        if (data.paymentStatus) activePendingBooking.paymentStatus = data.paymentStatus;
+        if (data.status) activePendingBooking.status = data.status;
+      }
+    } catch (e) {
+      console.error("Database appointment sync error:", e);
+    }
+
     let userBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
     userBookings.unshift(activePendingBooking);
     localStorage.setItem(userBookingsKey, JSON.stringify(userBookings));
@@ -4276,24 +4307,6 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       allAppts.unshift(activePendingBooking);
       localStorage.setItem('niramaya_all_appointments', JSON.stringify(allAppts));
     } catch(e){}
-
-    // Persist to Neon PostgreSQL Database via JDBC API
-    fetch('/api/appointments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        appointmentId: activePendingBooking.token,
-        patientId: activePendingBooking.patientId,
-        patientName: activePendingBooking.patient,
-        doctorId: activePendingBooking.docEmail || activePendingBooking.docName,
-        doctorName: activePendingBooking.docName,
-        department: activePendingBooking.dept,
-        appointmentDate: activePendingBooking.date,
-        appointmentTime: activePendingBooking.time,
-        status: activePendingBooking.status || 'Confirmed',
-        paymentStatus: activePendingBooking.paymentStatus || 'Paid'
-      })
-    }).catch(e => console.error("Database appointment sync error:", e));
 
     document.getElementById('paymentGatewayModal').classList.remove('show');
 
@@ -4306,7 +4319,7 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
       openInvoiceModal(activePendingBooking);
     }
 
-    renderUserBookings();
+    await renderUserBookings();
     if (typeof loadPatientDashboardOverview === 'function') loadPatientDashboardOverview();
     activePendingBooking = null;
   });
@@ -4523,14 +4536,15 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
             && !paySt.toLowerCase().includes('offline')
             && !a.status?.toLowerCase().includes('pending');
 
-          const localMatch = localBookings.find(x => x.token === a.appointmentId || x.id === a.appointmentId)
-            || allLocalAppts.find(x => x.token === a.appointmentId || x.appointmentId === a.appointmentId);
+          const cleanApptId = (a.appointmentId || '').replace('#', '').toLowerCase();
+          const localMatch = localBookings.find(x => (x.token || x.id || '').replace('#', '').toLowerCase() === cleanApptId)
+            || allLocalAppts.find(x => (x.token || x.appointmentId || '').replace('#', '').toLowerCase() === cleanApptId);
 
           let resolvedPatient = '';
           const localPName = localMatch ? (localMatch.patient || localMatch.patientName || '').trim() : '';
           const serverPName = (a.patientName || '').trim();
 
-          const isGeneric = (n) => !n || ['patient', 'guest patient', 'null', 'undefined', 'rekha prasad'].includes(n.toLowerCase());
+          const isGeneric = (n) => !n || ['patient', 'guest patient', 'null', 'undefined'].includes(n.toLowerCase());
 
           if (!isGeneric(localPName)) {
             resolvedPatient = localPName;
@@ -6302,16 +6316,18 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       window.open(pdfUrl, '_blank');
     };
 
-    // Live Payment Status Sync across tabs when Admin marks Pay at Counter as Paid
+    // Live Payment Status Sync across tabs when Admin/Receptionist marks Pay at Counter as Paid
     try {
       const payChannel = new BroadcastChannel('niramaya_payment_status_channel');
       payChannel.onmessage = (msg) => {
         if (msg.data && msg.data.type === 'APPOINTMENT_PAID') {
           console.log('⚡ [Patient Portal] Counter payment verified:', msg.data);
+          const cleanTarget = (msg.data.appointmentId || '').replace('#', '').toLowerCase();
           try {
             let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
             localBookings.forEach(b => {
-              if (b.token === msg.data.appointmentId || b.id === msg.data.appointmentId || b.appointmentId === msg.data.appointmentId) {
+              const curTok = (b.token || b.id || b.appointmentId || '').replace('#', '').toLowerCase();
+              if (curTok === cleanTarget) {
                 b.paymentStatus = 'Paid';
                 b.status = 'Confirmed & Paid ✓';
                 b.isPaid = true;
@@ -6326,10 +6342,13 @@ Authorized Signatory: ${latest.docName} (Reg. No: TN-PMC-48201)
       };
     } catch(e){}
 
-    // Instant real-time sync when Doctor profile is updated in another tab/window
+    // Instant real-time sync when Doctor profile or appointments are updated in another tab/window
     window.addEventListener('storage', (e) => {
       if (!e.key || e.key === 'niramaya_doc_profile') {
         renderDoctors();
+      }
+      if (e.key === 'niramaya_all_appointments' || e.key === userBookingsKey) {
+        renderUserBookings();
       }
     });
 

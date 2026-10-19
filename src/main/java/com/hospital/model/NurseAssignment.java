@@ -2,6 +2,7 @@ package com.hospital.model;
 
 public class NurseAssignment {
     private String assignmentId;
+    private String appointmentId;
     private String nurseId;
     private String nurseName;
     private String patientId;
@@ -33,6 +34,9 @@ public class NurseAssignment {
 
     public String getAssignmentId() { return assignmentId; }
     public void setAssignmentId(String assignmentId) { this.assignmentId = assignmentId; }
+
+    public String getAppointmentId() { return appointmentId; }
+    public void setAppointmentId(String appointmentId) { this.appointmentId = appointmentId; }
 
     public String getNurseId() { return nurseId; }
     public void setNurseId(String nurseId) { this.nurseId = nurseId; }

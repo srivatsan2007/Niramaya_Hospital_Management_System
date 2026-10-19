@@ -1046,7 +1046,7 @@ public class Server {
                         if (d != null && d.getName() != null) dName = d.getName();
                     } catch (Exception ignored) {}
                 }
-                if (dName.isEmpty() || dName.contains("Attending")) dName = "Consulting Doctor";
+                if (dName.isEmpty() || dName.contains("Attending") || dName.equalsIgnoreCase("Doctor")) dName = "Dr. Srivatsan (MD)";
                 String dept = fields.getOrDefault("department", "General Medicine");
                 String date = fields.getOrDefault("appointmentDate", fields.getOrDefault("date", "Today"));
                 String time = fields.getOrDefault("appointmentTime", fields.getOrDefault("time", "10:00 AM"));
@@ -1055,7 +1055,7 @@ public class Server {
                 String reqPaymentStatus = fields.getOrDefault("paymentStatus", "Paid");
 
                 String targetDoctorRef = !docId.isEmpty() ? docId : dName;
-                if (appointmentDAO.isSlotBooked(targetDoctorRef, date, time)) {
+                if (appointmentDAO.isSlotBooked(targetDoctorRef, date, time, apptId)) {
                     send(exchange, 409, "application/json", "{\"success\":false,\"error\":\"The selected time slot is already booked for this doctor. Please choose another time slot.\"}");
                     return;
                 }
@@ -1367,8 +1367,29 @@ public class Server {
             for (Appointment a : list) {
                 if (!first) sb.append(",");
                 first = false;
-                String pName = a.getPatientName() != null && !a.getPatientName().isEmpty() ? a.getPatientName() : "Patient";
-                String docName = a.getDoctorName() != null && !a.getDoctorName().isEmpty() ? a.getDoctorName() : "Consulting Doctor";
+                String pName = a.getPatientName();
+                if (pName == null || pName.trim().isEmpty() || "Patient".equalsIgnoreCase(pName) || pName.toLowerCase().startsWith("patient pt")) {
+                    try {
+                        com.hospital.model.Patient pt = patientDAO.getPatientById(a.getPatientId());
+                        if (pt != null && pt.getName() != null && !pt.getName().isEmpty()) {
+                            pName = pt.getName();
+                        }
+                    } catch (Exception ignored) {}
+                }
+                if (pName == null || pName.trim().isEmpty()) pName = "Patient";
+
+                String docName = a.getDoctorName();
+                if (docName == null || docName.trim().isEmpty() || docName.contains("Attending") || docName.contains("Consulting")) {
+                    if (a.getDoctorId() != null && !a.getDoctorId().isEmpty()) {
+                        try {
+                            com.hospital.model.Doctor d = doctorDAO.getDoctorById(a.getDoctorId());
+                            if (d != null && d.getName() != null && !d.getName().isEmpty()) {
+                                docName = d.getName();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+                if (docName == null || docName.trim().isEmpty()) docName = "Dr. Srivatsan (MD)";
                 String dept = a.getDepartment() != null && !a.getDepartment().isEmpty() ? a.getDepartment() : "Doctor Consultation";
                 sb.append(String.format(
                         "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"fee\":\"₹800.00\"}",
@@ -5694,6 +5715,7 @@ public class Server {
             StringBuilder sb = new StringBuilder("{");
             sb.append("\"success\":true,");
             sb.append("\"totalAwaitingAssessment\":").append(list.size()).append(",");
+            sb.append("\"totalWaiting\":").append(list.size()).append(",");
             sb.append("\"averageAssessmentMinutes\":6,");
             sb.append("\"approximateNotice\":\"Assessment waiting times are approximate (calculated at ~6 min per patient).\",");
             sb.append("\"queue\":[");
@@ -5704,10 +5726,25 @@ public class Server {
                 int patientsAhead = i;
                 int estWait = patientsAhead * 6;
 
+                String token = a.getAppointmentId();
+                if (token == null || token.isEmpty()) {
+                    token = a.getAssignmentId();
+                }
+
+                String pName = a.getPatientName();
+                if (pName == null || pName.trim().isEmpty() || "Patient".equalsIgnoreCase(pName) || pName.toLowerCase().startsWith("patient pt")) {
+                    pName = a.getPatientId() != null && !a.getPatientId().isEmpty() ? ("Patient " + a.getPatientId()) : "Patient";
+                }
+
+                String docName = a.getDoctorName();
+                if (docName == null || docName.trim().isEmpty() || docName.contains("Attending") || docName.contains("Consulting Doctor")) {
+                    docName = "Dr. Medical Officer";
+                }
+
                 sb.append(String.format(
-                    "{\"position\":%d,\"patientsAhead\":%d,\"estimatedWaitMinutes\":%d,\"assignmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorName\":\"%s\",\"ward\":\"%s\",\"roomNumber\":\"%s\",\"status\":\"%s\"}",
-                    pos, patientsAhead, estWait, escape(a.getAssignmentId()), escape(a.getPatientId()),
-                    escape(a.getPatientName()), escape(a.getDoctorName()), escape(a.getWard()),
+                    "{\"queuePosition\":%d,\"position\":%d,\"appointmentId\":\"%s\",\"token\":\"%s\",\"patientsAhead\":%d,\"estimatedWaitMinutes\":%d,\"assignmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorName\":\"%s\",\"ward\":\"%s\",\"roomNumber\":\"%s\",\"status\":\"%s\"}",
+                    pos, pos, escape(token), escape(token), patientsAhead, estWait, escape(a.getAssignmentId()), escape(a.getPatientId()),
+                    escape(pName), escape(docName), escape(a.getWard()),
                     escape(a.getRoomNumber()), escape(a.getStatus())
                 ));
                 if (i < list.size() - 1) sb.append(",");
