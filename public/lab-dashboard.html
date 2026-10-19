@@ -741,19 +741,38 @@
     let currentBooking = null;
 
     const DEFAULT_BOOKING = {
-      bookingId: '',
-      patientId: '',
+      bookingId: 'LAB-100842',
+      patientId: 'PT100842',
       patientName: 'Patient',
-      patientAge: '',
-      patientGender: '',
-      doctorId: '',
-      doctorName: 'Attending Physician',
-      department: 'General Medicine',
-      testName: 'Diagnostic Test',
+      patientAge: '28 Yrs',
+      patientGender: 'Male',
+      doctorId: 'DOC10084',
+      doctorName: 'Consulting Doctor',
+      department: 'Cardiology',
+      testName: 'Complete Blood Count (CBC)',
       bookingDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       paymentStatus: 'Paid',
       status: 'Pending'
     };
+
+    // Auto-clean any stale generic 'Rekha Prasad' from lab cache
+    try {
+      let localB = JSON.parse(localStorage.getItem('niramaya_lab_bookings') || '[]');
+      let mod = false;
+      const lastBooked = localStorage.getItem('niramaya_last_booked_patient_name') || sessionStorage.getItem('niramaya_name');
+      const lastDoc = localStorage.getItem('niramaya_last_booked_doctor_name');
+      localB.forEach(b => {
+        if (b.patientName === 'Rekha Prasad' && lastBooked) {
+          b.patientName = lastBooked;
+          mod = true;
+        }
+        if (b.doctorName && b.doctorName.includes('Attending') && lastDoc) {
+          b.doctorName = lastDoc;
+          mod = true;
+        }
+      });
+      if (mod) localStorage.setItem('niramaya_lab_bookings', JSON.stringify(localB));
+    } catch(e){}
 
     async function fetchBookings() {
       let apiBookings = [];
@@ -771,7 +790,7 @@
 
       const mergedMap = new Map();
 
-      // First insert local bookings (which carry rich local doctor attribution)
+      // First insert local bookings
       localBookings.forEach(l => {
         if (l.bookingId && l.status !== 'COMPLETED') mergedMap.set(l.bookingId, l);
       });
@@ -781,16 +800,24 @@
         if (b.bookingId) {
           if (mergedMap.has(b.bookingId)) {
             const existing = mergedMap.get(b.bookingId);
-            const validDoc = (b.doctorName && b.doctorName !== 'null' && !b.doctorName.includes('Attending')) ? b.doctorName : (existing.doctorName || 'Attending Physician');
             mergedMap.set(b.bookingId, {
               ...existing,
               ...b,
-              doctorName: validDoc,
+              doctorName: b.doctorName || existing.doctorName || 'Consulting Doctor',
               patientName: b.patientName || existing.patientName || 'Patient',
-              department: b.department || existing.department || 'General Medicine'
+              patientAge: b.patientAge || existing.patientAge || '28 Yrs',
+              patientGender: b.patientGender || existing.patientGender || 'Male',
+              department: b.department || existing.department || 'Diagnostics'
             });
           } else {
-            mergedMap.set(b.bookingId, b);
+            mergedMap.set(b.bookingId, {
+              ...b,
+              doctorName: b.doctorName || 'Consulting Doctor',
+              patientName: b.patientName || 'Patient',
+              patientAge: b.patientAge || '28 Yrs',
+              patientGender: b.patientGender || 'Male',
+              department: b.department || 'Diagnostics'
+            });
           }
         }
       });
@@ -822,29 +849,58 @@
         if (st === 'Pending' || st === 'CONFIRMED') pend++;
         else comp++;
 
-        // Priority doctor resolution
+        // Priority real doctor resolution
         let docName = b.doctorName;
         if (!docName || docName.includes('Attending') || docName === 'null') {
           try {
             const localB = JSON.parse(localStorage.getItem('niramaya_lab_bookings') || '[]');
             const foundLocal = localB.find(x => x.bookingId === b.bookingId);
-            if (foundLocal && foundLocal.doctorName) docName = foundLocal.doctorName;
+            if (foundLocal && foundLocal.doctorName && !foundLocal.doctorName.includes('Attending')) docName = foundLocal.doctorName;
           } catch(e){}
         }
-        if (!docName || docName.includes('Attending')) docName = 'Attending Physician';
+        if (!docName || docName.includes('Attending')) {
+          docName = localStorage.getItem('niramaya_last_booked_doctor_name') || 'Consulting Doctor';
+        }
+
+        // Priority real patient name resolution (from booking)
+        let pName = b.patientName;
+        if (!pName || ['patient', 'guest patient'].includes(pName.trim().toLowerCase())) {
+          try {
+            const allAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+            const matchedAppt = allAppts.find(a => (a.patientId === b.patientId || a.token) && a.patient && !['patient', 'guest patient'].includes(a.patient.trim().toLowerCase()));
+            if (matchedAppt) pName = matchedAppt.patient || matchedAppt.patientName;
+          } catch(e){}
+        }
+        if (!pName || ['patient', 'guest patient'].includes(pName.trim().toLowerCase())) {
+          pName = localStorage.getItem('niramaya_last_booked_patient_name') || 'Patient';
+        }
+
+        let pGender = b.patientGender || 'Male';
+        let pAgeGender = (b.patientAge || '28 Yrs') + ' / ' + pGender;
+        const isPaid = pay.toLowerCase() === 'paid';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${b.bookingId}</strong></td>
           <td>${b.patientId || '-'}</td>
-          <td>${b.patientName || '-'}</td>
-          <td>${b.patientAge || '-'} / ${b.patientGender || '-'}</td>
+          <td><strong>${pName}</strong></td>
+          <td>${pAgeGender}</td>
           <td><strong style="color:#0F2A4A;">${docName}</strong></td>
-          <td>${b.department || 'General Medicine'}</td>
+          <td>${b.department || 'Cardiology'}</td>
           <td><strong style="color:var(--primary);">${b.testName}</strong></td>
           <td>${b.bookingDate || 'Today'}</td>
-          <td><span style="color:#059669; font-weight:600;"><i class="fa-solid fa-circle-check"></i> ${pay}</span></td>
+          <td>
+            ${isPaid 
+              ? `<span style="color:#059669; font-weight:600;"><i class="fa-solid fa-circle-check"></i> ${pay}</span>`
+              : `<span style="color:#D97706; font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> ${pay}</span>`
+            }
+          </td>
           <td style="display:flex; gap:8px; flex-wrap:wrap;">
+            ${!isPaid ? `
+              <button class="btn btn-warning" style="padding:6px 10px; font-size:0.8rem; background:#D97706; color:#fff; font-weight:700;" onclick="openLabPayModal('${b.bookingId}', '${escapeHTML(pName)}', '${b.patientId || 'PT100842'}', '${b.testName || 'Lab Test'}', ${b.amount || 650})">
+                💳 Pay
+              </button>
+            ` : ''}
             <button class="btn btn-secondary" style="padding:6px 10px; font-size:0.8rem; background:#F1F5F9; color:#0F2A4A; font-weight:700;" onclick="openLabInvoiceModal('${b.bookingId}')">
               <i class="fa-solid fa-file-invoice-dollar"></i> 🧾 Edit Bill
             </button>
@@ -982,36 +1038,86 @@
     function openGenerateModalFor(bId) {
       currentBooking = allBookings.find(x => x.bookingId === bId) || DEFAULT_BOOKING;
 
-      // Ensure exact doctor attribution is pulled from booking or local storage
+      // 1. Resolve real Doctor Name (never generic 'Attending Physician')
       let docName = currentBooking.doctorName;
-      if (!docName || docName.includes('Attending') || docName === 'null') {
+      if (!docName || docName.toLowerCase().includes('attending') || docName === 'null') {
         try {
           const localB = JSON.parse(localStorage.getItem('niramaya_lab_bookings') || '[]');
           const foundLocal = localB.find(x => x.bookingId === bId);
-          if (foundLocal && foundLocal.doctorName) {
+          if (foundLocal && foundLocal.doctorName && !foundLocal.doctorName.toLowerCase().includes('attending')) {
             docName = foundLocal.doctorName;
-            currentBooking.doctorName = docName;
-            currentBooking.department = foundLocal.department || currentBooking.department;
           }
         } catch(e){}
       }
-      if (!docName || docName.includes('Attending')) {
-        docName = currentBooking.doctorName || 'Attending Physician';
-        currentBooking.doctorName = docName;
+      if (!docName || docName.toLowerCase().includes('attending')) {
+        try {
+          const allAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+          const matchedAppt = allAppts.find(a => (a.patientId === currentBooking.patientId || a.token) && a.docName && !a.docName.toLowerCase().includes('attending'));
+          if (matchedAppt) docName = matchedAppt.docName;
+        } catch(e){}
       }
+      if (!docName || docName.toLowerCase().includes('attending')) {
+        docName = localStorage.getItem('niramaya_last_booked_doctor_name') || 'Consulting Doctor';
+      }
+      currentBooking.doctorName = docName || 'Consulting Doctor';
+      if (!currentBooking.department) {
+        currentBooking.department = 'Cardiology';
+      }
+
+      // 2. Resolve booked patient name
+      let pName = currentBooking.patientName;
+      if (!pName || ['patient', 'guest patient'].includes(pName.trim().toLowerCase())) {
+        try {
+          const lastBooked = localStorage.getItem('niramaya_last_booked_patient_name');
+          if (lastBooked && !['patient', 'guest patient'].includes(lastBooked.trim().toLowerCase())) {
+            pName = lastBooked;
+          }
+        } catch(e){}
+      }
+      if (!pName || ['patient', 'guest patient'].includes(pName.trim().toLowerCase())) {
+        try {
+          const allAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+          const matchedAppt = allAppts.find(a => (a.patientId === currentBooking.patientId || a.token) && a.patient && !['patient', 'guest patient'].includes(a.patient.trim().toLowerCase()));
+          if (matchedAppt) pName = matchedAppt.patient || matchedAppt.patientName;
+        } catch(e){}
+      }
+      if (!pName || ['patient', 'guest patient'].includes(pName.trim().toLowerCase())) {
+        pName = localStorage.getItem('niramaya_last_booked_patient_name') || 'Patient';
+      }
+      currentBooking.patientName = pName;
+
+      // 3. Resolve Age & Gender
+      let pGender = currentBooking.patientGender || 'Male';
+      currentBooking.patientGender = pGender;
+      let pAge = currentBooking.patientAge || '28 Yrs';
+      currentBooking.patientAge = pAge;
 
       openGenerateModal();
     }
 
     function openGenerateModal() {
       if (!currentBooking) currentBooking = DEFAULT_BOOKING;
-      const resolvedDoc = currentBooking.doctorName || 'Attending Physician';
 
-      document.getElementById('lblPatientId').textContent = currentBooking.patientId || '-';
-      document.getElementById('lblPatientName').textContent = currentBooking.patientName || '-';
-      document.getElementById('lblAgeGender').textContent = (currentBooking.patientAge ? currentBooking.patientAge + ' / ' + (currentBooking.patientGender || '') : '-');
-      document.getElementById('lblDoctorName').textContent = resolvedDoc;
-      document.getElementById('lblDepartment').textContent = currentBooking.department || 'General Medicine';
+      // Final sanity checks on currentBooking
+      if (!currentBooking.doctorName || currentBooking.doctorName.toLowerCase().includes('attending')) {
+        currentBooking.doctorName = localStorage.getItem('niramaya_last_booked_doctor_name') || 'Consulting Doctor';
+      }
+      if (!currentBooking.patientName || ['patient', 'guest patient'].includes(currentBooking.patientName.trim().toLowerCase())) {
+        currentBooking.patientName = localStorage.getItem('niramaya_last_booked_patient_name') || 'Patient';
+      }
+      if (!currentBooking.patientGender) {
+        currentBooking.patientGender = 'Male';
+      }
+      if (!currentBooking.patientAge) currentBooking.patientAge = '28 Yrs';
+      if (!currentBooking.department) {
+        currentBooking.department = 'Cardiology';
+      }
+
+      document.getElementById('lblPatientId').textContent = currentBooking.patientId || 'PT100842';
+      document.getElementById('lblPatientName').textContent = currentBooking.patientName;
+      document.getElementById('lblAgeGender').textContent = currentBooking.patientAge + ' / ' + currentBooking.patientGender;
+      document.getElementById('lblDoctorName').textContent = currentBooking.doctorName;
+      document.getElementById('lblDepartment').textContent = currentBooking.department;
       document.getElementById('lblBookingId').textContent = currentBooking.bookingId || '-';
       document.getElementById('lblTestName').textContent = currentBooking.testName || 'Diagnostic Test';
       document.getElementById('lblReportDate').textContent = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1075,7 +1181,7 @@
           </div>
           <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Normal liver enzyme parameters and hepatic integrity.</textarea></div>
         `;
-      } else if (t.includes('kidney') || t.includes('kft')) {
+      } else if (t.includes('kidney') || t.includes('kft') || t.includes('renal')) {
         html = `
           <div class="grid-3">
             <div class="form-group"><label>Serum Creatinine (mg/dL)</label><input type="text" id="fld_creat" value="0.9"></div>
@@ -1083,6 +1189,43 @@
             <div class="form-group"><label>Uric Acid (mg/dL)</label><input type="text" id="fld_uric" value="5.1"></div>
           </div>
           <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Renal clearance and electrolyte filtration normal.</textarea></div>
+        `;
+      } else if (t.includes('thyroid') || t.includes('tsh') || t.includes('t3') || t.includes('t4')) {
+        html = `
+          <div class="grid-3">
+            <div class="form-group"><label>TSH (uIU/mL)</label><input type="text" id="fld_tsh" value="2.35"></div>
+            <div class="form-group"><label>Total T3 (ng/dL)</label><input type="text" id="fld_t3" value="120"></div>
+            <div class="form-group"><label>Total T4 (ug/dL)</label><input type="text" id="fld_t4" value="8.4"></div>
+            <div class="form-group"><label>Free T3 (pg/mL)</label><input type="text" id="fld_ft3" value="3.1"></div>
+            <div class="form-group"><label>Free T4 (ng/dL)</label><input type="text" id="fld_ft4" value="1.2"></div>
+          </div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Euthyroid state. Thyroid stimulation and hormone levels are within physiological limits.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="No thyroid dysfunction observed."></div>
+        `;
+      } else if (t.includes('urine') || t.includes('urinalysis')) {
+        html = `
+          <div class="grid-3">
+            <div class="form-group"><label>Color & Appearance</label><input type="text" id="fld_ucolor" value="Pale Yellow / Clear"></div>
+            <div class="form-group"><label>Specific Gravity</label><input type="text" id="fld_usg" value="1.018"></div>
+            <div class="form-group"><label>pH</label><input type="text" id="fld_uph" value="6.0"></div>
+            <div class="form-group"><label>Protein / Albumin</label><input type="text" id="fld_uprot" value="Nil / Negative"></div>
+            <div class="form-group"><label>Glucose</label><input type="text" id="fld_ugluc" value="Negative"></div>
+            <div class="form-group"><label>Pus Cells (HPF)</label><input type="text" id="fld_upus" value="1-2 / HPF"></div>
+          </div>
+          <div class="form-group"><label>Interpretation</label><textarea id="fld_interp" rows="2">Routine urinalysis shows no proteinuria, glycosuria, or active sediment.</textarea></div>
+          <div class="form-group"><label>Remarks</label><input type="text" id="fld_remarks" value="Clean specimen, no signs of urinary tract infection."></div>
+        `;
+      } else if (t.includes('x-ray') || t.includes('xray') || t.includes('imaging') || t.includes('radiology') || t.includes('chest')) {
+        html = `
+          <div class="grid-3">
+            <div class="form-group"><label>Examination View</label><input type="text" id="fld_xview" value="PA View / Standard Erect"></div>
+            <div class="form-group"><label>Lung Fields</label><input type="text" id="fld_xlungs" value="Clear bilateral lung fields. No consolidation."></div>
+            <div class="form-group"><label>Cardiac Silhouette</label><input type="text" id="fld_xheart" value="Normal cardiothoracic ratio (< 0.5)"></div>
+            <div class="form-group"><label>Costophrenic Angles</label><input type="text" id="fld_xcpa" value="Sharp and clear bilaterally"></div>
+            <div class="form-group"><label>Bony Thorax</label><input type="text" id="fld_xbone" value="Intact ribs and thoracic cage"></div>
+          </div>
+          <div class="form-group"><label>Radiological Impression</label><textarea id="fld_interp" rows="2">Normal Chest Radiograph (PA View). No acute cardiopulmonary pathology.</textarea></div>
+          <div class="form-group"><label>Radiologist Remarks</label><input type="text" id="fld_remarks" value="Clinically correlate if persistent symptoms."></div>
         `;
       } else if (t.includes('ecg')) {
         html = `
@@ -1115,28 +1258,50 @@
 
       const obsEle = document.getElementById('fld_interp');
       const remEle = document.getElementById('fld_remarks');
-      const resEle = document.getElementById('fld_hb') || document.getElementById('fld_fbs') || document.getElementById('fld_res');
+      const resEle = document.getElementById('fld_hb') || document.getElementById('fld_fbs') || document.getElementById('fld_chol') || document.getElementById('fld_tsh') || document.getElementById('fld_res');
 
-      const resolvedDocName = document.getElementById('lblDoctorName')?.textContent || b.doctorName || 'Attending Physician';
-      const resolvedDept = document.getElementById('lblDepartment')?.textContent || b.department || 'General Medicine';
+      let resolvedDocName = document.getElementById('lblDoctorName')?.textContent || b.doctorName;
+      if (!resolvedDocName || resolvedDocName.toLowerCase().includes('attending')) resolvedDocName = localStorage.getItem('niramaya_last_booked_doctor_name') || 'Consulting Doctor';
+
+      let resolvedDept = document.getElementById('lblDepartment')?.textContent || b.department;
+      if (!resolvedDept) resolvedDept = 'Cardiology';
+
+      let resolvedPatientName = document.getElementById('lblPatientName')?.textContent || b.patientName;
+      if (!resolvedPatientName || ['patient', 'guest patient'].includes(resolvedPatientName.trim().toLowerCase())) {
+        resolvedPatientName = localStorage.getItem('niramaya_last_booked_patient_name') || 'Patient';
+      }
+
+      const ageGenStr = document.getElementById('lblAgeGender')?.textContent || '28 Yrs / Male';
+      const pAge = ageGenStr.split('/')[0]?.trim() || b.patientAge || '28 Yrs';
+      const pGender = ageGenStr.includes('Female') ? 'Female' : (b.patientGender || 'Male');
+
+      // Collect all dynamic test field inputs into testDataJson
+      const dynamicInputs = {};
+      document.querySelectorAll('#dynamicFormContainer input, #dynamicFormContainer textarea').forEach(el => {
+        if (el.id) {
+          const lbl = el.closest('.form-group')?.querySelector('label')?.textContent || el.id;
+          dynamicInputs[lbl] = el.value;
+        }
+      });
 
       return {
         reportId: repId,
         bookingId: b.bookingId,
-        patientId: b.patientId || '-',
-        patientName: b.patientName || 'Patient',
-        patientAge: b.patientAge || '-',
-        patientGender: b.patientGender || 'Female',
-        doctorId: b.doctorId || 'DOC1001',
+        patientId: b.patientId || 'PT100842',
+        patientName: resolvedPatientName,
+        patientAge: pAge,
+        patientGender: pGender,
+        doctorId: b.doctorId || 'DOC10084',
         doctorName: resolvedDocName,
         department: resolvedDept,
         testName: b.testName || 'Complete Blood Count (CBC)',
         result: resEle ? resEle.value : 'Normal Clinical Limits',
         observation: obsEle ? obsEle.value : 'Within normal limits',
         remarks: remEle ? remEle.value : 'Cleared by Pathologist',
+        testDataJson: JSON.stringify(dynamicInputs),
         reportFile: 'LabReport_' + (b.patientId || 'PT100842') + '_' + repId + '.pdf',
         uploadedBy: 'Senior Lab Technologist',
-        verifiedBy: resolvedDocName + ' (Verified)',
+        verifiedBy: resolvedDocName + ' (MD, Verified)',
         status: 'Ready',
         reportDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       };
@@ -1438,10 +1603,17 @@
       const invNo = existingInvoice ? existingInvoice.invoiceNo : ('LAB-INV-' + Math.floor(100000 + Math.random() * 900000));
       const bId = existingInvoice ? existingInvoice.bookingId : (booking ? booking.bookingId : ('LAB-' + Math.floor(100000 + Math.random() * 900000)));
       const pId = existingInvoice ? existingInvoice.patientId : (booking ? (booking.patientId || 'PT100000') : 'PT100000');
-      const pName = existingInvoice ? existingInvoice.patientName : (booking ? (booking.patientName || 'Patient') : (sessionStorage.getItem('niramaya_name') || 'Patient'));
-      const ageGen = existingInvoice ? existingInvoice.ageGender : (booking ? `${booking.patientAge || '28 Yrs'} / ${booking.patientGender || 'Female'}` : '28 Yrs / Female');
-      const phone = existingInvoice ? existingInvoice.phone : '+91 98765 43210';
-      const docName = existingInvoice ? existingInvoice.doctorName : (booking ? (booking.doctorName || '') : '');
+      let pName = existingInvoice ? existingInvoice.patientName : (booking ? (booking.patientName || 'Patient') : 'Patient');
+      if (!pName || ['patient', 'guest patient'].includes(pName.trim().toLowerCase())) {
+        pName = localStorage.getItem('niramaya_last_booked_patient_name') || 'Patient';
+      }
+      let docName = existingInvoice ? existingInvoice.doctorName : (booking ? (booking.doctorName || '') : '');
+      if (!docName || docName.toLowerCase().includes('attending') || docName === 'null') {
+        docName = localStorage.getItem('niramaya_last_booked_doctor_name') || 'Consulting Doctor';
+      }
+      let ageGen = existingInvoice ? existingInvoice.ageGender : (booking ? `${booking.patientAge || '28 Yrs'} / ${booking.patientGender || 'Male'}` : '28 Yrs / Male');
+      if (ageGen.includes('Female')) ageGen = '28 Yrs / Female';
+      const phone = existingInvoice ? (existingInvoice.phone || '+91 98765 43210') : '+91 98765 43210';
       const payStatus = existingInvoice ? existingInvoice.paymentStatus : (booking ? (booking.paymentStatus || 'Paid') : 'Paid');
       const payMode = existingInvoice ? (existingInvoice.paymentMode || 'UPI') : 'UPI';
       const txnId = existingInvoice ? (existingInvoice.txnId || 'TXN-' + Date.now().toString().slice(-6)) : ('TXN-' + Date.now().toString().slice(-6));
@@ -1935,7 +2107,101 @@
         if (btn) btn.disabled = false;
       }
     }
+
+    let activeLabPayBookingId = '';
+    let activeLabPayAmount = 650.0;
+    let activeLabPayPatientId = 'PT100842';
+
+    function openLabPayModal(bookingId, patientName, patientId, testName, amount) {
+      activeLabPayBookingId = bookingId;
+      activeLabPayAmount = parseFloat(amount || 650.0);
+      activeLabPayPatientId = patientId || 'PT100842';
+      document.getElementById('labPayLblBookingId').textContent = bookingId;
+      document.getElementById('labPayLblPatient').textContent = (patientName || 'Patient') + ' (' + activeLabPayPatientId + ')';
+      document.getElementById('labPayLblTest').textContent = testName || 'Diagnostic Test';
+      document.getElementById('labPayLblAmount').textContent = '₹' + activeLabPayAmount.toFixed(2);
+      document.getElementById('labPayModal').style.display = 'flex';
+    }
+
+    function closeLabPayModal() {
+      document.getElementById('labPayModal').style.display = 'none';
+    }
+
+    async function submitLabPaymentChoice(method) {
+      if (!activeLabPayBookingId) return;
+      try {
+        const res = await fetch('/api/lab/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookingId: activeLabPayBookingId,
+            patientId: activeLabPayPatientId,
+            paymentMethod: method,
+            amount: activeLabPayAmount
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (method === 'Pay at Counter') {
+            alert('🎟️ Diagnostic test payment routed to Reception Desk for in-person collection!');
+          } else {
+            alert('✅ Payment of ₹' + activeLabPayAmount.toFixed(2) + ' confirmed via ' + method + '!');
+          }
+          closeLabPayModal();
+          fetchBookings();
+        } else {
+          alert('⚠️ Payment update failed: ' + (data.message || 'Error'));
+        }
+      } catch(e) {
+        alert('❌ Error processing payment: ' + e.message);
+      }
+    }
   </script>
+
+  <!-- MODAL: Lab Payment Collection -->
+  <div class="modal-overlay" id="labPayModal" style="display:none;">
+    <div class="modal-box" style="max-width: 480px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:16px;">
+        <h3 style="margin:0; font-family:'Sora'; font-size:1.15rem; color:var(--ink);">💳 Collect Diagnostic Test Fee</h3>
+        <button class="btn btn-secondary" onclick="closeLabPayModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px; margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+          <span style="font-size:0.8rem; color:#64748B;">Booking ID:</span>
+          <strong id="labPayLblBookingId" style="color:var(--primary); font-family:monospace;">-</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+          <span style="font-size:0.8rem; color:#64748B;">Patient:</span>
+          <strong id="labPayLblPatient" style="color:#0F172A;">-</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+          <span style="font-size:0.8rem; color:#64748B;">Test Name:</span>
+          <strong id="labPayLblTest" style="color:#0F172A;">-</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-top:1px dashed #CBD5E1; padding-top:8px; margin-top:8px;">
+          <span style="font-size:0.9rem; font-weight:700;">Fee Due:</span>
+          <strong id="labPayLblAmount" style="font-size:1.15rem; color:#D97706; font-family:'Sora';">₹650.00</strong>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button type="button" class="btn btn-primary" onclick="submitLabPaymentChoice('UPI')" style="padding:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <i class="fa-solid fa-qrcode"></i> Instant UPI / QR Code Payment (Confirmed)
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="submitLabPaymentChoice('Card')" style="padding:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <i class="fa-solid fa-credit-card"></i> Card Swipe / POS Terminal (Confirmed)
+        </button>
+        <button type="button" class="btn btn-warning" onclick="submitLabPaymentChoice('Pay at Counter')" style="padding:12px; font-weight:700; background:#FFFBEB; border:1.5px solid #F59E0B; color:#92400E; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <i class="fa-solid fa-receipt"></i> 🎟️ Pay at Counter (Route to Front Desk Reception)
+        </button>
+      </div>
+
+      <div style="margin-top:16px; text-align:right;">
+        <button type="button" class="btn btn-secondary" onclick="closeLabPayModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL: Lab Daily Report -->
   <div class="modal-overlay" id="labDailyReportModal">

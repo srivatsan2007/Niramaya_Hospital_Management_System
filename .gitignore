@@ -15,3 +15,10 @@ bin/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Generated reports and scratch source files
+Reports/*.pdf
+public/Reports/*.pdf
+sources_win.txt
+sources_linux.txt
+

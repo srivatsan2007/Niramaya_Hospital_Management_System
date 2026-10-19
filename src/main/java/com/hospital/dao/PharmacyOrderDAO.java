@@ -1,5 +1,6 @@
 package com.hospital.dao;
 
+import com.hospital.model.Medicine;
 import com.hospital.model.PharmacyOrder;
 import com.hospital.model.PharmacyOrderItem;
 
@@ -316,7 +317,8 @@ public class PharmacyOrderDAO {
         String sql = "UPDATE pharmacy_orders SET order_status = ?, payment_status = ? WHERE order_id = ? OR pharmacy_token = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            String payStatus = "MEDICINE_DISPENSED".equalsIgnoreCase(orderStatus) ? "Paid" : "Paid";
+            String currentPayStatus = (order != null && order.getPaymentStatus() != null) ? order.getPaymentStatus() : "Unpaid";
+            String payStatus = ("MEDICINE_DISPENSED".equalsIgnoreCase(orderStatus) || "Paid".equalsIgnoreCase(orderStatus)) ? "Paid" : currentPayStatus;
             pstmt.setString(1, orderStatus);
             pstmt.setString(2, payStatus);
             pstmt.setString(3, orderId);
@@ -406,8 +408,87 @@ public class PharmacyOrderDAO {
         return list;
     }
 
+    public List<PharmacyOrder> getUnpaidOrders() {
+        List<PharmacyOrder> list = new ArrayList<>();
+        String sql = "SELECT * FROM pharmacy_orders WHERE UPPER(payment_status) IN ('UNPAID', 'PENDING') ORDER BY order_date DESC";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapResultSetToOrder(rs));
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching unpaid pharmacy orders: " + e.getMessage());
+        }
+        return list;
+    }
+
     public boolean markOrderCompleted(String orderId) {
-        return updateOrderStatus(orderId, "MEDICINE_DISPENSED");
+        if (orderId == null || orderId.trim().isEmpty()) return false;
+        PharmacyOrder order = getOrderById(orderId);
+        if (order == null) return false;
+
+        // Check if already dispensed to prevent duplicate deduction
+        String curStatus = order.getOrderStatus();
+        if (curStatus != null && (curStatus.equalsIgnoreCase("MEDICINE_DISPENSED") || curStatus.equalsIgnoreCase("COMPLETED") || curStatus.equalsIgnoreCase("DISPENSED"))) {
+            return true; // Already processed, do not deduct again
+        }
+
+        // Deduct inventory stock for each line item
+        List<PharmacyOrderItem> items = getOrderItems(order.getOrderId());
+        if (items.isEmpty() && order.getPharmacyToken() != null) {
+            items = getOrderItems(order.getPharmacyToken());
+        }
+
+        MedicineDAO medDAO = new MedicineDAO();
+        for (PharmacyOrderItem it : items) {
+            int qty = it.getQuantity();
+            if (qty <= 0) qty = 1;
+            String medId = it.getMedicineId();
+            String medName = it.getMedicineName();
+
+            // Atomic update to stock_quantity, ensuring non-negative
+            String sqlDeduct = "UPDATE medicines SET stock_quantity = GREATEST(0, stock_quantity - ?), " +
+                               "status = CASE WHEN GREATEST(0, stock_quantity - ?) = 0 THEN 'Out of Stock' " +
+                               "             WHEN GREATEST(0, stock_quantity - ?) <= minimum_stock THEN 'Low Stock' " +
+                               "             ELSE 'In Stock' END, " +
+                               "stock_updated_at = ? WHERE medicine_id = ? OR LOWER(medicine_name) = LOWER(?)";
+            String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            try (Connection conn = DBConnection.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sqlDeduct)) {
+                ps.setInt(1, qty);
+                ps.setInt(2, qty);
+                ps.setInt(3, qty);
+                ps.setString(4, nowStr);
+                ps.setString(5, medId != null ? medId : "");
+                ps.setString(6, medName != null ? medName.trim() : "");
+                ps.executeUpdate();
+            } catch (Exception e) {
+                System.err.println("Error deducting stock for " + medName + ": " + e.getMessage());
+            }
+
+            // Sync with in-memory medicines
+            Medicine med = medDAO.getMedicineById(medId);
+            if (med == null) med = medDAO.getMedicineByName(medName);
+            if (med != null) {
+                int newQty = Math.max(0, med.getStockQuantity() - qty);
+                med.setStockQuantity(newQty);
+                med.setStatus(com.hospital.service.StockManager.calculateStatus(newQty, med.getMinimumStock(), med.getExpiryDate()));
+            }
+        }
+
+        // Update order status to MEDICINE_DISPENSED and payment_status to Paid if needed
+        boolean updated = updateOrderStatus(order.getOrderId(), "MEDICINE_DISPENSED");
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement("UPDATE pharmacy_orders SET stock_deducted = TRUE, medicine_sold_at = ? WHERE order_id = ? OR pharmacy_token = ?")) {
+            String nowStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            ps.setString(1, nowStr);
+            ps.setString(2, order.getOrderId());
+            ps.setString(3, order.getOrderId());
+            ps.executeUpdate();
+        } catch (Exception ignored) {}
+
+        return updated;
     }
 
     private PharmacyOrder mapResultSetToOrder(ResultSet rs) throws SQLException {

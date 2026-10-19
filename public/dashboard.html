@@ -2371,6 +2371,35 @@
       savedName = role.charAt(0).toUpperCase() + role.slice(1) + ' User';
     }
   }
+  currentUserProfile.name = savedName;
+  try { localStorage.setItem(userProfileKey, JSON.stringify(currentUserProfile)); } catch(e){}
+
+  // Auto-clean any stale generic 'Rekha Prasad' from local bookings cache
+  try {
+    let localBookings = JSON.parse(localStorage.getItem(userBookingsKey) || '[]');
+    let modified = false;
+    localBookings.forEach(b => {
+      if (b.patient === 'Rekha Prasad' || b.patientName === 'Rekha Prasad') {
+        b.patient = savedName || 'Patient';
+        b.patientName = savedName || 'Patient';
+        modified = true;
+      }
+    });
+    if (modified) localStorage.setItem(userBookingsKey, JSON.stringify(localBookings));
+  } catch(e){}
+
+  try {
+    let allLocalAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+    let modified = false;
+    allLocalAppts.forEach(b => {
+      if (b.patient === 'Rekha Prasad' || b.patientName === 'Rekha Prasad') {
+        b.patient = savedName || 'Patient';
+        b.patientName = savedName || 'Patient';
+        modified = true;
+      }
+    });
+    if (modified) localStorage.setItem('niramaya_all_appointments', JSON.stringify(allLocalAppts));
+  } catch(e){}
 
   let savedEmail = currentUserProfile.email || currentUserEmail;
   let savedPhone = currentUserProfile.phone || sessionStorage.getItem('niramaya_phone') || '+91 98765 43210';
@@ -3721,13 +3750,12 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
           };
         });
 
-        // Filter out offline doctors for appointment booking
-        return activeDoctorsCache.filter(d => d.isAvailable);
+        return activeDoctorsCache;
       }
     } catch(e) {
       console.error('Error fetching live doctors:', e);
     }
-    return activeDoctorsCache.filter(d => d.isAvailable);
+    return activeDoctorsCache;
   }
 
   // Real-time synchronization when doctor updates status or issues prescription in Doctor Console
@@ -3776,9 +3804,9 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
               doctorName: msg.data.name || 'Dr. Doctor',
               dept: msg.data.dept || 'General Medicine',
               role: `${msg.data.dept || 'General Medicine'} Specialist`,
-              days: msg.data.days || msg.data.workingDays || 'Mon - Sat',
-              workingDays: msg.data.workingDays || msg.data.days || 'Mon - Sat',
-              timing: msg.data.timing || '09:00 AM - 05:00 PM (Mon - Sat)',
+              days: msg.data.days || msg.data.workingDays || 'Mon - Sun',
+              workingDays: msg.data.workingDays || msg.data.days || 'Mon - Sun',
+              timing: msg.data.timing || '09:00 AM - 05:00 PM (Mon - Sun)',
               workingHours: msg.data.workingHours || '09:00 AM - 05:00 PM',
               fee: 800,
               status: msg.data.status || 'Online & Accepting Appointments',
@@ -3859,16 +3887,18 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
         if (!docDept.includes(selDept) && !selDept.includes(docDept)) return false;
       }
 
-      // 2. Registered Working Day Filter:
-      // Doctor must be scheduled to work on the selected day (Today or Tomorrow)
-      if (!isDoctorWorkingOnDay(d.days, selectedDateObj)) {
-        return false;
-      }
-
-      // 3. Live Status Filter:
-      // For Today: Only show doctors who are currently Online and accepting appointments
-      if (selectedBookingDay === 'today' && !d.isAvailable) {
-        return false;
+      // 2. Day & Availability Filter:
+      if (selectedBookingDay === 'today') {
+        // For Today: Only show doctors who are currently Online and on-duty / accepting appointments.
+        // A live online doctor is actively present and bookable today regardless of contract schedule.
+        if (!d.isAvailable) {
+          return false;
+        }
+      } else {
+        // For Tomorrow (Advance Booking): Show doctors scheduled to work on tomorrow's day of week
+        if (!isDoctorWorkingOnDay(d.days, selectedDateObj)) {
+          return false;
+        }
       }
 
       return true;
@@ -4046,7 +4076,8 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
 
         // Populate Ticket Preview Modal & Pre-fill Patient Inputs
         document.getElementById('ticketToken').textContent = activePendingBooking.token;
-        document.getElementById('inputPatientName').value = savedName || 'Guest Patient';
+        const lastBookedPatient = localStorage.getItem('niramaya_last_booked_patient_name');
+        document.getElementById('inputPatientName').value = lastBookedPatient || savedName || '';
         document.getElementById('inputPatientAge').value = savedAge;
         document.getElementById('selectPatientGender').value = savedGender;
         document.getElementById('ticketDept').textContent = activePendingBooking.dept;
@@ -4168,6 +4199,10 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
     activePendingBooking.patientName = patientFullName;
     activePendingBooking.ageGender = `${patientAge} Years / ${patientGender}`;
     activePendingBooking.consultMode = consultMode;
+
+    try {
+      localStorage.setItem('niramaya_last_booked_patient_name', patientFullName);
+    } catch(e) {}
 
     const selectedMethod = document.querySelector('input[name="payMethodGroup"]:checked')?.value || 'upi';
 
@@ -4449,12 +4484,15 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
             || allLocalAppts.find(x => x.token === a.appointmentId || x.appointmentId === a.appointmentId);
 
           let resolvedPatient = '';
-          if (a.patientName && a.patientName.trim() && a.patientName.trim().toLowerCase() !== 'patient') {
-            resolvedPatient = a.patientName.trim();
-          } else if (localMatch && (localMatch.patient || localMatch.patientName) && (localMatch.patient || localMatch.patientName).trim().toLowerCase() !== 'patient') {
-            resolvedPatient = (localMatch.patient || localMatch.patientName).trim();
-          } else if (a.patientName && a.patientName.trim()) {
-            resolvedPatient = a.patientName.trim();
+          const localPName = localMatch ? (localMatch.patient || localMatch.patientName || '').trim() : '';
+          const serverPName = (a.patientName || '').trim();
+
+          const isGeneric = (n) => !n || ['patient', 'guest patient', 'null', 'undefined', 'rekha prasad'].includes(n.toLowerCase());
+
+          if (!isGeneric(localPName)) {
+            resolvedPatient = localPName;
+          } else if (!isGeneric(serverPName)) {
+            resolvedPatient = serverPName;
           } else {
             resolvedPatient = savedName || 'Patient';
           }
@@ -4484,8 +4522,10 @@ BARCODE SYMBOL    : ||| | |||| | ||| |||| ${savedPatientId}
           userBookings.forEach(sb => {
             const lb = localBookings.find(x => x.token === sb.token || x.id === sb.token);
             if (lb) {
-              lb.patient = sb.patient;
-              lb.patientName = sb.patient;
+              if (isGeneric(lb.patient)) {
+                lb.patient = sb.patient;
+                lb.patientName = sb.patient;
+              }
               lb.paymentStatus = sb.paymentStatus;
               lb.status = sb.status;
               lb.isPaid = sb.isPaid;

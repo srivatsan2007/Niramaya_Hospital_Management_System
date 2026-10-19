@@ -9,6 +9,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -84,7 +86,7 @@ public class Server {
 
     private static final Map<String, DemoUser> USERS = new HashMap<>();
     static {
-        USERS.put("patient@niramaya.health", new DemoUser("demo1234", "patient", "Rekha Prasad", "28", "Female", "62",
+        USERS.put("patient@niramaya.health", new DemoUser("demo1234", "patient", "SRIVATSAN R", "28", "Male", "62",
                 "165", "+91 98765 43210", "PT100842", false));
         USERS.put("doctor@niramaya.health", new DemoUser("demo1234", "doctor", "Dr. Ananya Rao", "38", "Female", "58",
                 "168", "+91 98765 43211", "DOC10084", false));
@@ -164,6 +166,7 @@ public class Server {
         // Laboratory Module APIs
         addRoute(server, "/api/lab/bookings", new LabBookingsHandler());
         addRoute(server, "/api/lab/payments", new LabPaymentsHandler());
+        addRoute(server, "/api/lab/pay", new LabPayHandler());
         addRoute(server, "/api/lab/reports", new LabReportsHandler());
 
         // Pharmacy Module APIs
@@ -190,6 +193,10 @@ public class Server {
         addRoute(server, "/api/admin/notifications", new AdminNotificationsHandler());
         addRoute(server, "/api/admin/counter-payments", new AdminCounterPaymentsHandler());
         addRoute(server, "/api/admin/mark-appointment-paid", new AdminMarkAppointmentPaidHandler());
+        addRoute(server, "/api/receptionist/counter-payments", new AdminCounterPaymentsHandler());
+        addRoute(server, "/api/receptionist/mark-appointment-paid", new AdminMarkAppointmentPaidHandler());
+        addRoute(server, "/api/patients", new PatientsHandler());
+        addRoute(server, "/api/doctor/availability", new DoctorAvailabilityHandler());
         addRoute(server, "/api/patient/notifications", new PatientNotificationsHandler());
 
         // Telemedicine & Online Consultation APIs
@@ -410,7 +417,84 @@ public class Server {
                 }
             }
 
-            // 1. Check users table via JDBC
+            // Smart role-guided lookup to find matching user on the very first query
+            boolean isPatientPortal = "patient".equals(portal);
+            boolean checkDocFirst = email.contains("doctor") || email.endsWith("@doctor.in") || email.startsWith("doc");
+            boolean checkPharmFirst = email.contains("pharmacy") || email.endsWith("@pharmacy.in") || email.startsWith("pha");
+            boolean checkLabFirst = email.contains("lab") || email.contains("tech") || email.endsWith("@tech.in") || email.startsWith("lab") || email.startsWith("tech");
+            boolean checkNurseFirst = email.contains("nurse") || email.endsWith("@nurse.in") || email.startsWith("nur");
+            boolean checkStaffFirst = email.contains("admin") || email.contains("staff") || email.contains("reception") || email.startsWith("adm") || email.startsWith("emp");
+
+            // Priority check for targeted role
+            if (!authenticated && checkDocFirst) {
+                Doctor doc = doctorDAO.getDoctorByIdOrEmail(email);
+                if (doc != null && (password.equals(doc.getPassword()) || hashedPassword.equalsIgnoreCase(doc.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "doctor";
+                    name = doc.getName();
+                    phone = doc.getPhone();
+                    userId = doc.getDoctorId();
+                    age = String.valueOf(doc.getAge());
+                    gender = doc.getGender();
+                }
+            }
+
+            if (!authenticated && checkPharmFirst) {
+                PharmacyStaff staff = pharmacyStaffDAO.getStaffByEmail(email);
+                if (staff != null && (password.equals(staff.getPassword()) || hashedPassword.equalsIgnoreCase(staff.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "pharmacy";
+                    name = staff.getName();
+                    phone = staff.getPhone();
+                    userId = staff.getStaffId();
+                    age = String.valueOf(staff.getAge());
+                    gender = staff.getGender();
+                }
+            }
+
+            if (!authenticated && checkLabFirst) {
+                LabTechnician tech = labTechnicianDAO.getTechnicianByEmail(email);
+                if (tech != null && (password.equals(tech.getPassword()) || hashedPassword.equalsIgnoreCase(tech.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "technician";
+                    name = tech.getName();
+                    phone = tech.getPhone();
+                    userId = tech.getTechnicianId();
+                    age = String.valueOf(tech.getAge());
+                }
+            }
+
+            if (!authenticated && checkNurseFirst) {
+                Nurse nurse = nurseDAO.getNurseByEmail(email);
+                if (nurse != null && (password.equals(nurse.getPassword()) || hashedPassword.equalsIgnoreCase(nurse.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "nurse";
+                    name = nurse.getName();
+                    phone = nurse.getPhone();
+                    userId = nurse.getNurseId();
+                    age = "28";
+                    gender = nurse.getGender() != null ? nurse.getGender() : "Female";
+                }
+            }
+
+            if (!authenticated && checkStaffFirst) {
+                Staff staffMember = staffDAO.getStaffByCodeOrEmail(email);
+                if (staffMember != null) {
+                    String sPass = staffMember.getPassword();
+                    if (sPass == null || sPass.isEmpty()) sPass = "demo1234";
+                    if (password.equals(sPass) || hashedPassword.equalsIgnoreCase(sPass) || "demo1234".equals(password)) {
+                        authenticated = true;
+                        String stRole = staffMember.getRole();
+                        if (stRole == null || stRole.isEmpty()) stRole = "staff";
+                        role = stRole.toLowerCase();
+                        name = staffMember.getFullName();
+                        phone = staffMember.getMobile();
+                        userId = staffMember.getEmployeeCode();
+                    }
+                }
+            }
+
+            // Default check in users table (primary for patients)
             if (!authenticated) {
                 String userSql = "SELECT * FROM users WHERE LOWER(email) = LOWER(?)";
                 try (Connection conn = DBConnection.getConnection();
@@ -432,71 +516,59 @@ public class Server {
                 }
             }
 
-            // 2. Check doctors table via JDBC
-            if (!authenticated) {
+            // Fallback checks across remaining tables if still not authenticated
+            if (!authenticated && !checkDocFirst) {
                 Doctor doc = doctorDAO.getDoctorByIdOrEmail(email);
-                if (doc != null) {
-                    if (password.equals(doc.getPassword()) || hashedPassword.equalsIgnoreCase(doc.getPassword()) || "demo1234".equals(password)) {
-                        authenticated = true;
-                        role = "doctor";
-                        name = doc.getName();
-                        phone = doc.getPhone();
-                        userId = doc.getDoctorId();
-                        age = String.valueOf(doc.getAge());
-                        gender = doc.getGender();
-                    }
+                if (doc != null && (password.equals(doc.getPassword()) || hashedPassword.equalsIgnoreCase(doc.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "doctor";
+                    name = doc.getName();
+                    phone = doc.getPhone();
+                    userId = doc.getDoctorId();
+                    age = String.valueOf(doc.getAge());
+                    gender = doc.getGender();
                 }
             }
 
-            // 3. Check pharmacy_staff table via JDBC
-            if (!authenticated) {
+            if (!authenticated && !checkPharmFirst) {
                 PharmacyStaff staff = pharmacyStaffDAO.getStaffByEmail(email);
-                if (staff != null) {
-                    if (password.equals(staff.getPassword()) || hashedPassword.equalsIgnoreCase(staff.getPassword()) || "demo1234".equals(password)) {
-                        authenticated = true;
-                        role = "pharmacy";
-                        name = staff.getName();
-                        phone = staff.getPhone();
-                        userId = staff.getStaffId();
-                        age = String.valueOf(staff.getAge());
-                        gender = staff.getGender();
-                    }
+                if (staff != null && (password.equals(staff.getPassword()) || hashedPassword.equalsIgnoreCase(staff.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "pharmacy";
+                    name = staff.getName();
+                    phone = staff.getPhone();
+                    userId = staff.getStaffId();
+                    age = String.valueOf(staff.getAge());
+                    gender = staff.getGender();
                 }
             }
 
-            // 4. Check lab_technicians table via JDBC
-            if (!authenticated) {
+            if (!authenticated && !checkLabFirst) {
                 LabTechnician tech = labTechnicianDAO.getTechnicianByEmail(email);
-                if (tech != null) {
-                    if (password.equals(tech.getPassword()) || hashedPassword.equalsIgnoreCase(tech.getPassword()) || "demo1234".equals(password)) {
-                        authenticated = true;
-                        role = "technician";
-                        name = tech.getName();
-                        phone = tech.getPhone();
-                        userId = tech.getTechnicianId();
-                        age = String.valueOf(tech.getAge());
-                    }
+                if (tech != null && (password.equals(tech.getPassword()) || hashedPassword.equalsIgnoreCase(tech.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "technician";
+                    name = tech.getName();
+                    phone = tech.getPhone();
+                    userId = tech.getTechnicianId();
+                    age = String.valueOf(tech.getAge());
                 }
             }
 
-            // 5. Check nurses table via JDBC
-            if (!authenticated) {
+            if (!authenticated && !checkNurseFirst) {
                 Nurse nurse = nurseDAO.getNurseByEmail(email);
-                if (nurse != null) {
-                    if (password.equals(nurse.getPassword()) || hashedPassword.equalsIgnoreCase(nurse.getPassword()) || "demo1234".equals(password)) {
-                        authenticated = true;
-                        role = "nurse";
-                        name = nurse.getName();
-                        phone = nurse.getPhone();
-                        userId = nurse.getNurseId();
-                        age = "28";
-                        gender = nurse.getGender() != null ? nurse.getGender() : "Female";
-                    }
+                if (nurse != null && (password.equals(nurse.getPassword()) || hashedPassword.equalsIgnoreCase(nurse.getPassword()) || "demo1234".equals(password))) {
+                    authenticated = true;
+                    role = "nurse";
+                    name = nurse.getName();
+                    phone = nurse.getPhone();
+                    userId = nurse.getNurseId();
+                    age = "28";
+                    gender = nurse.getGender() != null ? nurse.getGender() : "Female";
                 }
             }
 
-            // 6. Check staff table via JDBC (Admin, Receptionist, etc.)
-            if (!authenticated) {
+            if (!authenticated && !checkStaffFirst) {
                 Staff staffMember = staffDAO.getStaffByCodeOrEmail(email);
                 if (staffMember != null) {
                     String sPass = staffMember.getPassword();
@@ -538,7 +610,7 @@ public class Server {
                 else if ("technician".equals(cleanRole) || "lab_tech".equals(cleanRole)) targetDash = "lab-dashboard.html";
                 else if ("pharmacy".equals(cleanRole) || "pharmacist".equals(cleanRole)) targetDash = "pharmacy-dashboard.html";
                 else if ("admin".equals(cleanRole) || "administrator".equals(cleanRole)) targetDash = "admin-dashboard.html";
-                else if ("receptionist".equals(cleanRole) || "reception".equals(cleanRole)) targetDash = "admin-dashboard.html";
+                else if ("receptionist".equals(cleanRole) || "reception".equals(cleanRole)) targetDash = "receptionist-dashboard.html";
 
                 final String finalUserId = userId.isEmpty() ? email : userId;
                 final String finalName = name;
@@ -901,12 +973,13 @@ public class Server {
                 for (int i = 0; i < list.size(); i++) {
                     Appointment a = list.get(i);
                     String pName = a.getPatientName() != null && !a.getPatientName().isEmpty() ? a.getPatientName() : "Patient";
+                    String apptType = a.getAppointmentType() != null && !a.getAppointmentType().isEmpty() ? a.getAppointmentType() : "Online Booking";
                     sb.append(String.format(
-                            "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\"}",
+                            "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"appointmentType\":\"%s\"}",
                             escape(a.getAppointmentId()), escape(a.getPatientId()), escape(pName), escape(a.getDoctorId()),
                             escape(a.getDoctorName()),
                             escape(a.getDepartment()), escape(a.getAppointmentDate()), escape(a.getAppointmentTime()),
-                            escape(a.getStatus()), escape(a.getPaymentStatus())));
+                            escape(a.getStatus()), escape(a.getPaymentStatus()), escape(apptType)));
                     if (i < list.size() - 1)
                         sb.append(",");
                 }
@@ -919,6 +992,14 @@ public class Server {
                 String apptId = fields.getOrDefault("appointmentId", "TK-" + (100000 + new Random().nextInt(900000)));
                 String pId = fields.getOrDefault("patientId", "");
                 String pName = fields.getOrDefault("patientName", fields.getOrDefault("patient", ""));
+                if ((pName.isEmpty() || "Patient".equalsIgnoreCase(pName)) && !pId.isEmpty()) {
+                    try {
+                        com.hospital.model.Patient pt = patientDAO.getPatientById(pId);
+                        if (pt != null && pt.getName() != null && !pt.getName().isEmpty()) {
+                            pName = pt.getName();
+                        }
+                    } catch(Exception ignored){}
+                }
                 if (pName.isEmpty()) pName = "Patient";
                 String docId = fields.getOrDefault("doctorId", "");
                 String dName = fields.getOrDefault("doctorName", "");
@@ -928,13 +1009,24 @@ public class Server {
                         if (d != null && d.getName() != null) dName = d.getName();
                     } catch (Exception ignored) {}
                 }
-                if (dName.isEmpty()) dName = "Attending Physician";
+                if (dName.isEmpty() || dName.contains("Attending")) dName = "Consulting Doctor";
                 String dept = fields.getOrDefault("department", "General Medicine");
                 String date = fields.getOrDefault("appointmentDate", fields.getOrDefault("date", "Today"));
                 String time = fields.getOrDefault("appointmentTime", fields.getOrDefault("time", "10:00 AM"));
                 String consultationType = fields.getOrDefault("consultationType", "Online Consultation");
                 String reqStatus = fields.getOrDefault("status", "Confirmed");
                 String reqPaymentStatus = fields.getOrDefault("paymentStatus", "Paid");
+
+                String targetDoctorRef = !docId.isEmpty() ? docId : dName;
+                if (appointmentDAO.isSlotBooked(targetDoctorRef, date, time)) {
+                    send(exchange, 409, "application/json", "{\"success\":false,\"error\":\"The selected time slot is already booked for this doctor. Please choose another time slot.\"}");
+                    return;
+                }
+
+                String apptType = fields.getOrDefault("appointmentType", fields.getOrDefault("type", ""));
+                if (apptType.isEmpty()) {
+                    apptType = ("Walk-in".equalsIgnoreCase(consultationType) || "Walk-in".equalsIgnoreCase(fields.get("source"))) ? "Walk-in" : "Online Booking";
+                }
 
                 String lowerPay = reqPaymentStatus.toLowerCase();
                 if (lowerPay.contains("offline") || lowerPay.contains("pending") || lowerPay.contains("unpaid") || lowerPay.contains("desk")) {
@@ -944,7 +1036,7 @@ public class Server {
                     }
                 }
 
-                Appointment appt = new Appointment(apptId, pId, pName, docId, dName, dept, date, time, reqStatus, reqPaymentStatus);
+                Appointment appt = new Appointment(apptId, pId, pName, docId, dName, dept, date, time, reqStatus, reqPaymentStatus, apptType);
                 boolean ok = appointmentDAO.createAppointment(appt);
 
                 Map<String, String> nurseAssign = nurseDAO.assignNurseToAppointment(apptId, pId, docId, dName, dept, date, time);
@@ -1204,6 +1296,21 @@ public class Server {
     }
 
 
+    private static String getLabTestFee(String testName) {
+        if (testName == null) return "₹1,200.00";
+        String t = testName.toLowerCase();
+        if (t.contains("blood count") || t.contains("cbc")) return "₹450.00";
+        if (t.contains("lipid")) return "₹750.00";
+        if (t.contains("liver") || t.contains("lft")) return "₹850.00";
+        if (t.contains("kidney") || t.contains("kft")) return "₹750.00";
+        if (t.contains("thyroid")) return "₹600.00";
+        if (t.contains("sugar") || t.contains("glucose") || t.contains("hba1c")) return "₹250.00";
+        if (t.contains("urine")) return "₹300.00";
+        if (t.contains("x-ray") || t.contains("xray")) return "₹500.00";
+        if (t.contains("ecg") || t.contains("electrocardiogram")) return "₹400.00";
+        return "₹1,200.00";
+    }
+
     // GET /api/admin/counter-payments
     static class AdminCounterPaymentsHandler implements HttpHandler {
         @Override
@@ -1213,17 +1320,69 @@ public class Server {
                 return;
             }
             List<Appointment> list = appointmentDAO.getUnpaidAppointments();
+            List<LabBooking> labList = labBookingDAO.getUnpaidLabBookings();
+            List<PharmacyOrder> pharmList = pharmacyOrderDAO.getUnpaidOrders();
+
             StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < list.size(); i++) {
-                Appointment a = list.get(i);
+            boolean first = true;
+
+            // 1. Unpaid Appointments
+            for (Appointment a : list) {
+                if (!first) sb.append(",");
+                first = false;
                 String pName = a.getPatientName() != null && !a.getPatientName().isEmpty() ? a.getPatientName() : "Patient";
+                String docName = a.getDoctorName() != null && !a.getDoctorName().isEmpty() ? a.getDoctorName() : "Consulting Doctor";
+                String dept = a.getDepartment() != null && !a.getDepartment().isEmpty() ? a.getDepartment() : "Doctor Consultation";
                 sb.append(String.format(
                         "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"fee\":\"₹800.00\"}",
                         escape(a.getAppointmentId()), escape(a.getPatientId()), escape(pName), escape(a.getDoctorId()),
-                        escape(a.getDoctorName()), escape(a.getDepartment()), escape(a.getAppointmentDate()),
+                        escape(docName), escape(dept), escape(a.getAppointmentDate()),
                         escape(a.getAppointmentTime()), escape(a.getStatus()), escape(a.getPaymentStatus())));
-                if (i < list.size() - 1) sb.append(",");
             }
+
+            // 2. Unpaid Lab Bookings
+            for (LabBooking b : labList) {
+                if (!first) sb.append(",");
+                first = false;
+                String pName = b.getPatientName() != null && !b.getPatientName().isEmpty() ? b.getPatientName() : "Patient " + b.getPatientId();
+                String docName = b.getDoctorName() != null && !b.getDoctorName().isEmpty() ? b.getDoctorName() : "Pathology Lab";
+                String testName = b.getTestName() != null && !b.getTestName().isEmpty() ? b.getTestName() : "Diagnostic Test";
+                String price = getLabTestFee(testName);
+                sb.append(String.format(
+                        "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"Laboratory: %s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"fee\":\"%s\"}",
+                        escape(b.getBookingId()), escape(b.getPatientId()), escape(pName), escape(b.getDoctorId()),
+                        escape(docName), escape(testName), escape(b.getBookingDate()),
+                        escape(b.getBookingTime()), escape(b.getStatus()), escape(b.getPaymentStatus()), escape(price)));
+            }
+
+            // 3. Unpaid Pharmacy Orders
+            for (PharmacyOrder o : pharmList) {
+                if (!first) sb.append(",");
+                first = false;
+                String pName = "Patient";
+                if (o.getPatientId() != null) {
+                    try {
+                        com.hospital.model.Patient p = patientDAO.getPatientById(o.getPatientId());
+                        if (p != null && p.getName() != null && !p.getName().isEmpty()) {
+                            pName = p.getName();
+                        } else {
+                            pName = o.getPatientId();
+                        }
+                    } catch (Exception ignored) {
+                        pName = o.getPatientId();
+                    }
+                }
+                String docName = o.getDoctorId() != null && !o.getDoctorId().isEmpty() ? o.getDoctorId() : "Pharmacy Desk";
+                String dateStr = o.getOrderDate() != null && o.getOrderDate().length() >= 10 ? o.getOrderDate().substring(0, 10) : (o.getOrderDate() != null ? o.getOrderDate() : "");
+                String timeStr = o.getOrderDate() != null && o.getOrderDate().length() > 11 ? o.getOrderDate().substring(11) : "";
+                String fee = String.format("₹%.2f", o.getTotalAmount() > 0 ? o.getTotalAmount() : 350.0);
+                sb.append(String.format(
+                        "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"Pharmacy Prescription\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"fee\":\"%s\"}",
+                        escape(o.getOrderId()), escape(o.getPatientId()), escape(pName), escape(o.getDoctorId()),
+                        escape(docName), escape(dateStr), escape(timeStr),
+                        escape(o.getOrderStatus()), escape(o.getPaymentStatus()), escape(fee)));
+            }
+
             sb.append("]");
             send(exchange, 200, "application/json", sb.toString());
         }
@@ -1247,8 +1406,284 @@ public class Server {
                 return;
             }
 
-            boolean ok = appointmentDAO.markAppointmentPaidAtCounter(apptId, paymentMode);
+            boolean ok = false;
+            if (apptId.startsWith("LAB-")) {
+                ok = labBookingDAO.updatePaymentStatusAndMethod(apptId, "Paid", paymentMode);
+                String payId = "PAY-" + (100000 + new Random().nextInt(900000));
+                String txnId = "COUNTER-" + System.currentTimeMillis();
+                LabBooking lb = labBookingDAO.getBookingById(apptId);
+                double amt = 1200.0;
+                String pId = "PT100842";
+                if (lb != null) {
+                    pId = lb.getPatientId();
+                    try {
+                        String pr = getLabTestFee(lb.getTestName()).replaceAll("[^0-9.]", "");
+                        if (!pr.isEmpty()) amt = Double.parseDouble(pr);
+                    } catch (Exception ignored) {}
+                }
+                labPaymentDAO.createPayment(new com.hospital.model.LabPayment(payId, apptId, pId, amt, paymentMode, txnId, "Success", new Date().toString()));
+            } else if (apptId.startsWith("ORD-") || apptId.startsWith("PHA-")) {
+                String txnId = "COUNTER-" + System.currentTimeMillis();
+                ok = pharmacyOrderDAO.updatePayment(apptId, paymentMode, txnId, "Paid");
+                pharmacyOrderDAO.updateOrderStatus(apptId, "Payment Completed");
+                try {
+                    PharmacyOrder ord = pharmacyOrderDAO.getOrderById(apptId);
+                    if (ord != null) {
+                        List<PharmacyOrderItem> items = pharmacyOrderDAO.getOrderItems(apptId);
+                        String pName = "Patient";
+                        try {
+                            com.hospital.model.Patient p = patientDAO.getPatientById(ord.getPatientId());
+                            if (p != null && p.getName() != null) pName = p.getName();
+                        } catch (Exception ignored) {}
+                        com.hospital.service.PDFGenerator.generatePharmacyInvoicePDF(ord, items, pName, "Consulting Doctor");
+                    }
+                } catch (Exception ignored) {}
+            } else {
+                ok = appointmentDAO.markAppointmentPaidAtCounter(apptId, paymentMode);
+            }
+
             send(exchange, 200, "application/json", String.format("{\"success\":%b,\"appointmentId\":\"%s\",\"paymentStatus\":\"Paid\",\"status\":\"Confirmed\"}", ok, escape(apptId)));
+        }
+    }
+
+    // GET & POST /api/patients
+    static class PatientsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery();
+                String search = "";
+                String id = "";
+                if (query != null) {
+                    for (String param : query.split("&")) {
+                        String[] pair = param.split("=", 2);
+                        if (pair.length == 2) {
+                            if ("search".equalsIgnoreCase(pair[0])) {
+                                search = URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+                            } else if ("id".equalsIgnoreCase(pair[0])) {
+                                id = URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+                            }
+                        }
+                    }
+                }
+
+                List<com.hospital.model.Patient> list;
+                if (!id.isEmpty()) {
+                    com.hospital.model.Patient p = patientDAO.getPatientById(id);
+                    list = new ArrayList<>();
+                    if (p != null) list.add(p);
+                } else if (!search.isEmpty()) {
+                    list = patientDAO.searchPatients(search);
+                } else {
+                    list = patientDAO.getAllPatients();
+                }
+
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < list.size(); i++) {
+                    com.hospital.model.Patient p = list.get(i);
+                    sb.append(String.format(
+                            "{\"patientId\":\"%s\",\"name\":\"%s\",\"email\":\"%s\",\"phone\":\"%s\",\"age\":%d,\"gender\":\"%s\",\"bloodGroup\":\"%s\"}",
+                            escape(p.getPatientId()), escape(p.getName()), escape(p.getEmail()), escape(p.getPhone()),
+                            p.getAge(), escape(p.getGender()), escape(p.getBloodGroup())));
+                    if (i < list.size() - 1) sb.append(",");
+                }
+                sb.append("]");
+                send(exchange, 200, "application/json", sb.toString());
+            } else if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                Map<String, String> fields = parseJsonFlat(body);
+                String pId = fields.getOrDefault("patientId", "").trim();
+                if (pId.isEmpty()) {
+                    pId = "PT" + (100000 + new Random().nextInt(900000));
+                }
+                String name = fields.getOrDefault("name", "Walk-in Patient").trim();
+                String email = fields.getOrDefault("email", pId.toLowerCase() + "@niramaya.health").trim();
+                String phone = fields.getOrDefault("phone", "+91 98765 00000").trim();
+                int age = 30;
+                try {
+                    age = Integer.parseInt(fields.getOrDefault("age", "30").trim());
+                } catch (Exception ignored) {}
+                String gender = fields.getOrDefault("gender", "Other").trim();
+                String blood = fields.getOrDefault("bloodGroup", "B+").trim();
+
+                com.hospital.model.Patient p = new com.hospital.model.Patient(pId, name, email, phone, age, gender, blood);
+                boolean ok = patientDAO.createPatient(p);
+
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":%b,\"patientId\":\"%s\",\"name\":\"%s\",\"email\":\"%s\",\"phone\":\"%s\",\"age\":%d,\"gender\":\"%s\",\"bloodGroup\":\"%s\"}",
+                        ok, escape(pId), escape(name), escape(email), escape(phone), age, escape(gender), escape(blood)));
+            }
+        }
+    }
+
+    // GET /api/doctor/availability?date=YYYY-MM-DD
+    static class DoctorAvailabilityHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            String query = exchange.getRequestURI().getQuery();
+            String reqDate = "";
+            if (query != null && query.contains("date=")) {
+                reqDate = query.split("date=")[1].split("&")[0];
+            }
+            if (reqDate.isEmpty()) {
+                reqDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            }
+
+            LocalDate parsedDate;
+            try {
+                parsedDate = LocalDate.parse(reqDate);
+            } catch (Exception e) {
+                parsedDate = LocalDate.now();
+                reqDate = parsedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            }
+
+            DayOfWeek dow = parsedDate.getDayOfWeek();
+            List<Doctor> allDocs = doctorDAO.getAllDoctors();
+            List<Appointment> allAppts = appointmentDAO.getAllAppointments();
+
+            StringBuilder sb = new StringBuilder("[");
+            int count = 0;
+            for (Doctor doc : allDocs) {
+                boolean worksToday = isDoctorScheduledOnDay(doc.getWorkingDays(), dow);
+                boolean isActive = doc.isAppointmentAvailable() && !"Offline".equalsIgnoreCase(doc.getAvailableStatus());
+                boolean isAvailable = worksToday && isActive;
+
+                List<String> generatedSlots = generateSlotsForHours(doc.getWorkingHours());
+
+                List<String> bookedSlots = new ArrayList<>();
+                for (Appointment a : allAppts) {
+                    if (a.getStatus() != null && a.getStatus().toLowerCase().contains("cancel")) continue;
+                    boolean sameDoc = (doc.getDoctorId() != null && doc.getDoctorId().equalsIgnoreCase(a.getDoctorId()))
+                            || (doc.getName() != null && doc.getName().equalsIgnoreCase(a.getDoctorName()));
+                    boolean sameDate = isSameDate(a.getAppointmentDate(), reqDate, parsedDate);
+                    if (sameDoc && sameDate) {
+                        String slotTime = normalizeSlotTime(a.getAppointmentTime());
+                        if (slotTime != null && !slotTime.isEmpty() && !bookedSlots.contains(slotTime)) {
+                            bookedSlots.add(slotTime);
+                        }
+                    }
+                }
+
+                List<String> remainingSlots = new ArrayList<>();
+                if (isAvailable) {
+                    for (String slot : generatedSlots) {
+                        if (!bookedSlots.contains(slot)) {
+                            remainingSlots.add(slot);
+                        }
+                    }
+                }
+
+                if (count > 0) sb.append(",");
+                sb.append("{");
+                sb.append("\"doctorId\":\"").append(escape(doc.getDoctorId())).append("\",");
+                sb.append("\"doctorName\":\"").append(escape(doc.getName())).append("\",");
+                sb.append("\"specialization\":\"").append(escape(doc.getCategory())).append("\",");
+                sb.append("\"qualification\":\"").append(escape(doc.getQualification())).append("\",");
+                sb.append("\"consultationFee\":").append(doc.getConsultationFees()).append(",");
+                sb.append("\"workingDays\":\"").append(escape(doc.getWorkingDays())).append("\",");
+                sb.append("\"workingHours\":\"").append(escape(doc.getWorkingHours())).append("\",");
+                sb.append("\"availableStatus\":\"").append(escape(doc.getAvailableStatus())).append("\",");
+                sb.append("\"isAvailableOnDate\":").append(isAvailable).append(",");
+                sb.append("\"totalSlots\":").append(generatedSlots.size()).append(",");
+                sb.append("\"remainingSlotsCount\":").append(remainingSlots.size()).append(",");
+                sb.append("\"bookedSlots\":[");
+                for (int b = 0; b < bookedSlots.size(); b++) {
+                    sb.append("\"").append(escape(bookedSlots.get(b))).append("\"");
+                    if (b < bookedSlots.size() - 1) sb.append(",");
+                }
+                sb.append("],");
+                sb.append("\"availableSlots\":[");
+                for (int a = 0; a < remainingSlots.size(); a++) {
+                    sb.append("\"").append(escape(remainingSlots.get(a))).append("\"");
+                    if (a < remainingSlots.size() - 1) sb.append(",");
+                }
+                sb.append("]");
+                sb.append("}");
+                count++;
+            }
+            sb.append("]");
+            send(exchange, 200, "application/json", sb.toString());
+        }
+    }
+
+    private static boolean isDoctorScheduledOnDay(String workingDays, DayOfWeek dow) {
+        if (workingDays == null || workingDays.trim().isEmpty()) return dow != DayOfWeek.SUNDAY;
+        String s = workingDays.toLowerCase();
+        if (s.contains("sun") || s.contains("all") || s.contains("daily") || s.contains("every") || s.contains("7 days")) return true;
+        if (s.contains("mon - sat") || s.contains("mon-sat") || s.contains("monday - saturday")) {
+            return dow != DayOfWeek.SUNDAY;
+        }
+        if (s.contains("mon - fri") || s.contains("mon-fri") || s.contains("monday - friday")) {
+            return dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY;
+        }
+        switch (dow) {
+            case MONDAY: return s.contains("mon");
+            case TUESDAY: return s.contains("tue");
+            case WEDNESDAY: return s.contains("wed");
+            case THURSDAY: return s.contains("thu");
+            case FRIDAY: return s.contains("fri");
+            case SATURDAY: return s.contains("sat");
+            case SUNDAY: return s.contains("sun");
+            default: return true;
+        }
+    }
+
+    private static List<String> generateSlotsForHours(String workingHours) {
+        List<String> defaultSlots = Arrays.asList(
+            "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+            "12:00 PM", "12:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
+            "04:00 PM", "04:30 PM"
+        );
+        if (workingHours == null || workingHours.trim().isEmpty()) return defaultSlots;
+        try {
+            String[] parts = workingHours.split("-");
+            if (parts.length != 2) return defaultSlots;
+            String startStr = parts[0].trim();
+            String endStr = parts[1].trim();
+            SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.ENGLISH);
+            Date startDate = sdf.parse(startStr);
+            Date endDate = sdf.parse(endStr);
+            if (startDate == null || endDate == null || !endDate.after(startDate)) return defaultSlots;
+
+            List<String> slots = new ArrayList<>();
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(startDate);
+            Calendar endCal = Calendar.getInstance();
+            endCal.setTime(endDate);
+
+            while (cal.before(endCal)) {
+                slots.add(sdf.format(cal.getTime()).toUpperCase());
+                cal.add(Calendar.MINUTE, 30);
+            }
+            return slots.isEmpty() ? defaultSlots : slots;
+        } catch (Exception e) {
+            return defaultSlots;
+        }
+    }
+
+    private static boolean isSameDate(String apptDate, String reqDate, LocalDate targetDate) {
+        if (apptDate == null) return false;
+        String clean = apptDate.trim();
+        if (clean.equalsIgnoreCase(reqDate)) return true;
+        if ("Today".equalsIgnoreCase(clean)) {
+            String todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            return reqDate.equalsIgnoreCase(todayStr);
+        }
+        return false;
+    }
+
+    private static String normalizeSlotTime(String time) {
+        if (time == null || time.trim().isEmpty()) return "";
+        try {
+            SimpleDateFormat inSdf = new SimpleDateFormat("hh:mm a", Locale.ENGLISH);
+            Date d = inSdf.parse(time.trim());
+            return inSdf.format(d).toUpperCase();
+        } catch (Exception e) {
+            return time.trim().toUpperCase();
         }
     }
 
@@ -1629,6 +2064,15 @@ public class Server {
             String payMethod = fields.getOrDefault("paymentMethod", "UPI");
             String txnId = fields.getOrDefault("transactionId", "TXN" + System.currentTimeMillis());
 
+            if ("Pay at Counter".equalsIgnoreCase(payMethod)) {
+                pharmacyOrderDAO.updatePayment(orderId, payMethod, "", "Unpaid");
+                pharmacyOrderDAO.updateOrderStatus(orderId, "Pending Counter Payment");
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":true,\"orderId\":\"%s\",\"paymentStatus\":\"Unpaid\",\"orderStatus\":\"Pending Counter Payment\"}",
+                        escape(orderId)));
+                return;
+            }
+
             pharmacyOrderDAO.updatePayment(orderId, payMethod, txnId, "Paid");
             PharmacyOrder order = pharmacyOrderDAO.getOrderById(orderId);
             List<PharmacyOrderItem> items = pharmacyOrderDAO.getOrderItems(orderId);
@@ -1650,7 +2094,7 @@ public class Server {
                         if (d != null && d.getName() != null) doctorName = d.getName();
                     } catch (Exception ignored) {}
                 }
-                if (doctorName.isEmpty()) doctorName = "Attending Physician";
+                if (doctorName.isEmpty()) doctorName = "Consulting Doctor";
 
                 com.hospital.service.PDFGenerator.generatePharmacyInvoicePDF(order, items, patientName, doctorName);
             }
@@ -1723,7 +2167,9 @@ public class Server {
                     if (p != null && p.getName() != null) patientName = p.getName();
                 } catch (Exception ignored) {}
             }
-            if (patientName.isEmpty()) patientName = "Patient";
+            if (patientName.isEmpty()) {
+                patientName = "Patient";
+            }
 
             String doctorName = "";
             if (query != null && query.contains("doctorName=")) {
@@ -1737,7 +2183,7 @@ public class Server {
                     if (d != null && d.getName() != null) doctorName = d.getName();
                 } catch (Exception ignored) {}
             }
-            if (doctorName.isEmpty()) doctorName = (order != null && order.getDoctorId() != null) ? order.getDoctorId() : "Attending Physician";
+            if (doctorName.isEmpty()) doctorName = "Consulting Doctor";
 
             if (order == null) {
                 double totalAmt = 0.0;
@@ -1995,40 +2441,58 @@ public class Server {
                     list = labBookingDAO.getAllBookings();
                 }
 
-                StringBuilder sb = new StringBuilder("[");
-                for (int i = 0; i < list.size(); i++) {
-                    com.hospital.model.LabBooking b = list.get(i);
-                    sb.append(String.format(
-                            "{\"bookingId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"patientAge\":\"%s\",\"patientGender\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"prescriptionId\":\"%s\",\"testName\":\"%s\",\"bookingDate\":\"%s\",\"bookingTime\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"createdAt\":\"%s\"}",
-                            escape(b.getBookingId()), escape(b.getPatientId()), escape(b.getPatientName()), escape(b.getPatientAge()), escape(b.getPatientGender()),
-                            escape(b.getDoctorId()), escape(b.getDoctorName()), escape(b.getDepartment()),
-                            escape(b.getPrescriptionId()),
-                            escape(b.getTestName()), escape(b.getBookingDate()), escape(b.getBookingTime()),
-                            escape(b.getStatus()), escape(b.getPaymentStatus()), escape(b.getCreatedAt())));
-                    if (i < list.size() - 1)
-                        sb.append(",");
-                }
-                sb.append("]");
-                send(exchange, 200, "application/json", sb.toString());
+                send(exchange, 200, "application/json", formatLabBookingsJsonList(list));
             } else if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                 Map<String, String> fields = parseJsonFlat(body);
 
                 String bookingId = fields.getOrDefault("bookingId", "LAB-" + (100000 + new Random().nextInt(900000)));
                 String pId = fields.getOrDefault("patientId", "");
-                String pName = fields.getOrDefault("patientName", "Patient");
+                String pName = fields.getOrDefault("patientName", "");
                 String pAge = fields.getOrDefault("patientAge", "");
                 String pGender = fields.getOrDefault("patientGender", "");
+
+                if ((pName.isEmpty() || "Patient".equalsIgnoreCase(pName)) && !pId.isEmpty()) {
+                    try {
+                        com.hospital.model.Patient pt = patientDAO.getPatientById(pId);
+                        if (pt != null && pt.getName() != null && !pt.getName().isEmpty()) {
+                            pName = pt.getName();
+                            if (pAge.isEmpty() && pt.getAge() > 0) pAge = pt.getAge() + " Yrs";
+                            if (pGender.isEmpty() && pt.getGender() != null) pGender = pt.getGender();
+                        }
+                    } catch (Exception ignored) {}
+                }
+                if (pName.isEmpty()) pName = "Patient";
+
                 String docId = fields.getOrDefault("doctorId", "");
                 String docName = fields.getOrDefault("doctorName", fields.getOrDefault("docName", ""));
+                String dept = fields.getOrDefault("department", "");
                 if (docName.isEmpty() && !docId.isEmpty()) {
                     try {
                         com.hospital.model.Doctor d = doctorDAO.getDoctorById(docId);
-                        if (d != null && d.getName() != null) docName = d.getName();
+                        if (d != null && d.getName() != null) {
+                            docName = d.getName();
+                            if (dept.isEmpty() && d.getDepartment() != null) dept = d.getDepartment();
+                        }
                     } catch (Exception ignored) {}
                 }
-                if (docName.isEmpty()) docName = "Attending Physician";
-                String dept = fields.getOrDefault("department", "General Medicine");
+                if (docName.isEmpty() || docName.contains("Attending")) {
+                    try {
+                        List<Appointment> appts = appointmentDAO.getAppointmentsByPatient(pId);
+                        if (appts != null && !appts.isEmpty()) {
+                            for (Appointment ap : appts) {
+                                if (ap.getDoctorName() != null && !ap.getDoctorName().isEmpty() && !ap.getDoctorName().contains("Attending")) {
+                                    docName = ap.getDoctorName();
+                                    if (dept.isEmpty() && ap.getDepartment() != null) dept = ap.getDepartment();
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+                if (docName.isEmpty() || docName.contains("Attending")) docName = "Consulting Doctor";
+                if (dept.isEmpty()) dept = "General Medicine";
+
                 String rxId = fields.getOrDefault("prescriptionId", "RX-1001");
                 String testName = fields.getOrDefault("testName", "Routine Lab Panel");
                 String date = fields.getOrDefault("bookingDate", "Today");
@@ -2084,6 +2548,45 @@ public class Server {
         }
     }
 
+    // POST /api/lab/pay
+    static class LabPayHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405, "application/json", "{\"error\":\"Method Not Allowed\"}");
+                return;
+            }
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            Map<String, String> fields = parseJsonFlat(body);
+            String bookingId = fields.getOrDefault("bookingId", "");
+            String patientId = fields.getOrDefault("patientId", "");
+            String paymentMethod = fields.getOrDefault("paymentMethod", "UPI");
+            double amount = 0;
+            try {
+                amount = Double.parseDouble(fields.getOrDefault("amount", "0"));
+            } catch (Exception ignored) {}
+
+            if ("Pay at Counter".equalsIgnoreCase(paymentMethod)) {
+                labBookingDAO.updatePaymentStatusAndMethod(bookingId, "Unpaid", "Pay at Counter");
+                send(exchange, 200, "application/json", String.format(
+                        "{\"success\":true,\"bookingId\":\"%s\",\"paymentStatus\":\"Unpaid\",\"paymentMethod\":\"Pay at Counter\"}",
+                        escape(bookingId)));
+                return;
+            }
+
+            String payId = "PAY-" + (100000 + new Random().nextInt(900000));
+            String txnId = fields.getOrDefault("transactionId", "TXN" + System.currentTimeMillis());
+            labBookingDAO.updatePaymentStatusAndMethod(bookingId, "Paid", paymentMethod);
+            com.hospital.model.LabPayment pay = new com.hospital.model.LabPayment(payId, bookingId, patientId, amount,
+                    paymentMethod, txnId, "Success", new Date().toString());
+            labPaymentDAO.createPayment(pay);
+
+            send(exchange, 200, "application/json", String.format(
+                    "{\"success\":true,\"bookingId\":\"%s\",\"paymentId\":\"%s\",\"transactionId\":\"%s\",\"paymentStatus\":\"Paid\"}",
+                    escape(bookingId), escape(payId), escape(txnId)));
+        }
+    }
+
     // GET & POST /api/lab/reports
     static class LabReportsHandler implements HttpHandler {
         @Override
@@ -2119,13 +2622,70 @@ public class Server {
                 StringBuilder sb = new StringBuilder("[");
                 for (int i = 0; i < list.size(); i++) {
                     com.hospital.model.LabReport r = list.get(i);
+                    String pName = r.getPatientName() != null ? r.getPatientName().trim() : "";
+                    String pAge = r.getPatientAge() != null ? r.getPatientAge().trim() : "";
+                    String pGender = r.getPatientGender() != null ? r.getPatientGender().trim() : "";
+                    if (pName.isEmpty() || "Patient".equalsIgnoreCase(pName)) {
+                        if (r.getPatientId() != null && !r.getPatientId().isEmpty()) {
+                            try {
+                                com.hospital.model.Patient pt = patientDAO.getPatientById(r.getPatientId());
+                                if (pt != null) {
+                                    if (pt.getName() != null && !pt.getName().isEmpty()) pName = pt.getName();
+                                    if (pAge.isEmpty() && pt.getAge() > 0) pAge = pt.getAge() + " Yrs";
+                                    if (pGender.isEmpty() && pt.getGender() != null) pGender = pt.getGender();
+                                }
+                            } catch(Exception ignored){}
+                        }
+                        if ((pName.isEmpty() || "Patient".equalsIgnoreCase(pName)) && r.getBookingId() != null && !r.getBookingId().isEmpty()) {
+                            try {
+                                com.hospital.model.LabBooking bk = labBookingDAO.getBookingById(r.getBookingId());
+                                if (bk != null && bk.getPatientName() != null && !bk.getPatientName().isEmpty()) {
+                                    pName = bk.getPatientName();
+                                    if (pAge.isEmpty() && bk.getPatientAge() != null) pAge = bk.getPatientAge();
+                                    if (pGender.isEmpty() && bk.getPatientGender() != null) pGender = bk.getPatientGender();
+                                }
+                            } catch(Exception ignored){}
+                        }
+                    }
+                    if (pName.isEmpty()) pName = "Patient";
+                    if (pAge.isEmpty()) pAge = "28 Yrs";
+                    if (pGender.isEmpty()) pGender = "Male";
+
+                    String dName = r.getDoctorName() != null ? r.getDoctorName().trim() : "";
+                    String dept = r.getDepartment() != null ? r.getDepartment().trim() : "";
+                    if (dName.isEmpty() || dName.contains("Attending") || dName.equalsIgnoreCase("null")) {
+                        if (r.getDoctorId() != null && !r.getDoctorId().isEmpty()) {
+                            try {
+                                com.hospital.model.Doctor dt = doctorDAO.getDoctorById(r.getDoctorId());
+                                if (dt != null && dt.getName() != null) dName = dt.getName();
+                                if (dept.isEmpty() && dt != null && dt.getDepartment() != null) dept = dt.getDepartment();
+                            } catch(Exception ignored){}
+                        }
+                        if (dName.isEmpty() || dName.contains("Attending")) {
+                            try {
+                                List<Appointment> appts = appointmentDAO.getAppointmentsByPatient(r.getPatientId());
+                                if (appts != null && !appts.isEmpty()) {
+                                    for (Appointment ap : appts) {
+                                        if (ap.getDoctorName() != null && !ap.getDoctorName().isEmpty() && !ap.getDoctorName().contains("Attending")) {
+                                            dName = ap.getDoctorName();
+                                            if (dept.isEmpty() && ap.getDepartment() != null) dept = ap.getDepartment();
+                                            break;
+                                        }
+                                    }
+                                }
+                            } catch(Exception ignored){}
+                        }
+                    }
+                    if (dName.isEmpty() || dName.contains("Attending")) dName = "Consulting Doctor";
+                    if (dept.isEmpty()) dept = "General Medicine";
+
                     sb.append(String.format(
                             "{\"reportId\":\"%s\",\"bookingId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"patientAge\":\"%s\",\"patientGender\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"testName\":\"%s\",\"result\":\"%s\",\"observation\":\"%s\",\"remarks\":\"%s\",\"reportFile\":\"%s\",\"uploadedBy\":\"%s\",\"verifiedBy\":\"%s\",\"reportDate\":\"%s\",\"status\":\"%s\"}",
                             escape(r.getReportId()), escape(r.getBookingId()), escape(r.getPatientId()),
-                            escape(r.getPatientName()),
-                            escape(r.getPatientAge()), escape(r.getPatientGender()), escape(r.getDoctorId()),
-                            escape(r.getDoctorName()),
-                            escape(r.getDepartment()), escape(r.getTestName()), escape(r.getResult()),
+                            escape(pName),
+                            escape(pAge), escape(pGender), escape(r.getDoctorId()),
+                            escape(dName),
+                            escape(dept), escape(r.getTestName()), escape(r.getResult()),
                             escape(r.getObservation()),
                             escape(r.getRemarks()), escape(r.getReportFile()), escape(r.getUploadedBy()),
                             escape(r.getVerifiedBy()),
@@ -2170,14 +2730,32 @@ public class Server {
 
                 String docId = fields.getOrDefault("doctorId", "");
                 String docName = fields.getOrDefault("doctorName", fields.getOrDefault("docName", ""));
+                String dept = fields.getOrDefault("department", "");
                 if (docName.isEmpty() && !docId.isEmpty()) {
                     try {
                         com.hospital.model.Doctor d = doctorDAO.getDoctorById(docId);
-                        if (d != null && d.getName() != null) docName = d.getName();
+                        if (d != null && d.getName() != null) {
+                            docName = d.getName();
+                            if (dept.isEmpty() && d.getDepartment() != null) dept = d.getDepartment();
+                        }
                     } catch (Exception ignored) {}
                 }
-                if (docName.isEmpty()) docName = "Attending Physician";
-                String dept = fields.getOrDefault("department", "General Medicine");
+                if (docName.isEmpty() || docName.contains("Attending")) {
+                    try {
+                        List<Appointment> appts = appointmentDAO.getAppointmentsByPatient(pId);
+                        if (appts != null && !appts.isEmpty()) {
+                            for (Appointment ap : appts) {
+                                if (ap.getDoctorName() != null && !ap.getDoctorName().isEmpty() && !ap.getDoctorName().contains("Attending")) {
+                                    docName = ap.getDoctorName();
+                                    if (dept.isEmpty() || dept.equals("General Medicine")) dept = ap.getDepartment();
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+                if (docName.isEmpty() || docName.contains("Attending")) docName = "Consulting Doctor";
+                if (dept.isEmpty()) dept = "General Medicine";
                 String testName = fields.getOrDefault("testName", "Complete Blood Count (CBC)");
                 String result = fields.getOrDefault("result", "Normal Clinical Limits");
                 String obs = fields.getOrDefault("observation",
@@ -2280,9 +2858,17 @@ public class Server {
     }
 
     private static String stripQuotes(String s) {
+        if (s == null)
+            return "";
         s = s.trim();
-        if (s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2)
-            return s.substring(1, s.length() - 1);
+        while ((s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) ||
+               (s.startsWith("\\\"") && s.endsWith("\\\"") && s.length() >= 4)) {
+            if (s.startsWith("\\\"") && s.endsWith("\\\"")) {
+                s = s.substring(2, s.length() - 2).trim();
+            } else if (s.startsWith("\"") && s.endsWith("\"")) {
+                s = s.substring(1, s.length() - 1).trim();
+            }
+        }
         return s;
     }
 
@@ -3495,22 +4081,37 @@ public class Server {
             if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                 Map<String, String> f = parseJsonFlat(body);
+
+                String pId = f.getOrDefault("patientId", "");
+                String temp = f.getOrDefault("temperature", "").trim();
+                String bp = f.getOrDefault("bloodPressure", "").trim();
+                String spo2 = f.getOrDefault("oxygenSaturation", "").trim();
+                String sugar = f.getOrDefault("bloodSugar", "").trim();
+                String apptId = f.getOrDefault("appointmentId", f.getOrDefault("token", ""));
+
+                if (pId.isEmpty() || temp.isEmpty() || bp.isEmpty() || spo2.isEmpty() || sugar.isEmpty()) {
+                    send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"Required vital signs missing (Temperature, Blood Pressure, SpO2, and Blood Sugar are required)\"}");
+                    return;
+                }
+
                 PatientVital v = new PatientVital(
                         f.get("vitalId"),
-                        f.getOrDefault("patientId", "PT100842"),
+                        pId,
                         f.getOrDefault("nurseId", "NUR10084"),
                         f.getOrDefault("nurseName", "Nurse Priya Sharma"),
-                        f.getOrDefault("temperature", "98.6 °F"),
-                        f.getOrDefault("bloodPressure", "120/80 mmHg"),
-                        f.getOrDefault("pulseRate", "72 bpm"),
-                        f.getOrDefault("respiratoryRate", "18 bpm"),
-                        f.getOrDefault("oxygenSaturation", "98%"),
-                        f.getOrDefault("bloodSugar", "110 mg/dL"),
-                        f.getOrDefault("weight", "65 kg"),
-                        f.getOrDefault("height", "168 cm"),
+                        temp,
+                        bp,
+                        f.getOrDefault("pulseRate", "").trim(),
+                        f.getOrDefault("respiratoryRate", "").trim(),
+                        spo2,
+                        sugar,
+                        f.getOrDefault("weight", "").trim(),
+                        f.getOrDefault("height", "").trim(),
                         f.get("recordedDate"),
                         f.get("recordedTime")
                 );
+                v.setAppointmentId(apptId);
+                v.setNurseNotes(f.getOrDefault("nurseNotes", "Routine vital check by nurse"));
                 boolean ok = nurseDAO.recordVitals(v);
                 send(exchange, 200, "application/json", String.format("{\"success\":%b,\"message\":\"%s\"}", ok, ok ? "Vitals recorded successfully!" : "Failed to record vitals."));
             } else {
@@ -3520,8 +4121,8 @@ public class Server {
                 StringBuilder sb = new StringBuilder("[");
                 for (int i = 0; i < list.size(); i++) {
                     PatientVital v = list.get(i);
-                    sb.append(String.format("{\"vitalId\":\"%s\",\"patientId\":\"%s\",\"nurseName\":\"%s\",\"temperature\":\"%s\",\"bloodPressure\":\"%s\",\"pulseRate\":\"%s\",\"respiratoryRate\":\"%s\",\"oxygenSaturation\":\"%s\",\"bloodSugar\":\"%s\",\"recordedDate\":\"%s\",\"recordedTime\":\"%s\"}",
-                            escape(v.getVitalId()), escape(v.getPatientId()), escape(v.getNurseName()), escape(v.getTemperature()), escape(v.getBloodPressure()), escape(v.getPulseRate()), escape(v.getRespiratoryRate()), escape(v.getOxygenSaturation()), escape(v.getBloodSugar()), escape(v.getRecordedDate()), escape(v.getRecordedTime())));
+                    sb.append(String.format("{\"vitalId\":\"%s\",\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"nurseName\":\"%s\",\"temperature\":\"%s\",\"bloodPressure\":\"%s\",\"pulseRate\":\"%s\",\"respiratoryRate\":\"%s\",\"oxygenSaturation\":\"%s\",\"bloodSugar\":\"%s\",\"recordedDate\":\"%s\",\"recordedTime\":\"%s\"}",
+                            escape(v.getVitalId()), escape(v.getAppointmentId()), escape(v.getPatientId()), escape(v.getNurseName()), escape(v.getTemperature()), escape(v.getBloodPressure()), escape(v.getPulseRate()), escape(v.getRespiratoryRate()), escape(v.getOxygenSaturation()), escape(v.getBloodSugar()), escape(v.getRecordedDate()), escape(v.getRecordedTime())));
                     if (i < list.size() - 1) sb.append(",");
                 }
                 sb.append("]");
@@ -3534,37 +4135,44 @@ public class Server {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             Map<String, String> q = parseQueryParams(exchange.getRequestURI());
-            String patientId = q.getOrDefault("patientId", q.getOrDefault("patient_id", "PT100842"));
-            if (patientId == null || patientId.trim().isEmpty()) {
-                patientId = "PT100842";
+            String patientId = q.getOrDefault("patientId", q.getOrDefault("patient_id", ""));
+            String appointmentId = q.getOrDefault("appointmentId", q.getOrDefault("token", ""));
+
+            PatientVital v = null;
+            if (appointmentId != null && !appointmentId.trim().isEmpty()) {
+                v = nurseDAO.getVitalsForAppointment(appointmentId.trim());
+            }
+            if (v == null && patientId != null && !patientId.trim().isEmpty()) {
+                List<PatientVital> list = nurseDAO.getVitalsForPatient(patientId.trim());
+                if (list != null && !list.isEmpty()) {
+                    v = list.get(0);
+                }
             }
 
-            List<PatientVital> list = nurseDAO.getVitalsForPatient(patientId.trim());
-            if (list != null && !list.isEmpty()) {
-                PatientVital v = list.get(0);
+            if (v != null) {
                 String resp = String.format(
-                    "{\"hasVitals\":true,\"vitalId\":\"%s\",\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"nurseId\":\"%s\",\"nurseName\":\"%s\",\"bloodPressure\":\"%s\",\"temperature\":\"%s\",\"weight\":\"%s\",\"height\":\"%s\",\"pulseRate\":\"%s\",\"oxygenSaturation\":\"%s\",\"bloodSugar\":\"%s\",\"symptoms\":\"%s\",\"nurseNotes\":\"%s\",\"recordedDate\":\"%s\",\"recordedTime\":\"%s\"}",
+                    "{\"hasVitals\":true,\"vitalId\":\"%s\",\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"nurseId\":\"%s\",\"nurseName\":\"%s\",\"bloodPressure\":\"%s\",\"temperature\":\"%s\",\"weight\":\"%s\",\"height\":\"%s\",\"pulseRate\":\"%s\",\"oxygenSaturation\":\"%s\",\"bloodSugar\":\"%s\",\"symptoms\":\"%s\",\"nurseNotes\":\"%s\",\"recordedDate\":\"%s\",\"recordedTime\":\"%s\",\"status\":\"Completed Assessment\"}",
                     escape(v.getVitalId() != null ? v.getVitalId() : ""),
-                    escape(v.getPatientId() != null ? v.getPatientId() : ""),
+                    escape(v.getAppointmentId() != null ? v.getAppointmentId() : ""),
                     escape(v.getPatientId() != null ? v.getPatientId() : ""),
                     escape(v.getNurseId() != null ? v.getNurseId() : ""),
                     escape(v.getNurseName() != null ? v.getNurseName() : "Nurse Priya Sharma"),
-                    escape(v.getBloodPressure() != null ? v.getBloodPressure() : "120/80 mmHg"),
-                    escape(v.getTemperature() != null ? v.getTemperature() : "98.6 °F"),
-                    escape(v.getWeight() != null ? v.getWeight() : "68 kg"),
-                    escape(v.getHeight() != null ? v.getHeight() : "170 cm"),
-                    escape(v.getPulseRate() != null ? v.getPulseRate() : "74 bpm"),
-                    escape(v.getOxygenSaturation() != null ? v.getOxygenSaturation() : "98%"),
-                    escape(v.getBloodSugar() != null ? v.getBloodSugar() : "110 mg/dL"),
+                    escape(v.getBloodPressure() != null ? v.getBloodPressure() : ""),
+                    escape(v.getTemperature() != null ? v.getTemperature() : ""),
+                    escape(v.getWeight() != null ? v.getWeight() : ""),
+                    escape(v.getHeight() != null ? v.getHeight() : ""),
+                    escape(v.getPulseRate() != null ? v.getPulseRate() : ""),
+                    escape(v.getOxygenSaturation() != null ? v.getOxygenSaturation() : ""),
+                    escape(v.getBloodSugar() != null ? v.getBloodSugar() : ""),
                     escape("Stable"),
-                    escape("Routine vital check by nurse"),
+                    escape(v.getNurseNotes() != null ? v.getNurseNotes() : "Routine vital check by nurse"),
                     escape(v.getRecordedDate() != null ? v.getRecordedDate() : ""),
                     escape(v.getRecordedTime() != null ? v.getRecordedTime() : "")
                 );
                 send(exchange, 200, "application/json", resp);
                 return;
             }
-            send(exchange, 200, "application/json", "{\"hasVitals\":false,\"message\":\"No vital checks recorded yet for this patient.\"}");
+            send(exchange, 200, "application/json", "{\"hasVitals\":false,\"message\":\"Pending Nurse Assessment: No vital checks recorded yet for this patient/appointment.\"}");
         }
     }
 
@@ -3804,15 +4412,25 @@ public class Server {
             if ("POST".equalsIgnoreCase(method)) {
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                 Map<String, String> f = parseJsonFlat(body);
+                String ptId = f.getOrDefault("patientId", "");
+                String ptName = f.getOrDefault("patientName", "");
+                if (ptName.isEmpty() && !ptId.isEmpty()) {
+                    try {
+                        com.hospital.model.Patient p = patientDAO.getPatientById(ptId);
+                        if (p != null && p.getName() != null) ptName = p.getName();
+                    } catch(Exception ignored){}
+                }
+                if (ptName.isEmpty()) ptName = "Patient";
+
                 EmergencyAlert alert = new EmergencyAlert(
                         f.get("alertId"),
-                        f.getOrDefault("patientId", "PT100842"),
-                        f.getOrDefault("patientName", "Rekha Prasad"),
-                        f.getOrDefault("roomNumber", "ICU-302"),
-                        f.getOrDefault("ward", "ICU Ward 3"),
-                        f.getOrDefault("nurseId", "NUR10084"),
-                        f.getOrDefault("nurseName", "Nurse Priya Sharma"),
-                        f.getOrDefault("alertType", "Low Oxygen Level (SpO2 < 88%)"),
+                        ptId,
+                        ptName,
+                        f.getOrDefault("roomNumber", "Room-101"),
+                        f.getOrDefault("ward", "General Ward"),
+                        f.getOrDefault("nurseId", "NUR-STAFF"),
+                        f.getOrDefault("nurseName", f.getOrDefault("nurse", "Staff Nurse")),
+                        f.getOrDefault("alertType", "Emergency Medical Assistance Required"),
                         new SimpleDateFormat("hh:mm a").format(new Date())
                 );
                 boolean ok = nurseDAO.createEmergencyAlert(alert);
@@ -3993,12 +4611,34 @@ public class Server {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < list.size(); i++) {
             Appointment a = list.get(i);
-            String pName = a.getPatientName() != null && !a.getPatientName().isEmpty() ? a.getPatientName() : "Patient";
+            String pName = a.getPatientName() != null ? a.getPatientName().trim() : "";
+            if (pName.isEmpty() && a.getPatientId() != null && !a.getPatientId().isEmpty()) {
+                try {
+                    com.hospital.model.Patient pt = patientDAO.getPatientById(a.getPatientId());
+                    if (pt != null && pt.getName() != null && !pt.getName().isEmpty()) {
+                        pName = pt.getName();
+                    }
+                } catch(Exception ignored){}
+            }
+            if (pName.isEmpty()) pName = "Patient";
+
+            String dName = a.getDoctorName() != null ? a.getDoctorName().trim() : "";
+            if (dName.isEmpty() && a.getDoctorId() != null && !a.getDoctorId().isEmpty()) {
+                try {
+                    com.hospital.model.Doctor dt = doctorDAO.getDoctorById(a.getDoctorId());
+                    if (dt != null && dt.getName() != null && !dt.getName().isEmpty()) {
+                        dName = dt.getName();
+                    }
+                } catch(Exception ignored){}
+            }
+            if (dName.isEmpty()) dName = "Consulting Doctor";
+
+            String apptType = a.getAppointmentType() != null && !a.getAppointmentType().isEmpty() ? a.getAppointmentType() : "Online Booking";
             sb.append(String.format(
-                "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\"}",
-                escape(a.getAppointmentId()), escape(a.getPatientId()), escape(pName), escape(a.getDoctorId()), escape(a.getDoctorName()),
+                "{\"appointmentId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"appointmentType\":\"%s\"}",
+                escape(a.getAppointmentId()), escape(a.getPatientId()), escape(pName), escape(a.getDoctorId()), escape(dName),
                 escape(a.getDepartment()), escape(a.getAppointmentDate()), escape(a.getAppointmentTime()),
-                escape(a.getStatus()), escape(a.getPaymentStatus())
+                escape(a.getStatus()), escape(a.getPaymentStatus()), escape(apptType)
             ));
             if (i < list.size() - 1) sb.append(",");
         }
@@ -4026,9 +4666,55 @@ public class Server {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < list.size(); i++) {
             LabBooking b = list.get(i);
+            String pName = b.getPatientName() != null ? b.getPatientName().trim() : "";
+            String pAge = b.getPatientAge() != null ? b.getPatientAge().trim() : "";
+            String pGender = b.getPatientGender() != null ? b.getPatientGender().trim() : "";
+            if (b.getPatientId() != null && !b.getPatientId().isEmpty()) {
+                try {
+                    com.hospital.model.Patient pt = patientDAO.getPatientById(b.getPatientId());
+                    if (pt != null) {
+                        if (pName.isEmpty() && pt.getName() != null && !pt.getName().isEmpty()) pName = pt.getName();
+                        if (pAge.isEmpty() && pt.getAge() > 0) pAge = pt.getAge() + " Yrs";
+                        if (pGender.isEmpty() && pt.getGender() != null && !pt.getGender().isEmpty()) pGender = pt.getGender();
+                    }
+                } catch(Exception ignored){}
+            }
+            if (pName.isEmpty()) pName = "Patient";
+            if (pAge.isEmpty()) pAge = "28 Yrs";
+            if (pGender.isEmpty()) pGender = "Male";
+
+            String dName = b.getDoctorName() != null ? b.getDoctorName().trim() : "";
+            String dept = b.getDepartment() != null ? b.getDepartment().trim() : "";
+            if (b.getDoctorId() != null && !b.getDoctorId().isEmpty()) {
+                try {
+                    com.hospital.model.Doctor dt = doctorDAO.getDoctorById(b.getDoctorId());
+                    if (dt != null) {
+                        if (dName.isEmpty() && dt.getName() != null && !dt.getName().isEmpty()) dName = dt.getName();
+                        if (dept.isEmpty() && dt.getDepartment() != null && !dt.getDepartment().isEmpty()) dept = dt.getDepartment();
+                    }
+                } catch(Exception ignored){}
+            }
+            if (dName.isEmpty() || dName.contains("Attending") || dName.equalsIgnoreCase("null")) {
+                try {
+                    List<Appointment> appts = appointmentDAO.getAppointmentsByPatient(b.getPatientId());
+                    if (appts != null && !appts.isEmpty()) {
+                        for (Appointment ap : appts) {
+                            if (ap.getDoctorName() != null && !ap.getDoctorName().isEmpty() && !ap.getDoctorName().contains("Attending")) {
+                                dName = ap.getDoctorName();
+                                if (dept.isEmpty() && ap.getDepartment() != null && !ap.getDepartment().isEmpty()) dept = ap.getDepartment();
+                                break;
+                            }
+                        }
+                    }
+                } catch(Exception ignored){}
+            }
+            if (dName.isEmpty()) dName = "Consulting Doctor";
+            if (dept.isEmpty()) dept = "General Medicine";
+
             sb.append(String.format(
-                "{\"bookingId\":\"%s\",\"patientId\":\"%s\",\"doctorId\":\"%s\",\"prescriptionId\":\"%s\",\"testName\":\"%s\",\"bookingDate\":\"%s\",\"bookingTime\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"createdAt\":\"%s\"}",
-                escape(b.getBookingId()), escape(b.getPatientId()), escape(b.getDoctorId()), escape(b.getPrescriptionId()),
+                "{\"bookingId\":\"%s\",\"patientId\":\"%s\",\"patientName\":\"%s\",\"patientAge\":\"%s\",\"patientGender\":\"%s\",\"doctorId\":\"%s\",\"doctorName\":\"%s\",\"department\":\"%s\",\"prescriptionId\":\"%s\",\"testName\":\"%s\",\"bookingDate\":\"%s\",\"bookingTime\":\"%s\",\"status\":\"%s\",\"paymentStatus\":\"%s\",\"createdAt\":\"%s\"}",
+                escape(b.getBookingId()), escape(b.getPatientId()), escape(pName), escape(pAge), escape(pGender),
+                escape(b.getDoctorId()), escape(dName), escape(dept), escape(b.getPrescriptionId()),
                 escape(b.getTestName()), escape(b.getBookingDate()), escape(b.getBookingTime()), escape(b.getStatus()),
                 escape(b.getPaymentStatus()), escape(b.getCreatedAt())
             ));
@@ -4654,6 +5340,25 @@ public class Server {
             Map<String, String> m = parseJsonFlat(body);
             String admissionId = m.getOrDefault("admissionId", "").trim();
             String dischargeDate = m.getOrDefault("dischargeDate", new SimpleDateFormat("yyyy-MM-dd").format(new Date())).trim();
+
+            if (admissionId.isEmpty()) {
+                String pId = m.getOrDefault("patientId", "").trim();
+                String bId = m.getOrDefault("bedId", m.getOrDefault("bedNumber", "")).trim();
+                if (!pId.isEmpty() || !bId.isEmpty()) {
+                    try (Connection conn = DBConnection.getConnection();
+                         PreparedStatement ps = conn.prepareStatement(
+                                 "SELECT admission_id FROM ipd_admissions WHERE status = 'Admitted' AND (patient_id = ? OR bed_id = ? OR bed_number = ?) ORDER BY created_at DESC LIMIT 1")) {
+                        ps.setString(1, pId);
+                        ps.setString(2, bId);
+                        ps.setString(3, bId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                admissionId = rs.getString("admission_id");
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
 
             if (admissionId.isEmpty()) {
                 send(exchange, 400, "application/json", "{\"success\":false,\"message\":\"admissionId is required\"}");

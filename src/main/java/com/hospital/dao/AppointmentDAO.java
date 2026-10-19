@@ -15,7 +15,8 @@ public class AppointmentDAO {
 
     public boolean createAppointment(Appointment appt) {
         String pName = appt.getPatientName() != null && !appt.getPatientName().trim().isEmpty() ? appt.getPatientName().trim() : "Patient";
-        String sql = "INSERT INTO appointments (appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String apptType = appt.getAppointmentType() != null ? appt.getAppointmentType() : "Online Booking";
+        String sql = "INSERT INTO appointments (appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status, appointment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, appt.getAppointmentId());
@@ -28,27 +29,54 @@ public class AppointmentDAO {
             ps.setString(8, appt.getAppointmentTime());
             ps.setString(9, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
             ps.setString(10, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
+            ps.setString(11, apptType);
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            String fallbackSql = "INSERT INTO appointments (appointment_id, patient_id, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String fallbackSql = "INSERT INTO appointments (appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, appointment_date, appointment_time, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             try (Connection conn = DBConnection.getConnection();
                  PreparedStatement ps = conn.prepareStatement(fallbackSql)) {
                 ps.setString(1, appt.getAppointmentId());
                 ps.setString(2, appt.getPatientId());
-                ps.setString(3, appt.getDoctorId());
-                ps.setString(4, appt.getDoctorName());
-                ps.setString(5, appt.getDepartment());
-                ps.setString(6, appt.getAppointmentDate());
-                ps.setString(7, appt.getAppointmentTime());
-                ps.setString(8, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
-                ps.setString(9, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
+                ps.setString(3, pName);
+                ps.setString(4, appt.getDoctorId());
+                ps.setString(5, appt.getDoctorName());
+                ps.setString(6, appt.getDepartment());
+                ps.setString(7, appt.getAppointmentDate());
+                ps.setString(8, appt.getAppointmentTime());
+                ps.setString(9, appt.getStatus() != null ? appt.getStatus() : "Confirmed");
+                ps.setString(10, appt.getPaymentStatus() != null ? appt.getPaymentStatus() : "Paid");
                 return ps.executeUpdate() > 0;
             } catch (SQLException ex) {
                 System.err.println("Error creating appointment: " + ex.getMessage());
                 return false;
             }
         }
+    }
+
+    public boolean isSlotBooked(String doctorIdOrName, String date, String time) {
+        if (doctorIdOrName == null || date == null || time == null) return false;
+        String doc = doctorIdOrName.trim().toLowerCase();
+        String sql = "SELECT COUNT(*) FROM appointments WHERE (LOWER(doctor_id) = ? OR LOWER(doctor_name) = ? OR LOWER(doctor_name) LIKE ?) AND (appointment_date = ? OR (LOWER(?) = 'today' AND (LOWER(appointment_date) = 'today' OR SUBSTR(created_at,1,10) = ?))) AND appointment_time = ? AND UPPER(status) NOT IN ('CANCELLED', 'REJECTED')";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            String todayStr = java.time.LocalDate.now().toString();
+            ps.setString(1, doc);
+            ps.setString(2, doc);
+            ps.setString(3, "%" + doc + "%");
+            ps.setString(4, date);
+            ps.setString(5, date);
+            ps.setString(6, todayStr);
+            ps.setString(7, time);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking slot booking: " + e.getMessage());
+        }
+        return false;
     }
 
     public boolean updateAppointmentStatus(String appointmentId, String status) {
@@ -59,12 +87,6 @@ public class AppointmentDAO {
             ps.setString(2, appointmentId);
 
             int rows = ps.executeUpdate();
-            if (rows == 0 && appointmentId != null && !appointmentId.trim().isEmpty()) {
-                String todayStr = java.time.LocalDate.now().toString();
-                Appointment appt = new Appointment(appointmentId, "PT100842", "DOC10084", "Dr. Ananya Rao", "General Medicine", todayStr, "10:00 AM", status, "Paid");
-                createAppointment(appt);
-                return true;
-            }
             return rows > 0;
         } catch (SQLException e) {
             System.err.println("Error updating appointment status: " + e.getMessage());
@@ -459,8 +481,66 @@ public class AppointmentDAO {
         try {
             patientName = rs.getString("patient_name");
         } catch (Exception ignored) {}
+        if (patientName == null || patientName.trim().isEmpty() || "Patient".equalsIgnoreCase(patientName.trim())) {
+            try {
+                String pid = rs.getString("patient_id");
+                if (pid != null && !pid.isEmpty()) {
+                    try (PreparedStatement psP = rs.getStatement().getConnection().prepareStatement("SELECT name FROM patients WHERE patient_id = ? LIMIT 1")) {
+                        psP.setString(1, pid);
+                        try (ResultSet rsP = psP.executeQuery()) {
+                            if (rsP.next()) {
+                                String dbName = rsP.getString("name");
+                                if (dbName != null && !dbName.trim().isEmpty()) {
+                                    patientName = dbName.trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
         if (patientName == null || patientName.trim().isEmpty()) {
             patientName = "Patient";
+        }
+
+        String doctorName = "";
+        try {
+            doctorName = rs.getString("doctor_name");
+        } catch (Exception ignored) {}
+        if (doctorName == null || doctorName.trim().isEmpty() || doctorName.toLowerCase().contains("attending")) {
+            try {
+                String docId = rs.getString("doctor_id");
+                if (docId != null && !docId.isEmpty()) {
+                    try (PreparedStatement psD = rs.getStatement().getConnection().prepareStatement("SELECT name, doctor_name FROM doctors WHERE doctor_id = ? LIMIT 1")) {
+                        psD.setString(1, docId);
+                        try (ResultSet rsD = psD.executeQuery()) {
+                            if (rsD.next()) {
+                                String dName = rsD.getString("name");
+                                if (dName == null || dName.isEmpty()) dName = rsD.getString("doctor_name");
+                                if (dName != null && !dName.trim().isEmpty()) {
+                                    doctorName = dName.trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        if (doctorName == null || doctorName.trim().isEmpty()) {
+            doctorName = "Consulting Doctor";
+        }
+
+        String apptType = "Online Booking";
+        try {
+            apptType = rs.getString("appointment_type");
+        } catch (Exception ignored) {}
+        if (apptType == null || apptType.trim().isEmpty()) {
+            String id = rs.getString("appointment_id");
+            if (id != null && (id.startsWith("WLK-") || id.startsWith("#WLK-") || id.toLowerCase().contains("walk"))) {
+                apptType = "Walk-in";
+            } else {
+                apptType = "Online Booking";
+            }
         }
 
         return new Appointment(
@@ -468,12 +548,13 @@ public class AppointmentDAO {
             rs.getString("patient_id"),
             patientName,
             rs.getString("doctor_id"),
-            rs.getString("doctor_name"),
+            doctorName,
             rs.getString("department"),
             rs.getString("appointment_date"),
             rs.getString("appointment_time"),
             rs.getString("status"),
-            rs.getString("payment_status")
+            rs.getString("payment_status"),
+            apptType
         );
     }
 }

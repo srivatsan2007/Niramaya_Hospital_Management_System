@@ -49,6 +49,28 @@ public class LoginSecurityDAO {
         return LocalDateTime.now(KOLKATA_ZONE).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
+    private static class AttemptCacheEntry {
+        final int failedCount;
+        final boolean isLocked;
+        final long cachedAt;
+
+        AttemptCacheEntry(int failedCount, boolean isLocked) {
+            this.failedCount = failedCount;
+            this.isLocked = isLocked;
+            this.cachedAt = System.currentTimeMillis();
+        }
+    }
+
+    private static final java.util.concurrent.ConcurrentHashMap<String, AttemptCacheEntry> attemptCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile String cachedDate = "";
+
+    private static void checkDateRollover(String today) {
+        if (!today.equals(cachedDate)) {
+            attemptCache.clear();
+            cachedDate = today;
+        }
+    }
+
     /**
      * Checks if account has reached maximum daily failed attempts.
      */
@@ -56,6 +78,12 @@ public class LoginSecurityDAO {
         if (accountIdentifier == null || accountIdentifier.trim().isEmpty()) return false;
         String normalized = accountIdentifier.trim().toLowerCase();
         String today = getCurrentKolkataDate();
+        checkDateRollover(today);
+
+        AttemptCacheEntry entry = attemptCache.get(normalized);
+        if (entry != null && (System.currentTimeMillis() - entry.cachedAt < 60000)) {
+            return entry.isLocked;
+        }
 
         String sql = "SELECT failed_count, is_locked FROM login_attempts WHERE LOWER(account_identifier) = ? AND attempt_date = ?";
         try (Connection conn = DBConnection.getConnection();
@@ -66,7 +94,12 @@ public class LoginSecurityDAO {
                 if (rs.next()) {
                     int count = rs.getInt("failed_count");
                     int locked = rs.getInt("is_locked");
-                    return locked == 1 || count >= MAX_FAILED_ATTEMPTS;
+                    boolean isLock = locked == 1 || count >= MAX_FAILED_ATTEMPTS;
+                    attemptCache.put(normalized, new AttemptCacheEntry(count, isLock));
+                    return isLock;
+                } else {
+                    attemptCache.put(normalized, new AttemptCacheEntry(0, false));
+                    return false;
                 }
             }
         } catch (SQLException e) {
@@ -82,15 +115,28 @@ public class LoginSecurityDAO {
         if (accountIdentifier == null || accountIdentifier.trim().isEmpty()) return 0;
         String normalized = accountIdentifier.trim().toLowerCase();
         String today = getCurrentKolkataDate();
+        checkDateRollover(today);
 
-        String sql = "SELECT failed_count FROM login_attempts WHERE LOWER(account_identifier) = ? AND attempt_date = ?";
+        AttemptCacheEntry entry = attemptCache.get(normalized);
+        if (entry != null && (System.currentTimeMillis() - entry.cachedAt < 60000)) {
+            return entry.failedCount;
+        }
+
+        String sql = "SELECT failed_count, is_locked FROM login_attempts WHERE LOWER(account_identifier) = ? AND attempt_date = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, normalized);
             ps.setString(2, today);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("failed_count");
+                    int count = rs.getInt("failed_count");
+                    int locked = rs.getInt("is_locked");
+                    boolean isLock = locked == 1 || count >= MAX_FAILED_ATTEMPTS;
+                    attemptCache.put(normalized, new AttemptCacheEntry(count, isLock));
+                    return count;
+                } else {
+                    attemptCache.put(normalized, new AttemptCacheEntry(0, false));
+                    return 0;
                 }
             }
         } catch (SQLException e) {
@@ -112,6 +158,8 @@ public class LoginSecurityDAO {
         int currentCount = getFailedAttempts(normalized);
         int newCount = currentCount + 1;
         int isLocked = newCount >= MAX_FAILED_ATTEMPTS ? 1 : 0;
+
+        attemptCache.put(normalized, new AttemptCacheEntry(newCount, isLocked == 1));
 
         String upsertSql;
         if (DBConnection.isPostgreSQL()) {
@@ -159,6 +207,7 @@ public class LoginSecurityDAO {
         if (accountIdentifier == null) return;
         String normalized = accountIdentifier.trim().toLowerCase();
         String today = getCurrentKolkataDate();
+        attemptCache.put(normalized, new AttemptCacheEntry(0, false));
         String sql = "DELETE FROM login_attempts WHERE LOWER(account_identifier) = ? AND attempt_date = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {

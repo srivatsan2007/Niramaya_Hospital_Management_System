@@ -735,16 +735,16 @@
               onclick="filterNurseBedBlock('ALL', this)">All Blocks</button>
             <button class="nurse-block-btn"
               style="padding:6px 14px; border-radius:8px; border:1px solid #CBD5E1; background:#fff; color:#334155; font-weight:600; cursor:pointer;"
-              onclick="filterNurseBedBlock('Block A (Surgical)', this)">Block A (Surgical)</button>
+              onclick="filterNurseBedBlock('Block A', this)">Block A (North Wing)</button>
             <button class="nurse-block-btn"
               style="padding:6px 14px; border-radius:8px; border:1px solid #CBD5E1; background:#fff; color:#334155; font-weight:600; cursor:pointer;"
-              onclick="filterNurseBedBlock('Block B (Medical)', this)">Block B (Medical)</button>
+              onclick="filterNurseBedBlock('Block B', this)">Block B (South Wing)</button>
             <button class="nurse-block-btn"
               style="padding:6px 14px; border-radius:8px; border:1px solid #CBD5E1; background:#fff; color:#334155; font-weight:600; cursor:pointer;"
-              onclick="filterNurseBedBlock('Block C (Pediatric & Maternity)', this)">Block C (Maternity)</button>
+              onclick="filterNurseBedBlock('Block C', this)">Block C (Critical Care)</button>
             <button class="nurse-block-btn"
               style="padding:6px 14px; border-radius:8px; border:1px solid #CBD5E1; background:#fff; color:#334155; font-weight:600; cursor:pointer;"
-              onclick="filterNurseBedBlock('Block D (ICU / HDU)', this)">Block D (ICU)</button>
+              onclick="filterNurseBedBlock('Block D', this)">Block D (Maternity & Child)</button>
           </div>
 
           <!-- Bed Cards Grid -->
@@ -1227,6 +1227,7 @@
           const compTasks = await compRes.json();
 
           document.getElementById('statPatients').textContent = pts.length;
+          loadNurseIpdBeds();
 
           let ptHtml = '';
           if (pts.length === 0) {
@@ -1391,23 +1392,62 @@
 
       async function submitVitals(e) {
         e.preventDefault();
-        await fetch('/api/nurse/vitals', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientId: activeVitalsPatientId,
-            appointmentId: activeVitalsApptId,
-            temperature: document.getElementById('vTemp').value,
-            bloodPressure: document.getElementById('vBp').value,
-            pulseRate: document.getElementById('vPulse').value,
-            oxygenSaturation: document.getElementById('vSpO2').value,
-            bloodSugar: document.getElementById('vSugar').value,
-            nurseNotes: 'Routine clinical vital check'
-          })
-        });
-        closeModal('modal-vitals');
-        refreshNurseData();
-        alert('Vitals recorded successfully for ' + activeVitalsPatientId + '!');
+        const temp = document.getElementById('vTemp').value.trim();
+        const bp = document.getElementById('vBp').value.trim();
+        const pulse = document.getElementById('vPulse').value.trim();
+        const spo2 = document.getElementById('vSpO2').value.trim();
+        const sugar = document.getElementById('vSugar').value.trim();
+
+        if (!temp) {
+          alert('⚠️ Please enter Patient Temperature (e.g. 98.6°F or 37°C).');
+          return;
+        }
+        if (!bp) {
+          alert('⚠️ Please enter Blood Pressure (e.g. 120/80 mmHg).');
+          return;
+        }
+        if (!spo2) {
+          alert('⚠️ Please enter Oxygen Saturation / SpO2 % (e.g. 98%).');
+          return;
+        }
+        if (!sugar) {
+          alert('⚠️ Please enter Blood Sugar level (e.g. 110 mg/dL).');
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/nurse/vitals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              patientId: activeVitalsPatientId,
+              appointmentId: activeVitalsApptId,
+              temperature: temp,
+              bloodPressure: bp,
+              pulseRate: pulse,
+              oxygenSaturation: spo2,
+              bloodSugar: sugar,
+              nurseNotes: 'Routine clinical vital check'
+            })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            closeModal('modal-vitals');
+            if (activeVitalsApptId) {
+              await fetch('/api/nurse/complete-vitals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appointmentId: activeVitalsApptId })
+              }).catch(()=>{});
+            }
+            refreshNurseData();
+            alert('✅ Vitals recorded successfully for ' + activeVitalsPatientId + '!');
+          } else {
+            alert('❌ Failed to record vitals: ' + (data.message || 'Validation error'));
+          }
+        } catch (err) {
+          alert('❌ Network error while saving vitals: ' + err.message);
+        }
       }
 
       async function completeNurseVitalCheck(assignId, apptId) {
@@ -1668,7 +1708,7 @@
       function renderNurseBedCards(blockName) {
         const grid = document.getElementById('nurseBedCardsGrid');
         if (!grid) return;
-        const filtered = blockName === 'ALL' ? nurseIpdBeds : nurseIpdBeds.filter(b => b.blockName === blockName);
+        const filtered = blockName === 'ALL' ? nurseIpdBeds : nurseIpdBeds.filter(b => (b.blockName || '').includes(blockName));
 
         if (!filtered || filtered.length === 0) {
           grid.innerHTML = '<div style="grid-column:1/-1; padding:20px; text-align:center; color:#64748B;">No beds found for this block.</div>';
@@ -1820,6 +1860,9 @@
             alert('✓ Patient successfully admitted to bed ' + payload.bedNumber);
             closeModal('modal-nurse-admit');
             loadNurseIpdBeds();
+            try {
+              new BroadcastChannel('niramaya_ipd_sync_channel').postMessage({ type: 'IPD_ADMIT', bedId: payload.bedId, patientName: payload.patientName, timestamp: Date.now() });
+            } catch(e){}
           } else {
             alert('Error: ' + data.message);
           }
@@ -1853,6 +1896,10 @@
           if (data.success) {
             alert('✓ ' + data.message);
             loadNurseIpdBeds();
+            refreshNurseData();
+            try {
+              new BroadcastChannel('niramaya_ipd_sync_channel').postMessage({ type: 'IPD_DISCHARGE', admissionId: adm.admissionId, bedId: adm.bedId, timestamp: Date.now() });
+            } catch(e){}
           } else {
             alert('Error: ' + data.message);
           }
@@ -1888,6 +1935,17 @@
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#39;');
       }
+
+      // Real-time synchronization listener for IPD updates from Admin and Receptionist
+      try {
+        const nurseIpdSyncChannel = new BroadcastChannel('niramaya_ipd_sync_channel');
+        nurseIpdSyncChannel.onmessage = (ev) => {
+          if (ev.data && (ev.data.type === 'IPD_ADMIT' || ev.data.type === 'IPD_DISCHARGE' || ev.data.type === 'REFRESH_BEDS')) {
+            loadNurseIpdBeds();
+            refreshNurseData();
+          }
+        };
+      } catch(e){}
     </script>
 
     <!-- MODAL: Nurse Daily Report -->

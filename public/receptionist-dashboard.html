@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Niramaya Hospitals — Receptionist & Front Desk Portal</title>
+
+  <!-- Typography & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-main: #F4F7FB;
+      --paper: #FFFFFF;
+      --sidebar-bg: #0F2A4A;
+      --sidebar-hover: rgba(255, 255, 255, 0.08);
+      --sidebar-active: linear-gradient(135deg, #0A7A70 0%, #0D6EFD 100%);
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border-color: #E2E8F0;
+
+      --primary: #0D6EFD;
+      --primary-soft: rgba(13, 110, 253, 0.1);
+      --teal: #0A7A70;
+      --teal-light: #5FD6CC;
+      --success: #10B981;
+      --success-soft: rgba(16, 185, 129, 0.1);
+      --warning: #F59E0B;
+      --warning-soft: rgba(245, 158, 11, 0.1);
+      --danger: #EF4444;
+      --danger-soft: rgba(239, 68, 68, 0.1);
+      --purple: #8B5CF6;
+      --purple-soft: rgba(139, 92, 246, 0.1);
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 2px 8px rgba(15, 42, 74, 0.04);
+      --shadow-md: 0 8px 24px -4px rgba(15, 42, 74, 0.08);
+      --shadow-lg: 0 16px 32px -8px rgba(15, 42, 74, 0.12);
+    }
+
+    [data-theme="dark"] {
+      --bg-main: #0B1329;
+      --paper: #111C3A;
+      --sidebar-bg: #070D1E;
+      --sidebar-hover: rgba(255, 255, 255, 0.06);
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --border-color: #1E293B;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 270px;
+      background: var(--sidebar-bg);
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 100;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .sidebar-brand {
+      padding: 20px 22px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #0A7A70, #5FD6CC);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(10, 122, 112, 0.4);
+    }
+
+    .brand-text h2 {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #FFFFFF;
+    }
+
+    .brand-text span {
+      font-size: 0.72rem;
+      color: var(--teal-light);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .sidebar-user {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #0284C7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fff;
+    }
+
+    .user-info h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .user-info p {
+      font-size: 0.75rem;
+      color: #94A3B8;
+    }
+
+    .sidebar-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      color: #94A3B8;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav-item:hover {
+      background: var(--sidebar-hover);
+      color: #FFFFFF;
+    }
+
+    .nav-item.active {
+      background: var(--sidebar-active);
+      color: #FFFFFF;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: #EF4444;
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn-logout {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #F87171;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-logout:hover {
+      background: #EF4444;
+      color: #fff;
+    }
+
+    /* MAIN CONTAINER */
+    .main-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-main);
+    }
+
+    /* TOP HEADER */
+    .top-header {
+      height: 70px;
+      background: var(--paper);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm);
+      z-index: 10;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-title h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-family: 'Sora', sans-serif;
+    }
+
+    .header-title p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .clock-badge {
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #086159;
+    }
+
+    .btn-secondary {
+      background: var(--paper);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-main);
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: #fff;
+    }
+
+    .btn-warning:hover {
+      background: #D97706;
+    }
+
+    /* CONTENT SCROLLER */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+    }
+
+    .view-section {
+      display: none;
+    }
+
+    .view-section.active {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--paper);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--teal);
+    }
+
+    .stat-card.alert-card::before {
+      background: var(--warning);
+    }
+
+    .stat-card.purple-card::before {
+      background: var(--purple);
+    }
+
+    .stat-card.green-card::before {
+      background: var(--success);
+    }
+
+    .stat-lbl {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      font-family: 'Sora', sans-serif;
+      color: var(--text-main);
+    }
+
+    .stat-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* CARDS & TABLES */
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-family: 'Sora', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-main);
+      padding: 12px 16px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+
+    tr:hover td {
+      background-color: rgba(13, 110, 253, 0.02);
+    }
+
+    /* BADGES */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge-success {
+      background: #D1FAE5;
+      color: #065F46;
+    }
+
+    .badge-warning {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    .badge-danger {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+
+    .badge-info {
+      background: #E0F2FE;
+      color: #0369A1;
+    }
+
+    .badge-purple {
+      background: #EDE9FE;
+      color: #6D28D9;
+    }
+
+    /* FILTER BAR */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 14px 20px;
+      background: var(--paper);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .filter-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: var(--paper);
+      color: var(--text-main);
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: var(--teal);
+    }
+
+    /* DOCTOR AVAILABILITY CARDS */
+    .doc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .doc-card {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 18px;
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+
+    .doc-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--teal);
+    }
+
+    .slot-chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 4px;
+      background: var(--bg-main);
+      border-radius: 8px;
+    }
+
+    .slot-chip {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: default;
+    }
+
+    .slot-chip.avail {
+      background: #D1FAE5;
+      color: #065F46;
+      border: 1px solid #A7F3D0;
+    }
+
+    .slot-chip.booked {
+      background: #FEE2E2;
+      color: #991B1B;
+      text-decoration: line-through;
+      border: 1px solid #FECACA;
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--paper);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-color);
+      animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      font-family: 'Sora', sans-serif;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      background: var(--paper);
+      color: var(--text-main);
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(10, 122, 112, 0.15);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* PRINT RECEIPT STYLES */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printArea, #printArea * {
+        visibility: visible;
+      }
+      #printArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: #fff !important;
+        color: #000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">N</div>
+      <div class="brand-text">
+        <h2>NIRAMAYA</h2>
+        <span>Reception Portal</span>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="lblUserInitials">RV</div>
+      <div class="user-info">
+        <h4 id="lblUserName">Ramesh Verma</h4>
+        <p id="lblUserRole">Reception Desk Officer</p>
+      </div>
+    </div>
+
+    <nav class="sidebar-menu">
+      <div class="nav-item active" onclick="switchSection('secOverview', this)">
+        <span>📊</span> <span>Desk Overview</span>
+      </div>
+      <div class="nav-item" onclick="switchSection('secAppointments', this)">
+        <span>📅</span> <span>All Appointments</span>
+      </div>
+      <div class="nav-item" onclick="switchSection('secDoctorAvailability', this)">
+        <span>🩺</span> <span>Available Doctors Today</span>
+      </div>
+      <div class="nav-item" onclick="switchSection('secWalkinBooking', this)">
+        <span>⚡</span> <span>On-the-Spot Booking</span>
+      </div>
+      <div class="nav-item" onclick="switchSection('secCounterPayments', this)">
+        <span>🎟️</span> <span>Pay at Counter</span>
+        <span class="nav-badge" id="badgeCounterNav">0</span>
+      </div>
+      <div class="nav-item" onclick="switchSection('secIpdBeds', this)">
+        <span>🛏️</span> <span>IPD & Bed Allocation</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="logout()">
+        <span>🚪</span> <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN CONTENT WRAPPER ================= -->
+  <div class="main-wrapper">
+
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div class="header-left">
+        <div class="header-title">
+          <h1 id="pageHeading">Reception Desk Overview</h1>
+          <p>Real-Time Hospital Outpatient, Scheduling & Inpatient Synchronization</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="clock-badge">
+          <span>🕒</span> <span id="lblLiveClock">--:--:--</span>
+        </div>
+        <button class="btn btn-primary" onclick="openWalkinModal()">
+          <span>+</span> <span>New Walk-in Booking</span>
+        </button>
+        <button class="btn btn-secondary" onclick="refreshAllData()" title="Reload real-time data">
+          <span>🔄</span> <span>Sync</span>
+        </button>
+        <button class="btn btn-secondary" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          🌓
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN SCROLLABLE CONTENT -->
+    <main class="content-area">
+
+      <!-- ================= 1. DESK OVERVIEW SECTION ================= -->
+      <section id="secOverview" class="view-section active">
+        <!-- STATS CARDS -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-lbl">Today's Appointments</div>
+            <div class="stat-val" id="statTodayAppts">0</div>
+            <div class="stat-sub">Scheduled for today's OPD</div>
+          </div>
+          <div class="stat-card purple-card">
+            <div class="stat-lbl">Walk-in Bookings</div>
+            <div class="stat-val" id="statWalkinAppts">0</div>
+            <div class="stat-sub">Direct front-desk admissions</div>
+          </div>
+          <div class="stat-card alert-card">
+            <div class="stat-lbl">Pending Counter Payments</div>
+            <div class="stat-val" id="statPendingPayments" style="color:var(--warning);">0</div>
+            <div class="stat-sub">Awaiting cash/UPI at counter</div>
+          </div>
+          <div class="stat-card green-card">
+            <div class="stat-lbl">Available Doctors Today</div>
+            <div class="stat-val" id="statAvailDocs" style="color:var(--teal);">0</div>
+            <div class="stat-sub">Online & scheduled on duty</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-lbl">Active Inpatients</div>
+            <div class="stat-val" id="statActiveInpatients">0</div>
+            <div class="stat-sub">Occupied hospital beds</div>
+          </div>
+          <div class="stat-card green-card">
+            <div class="stat-lbl">Available IPD Beds</div>
+            <div class="stat-val" id="statAvailBeds" style="color:var(--success);">0</div>
+            <div class="stat-sub">Ready for new admission</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-lbl">Total Registered Patients</div>
+            <div class="stat-val" id="statTotalPatients">0</div>
+            <div class="stat-sub">In hospital master database</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-lbl">IPD Bed Occupancy</div>
+            <div class="stat-val" id="statBedOccupancyRate">0%</div>
+            <div class="stat-sub">Across all 4 hospital blocks</div>
+          </div>
+        </div>
+
+        <!-- QUICK QUEUE & LIVE DOCTORS SPLIT -->
+        <div style="display:grid; grid-template-columns: 2fr 1.3fr; gap:20px; align-items:start;">
+          <!-- Left: Today's OPD Queue Table -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>📋</span> <span>Today's Outpatient Appointment Queue</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="switchSection('secAppointments')">View All →</button>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Token / ID</th>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Payment</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyTodayQueue">
+                  <tr><td colspan="7" style="text-align:center; padding:20px;">Loading today's queue...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right: Live Doctor Roster Quick Widget -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🩺</span> <span>Doctors on Duty Today</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="switchSection('secDoctorAvailability')">Check Slots →</button>
+            </div>
+            <div id="quickDoctorRoster" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+              <div style="text-align:center; color:var(--text-muted);">Loading doctor roster...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. DOCTOR APPOINTMENTS MANAGEMENT ================= -->
+      <section id="secAppointments" class="view-section">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📅</span> <span>Doctor Appointment Master Records</span>
+              <span class="badge badge-info" id="badgeTotalApptsCount">0 Records</span>
+            </div>
+            <button class="btn btn-primary" onclick="openWalkinModal()">
+              <span>+</span> <span>New Walk-in Appointment</span>
+            </button>
+          </div>
+
+          <!-- Search & Filter Bar -->
+          <div class="filter-bar">
+            <input type="text" id="searchAppts" class="filter-input" placeholder="🔍 Search patient, ID, doctor, token..." style="min-width:240px;" oninput="applyAppointmentFilters()">
+            <input type="date" id="filterApptDate" class="filter-input" onchange="applyAppointmentFilters()">
+            <select id="filterApptDoctor" class="filter-input" onchange="applyAppointmentFilters()">
+              <option value="ALL">All Doctors</option>
+            </select>
+            <select id="filterApptType" class="filter-input" onchange="applyAppointmentFilters()">
+              <option value="ALL">All Types</option>
+              <option value="Walk-in">Walk-in</option>
+              <option value="Online Booking">Online Booking</option>
+            </select>
+            <select id="filterApptStatus" class="filter-input" onchange="applyAppointmentFilters()">
+              <option value="ALL">All Statuses</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Pending Approval">Pending Approval</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <select id="filterApptPayment" class="filter-input" onchange="applyAppointmentFilters()">
+              <option value="ALL">All Payments</option>
+              <option value="Paid">Paid</option>
+              <option value="Unpaid">Unpaid / Pay at Counter</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="resetAppointmentFilters()">Reset</button>
+          </div>
+
+          <!-- Appointments Table -->
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Appointment ID</th>
+                  <th>Patient Name & ID</th>
+                  <th>Doctor & Dept</th>
+                  <th>Date & Time</th>
+                  <th>Booking Type</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAppointments">
+                <tr><td colspan="8" style="text-align:center; padding:24px;">Loading appointments...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 3. AVAILABLE DOCTORS TODAY ================= -->
+      <section id="secDoctorAvailability" class="view-section">
+        <div class="card">
+          <div class="card-header" style="background: linear-gradient(135deg, rgba(10,122,112,0.06), rgba(13,110,253,0.06));">
+            <div>
+              <div class="card-title" style="color:var(--teal); font-size:1.2rem;">
+                <span>🩺</span> <span>Available Doctors & Slot Schedules</span>
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                Verified live availability calculated from doctor schedules, working days, working hours, and real-time booked appointments.
+              </p>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <label style="font-size:0.82rem; font-weight:700;">Select Date:</label>
+              <input type="date" id="availDatePicker" class="filter-input" onchange="loadDoctorAvailability()">
+              <button class="btn btn-secondary btn-sm" onclick="setAvailDateToday()">Today</button>
+            </div>
+          </div>
+
+          <!-- Doctor Availability Grid -->
+          <div id="gridDoctorAvailability" class="doc-grid">
+            <div style="text-align:center; padding:30px; grid-column:1/-1; color:var(--text-muted);">
+              Loading doctor schedule & slot availability...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 4. ON-THE-SPOT WALK-IN BOOKING ================= -->
+      <section id="secWalkinBooking" class="view-section">
+        <div class="card" style="max-width:850px; margin: 0 auto 30px auto;">
+          <div class="card-header" style="background:var(--teal); color:#fff;">
+            <div class="card-title" style="color:#fff;">
+              <span>⚡</span> <span>On-the-Spot Walk-in Appointment Booking</span>
+            </div>
+            <span style="font-size:0.8rem; opacity:0.9;">Receptionist Direct Portal</span>
+          </div>
+
+          <div style="padding:24px;">
+            <form id="formWalkinBooking" onsubmit="submitWalkinBooking(event)">
+              <!-- Step 1: Patient Selection / Search -->
+              <h4 style="margin-bottom:12px; color:var(--teal); font-size:0.95rem; border-bottom:1px solid var(--border-color); padding-bottom:6px;">
+                1. Patient Information
+              </h4>
+
+              <div class="form-group" style="position:relative;">
+                <label>Search Existing Patient (by Name, ID, Phone, Email):</label>
+                <input type="text" id="walkinPatientSearch" class="form-control" placeholder="Type name or phone to search database..." oninput="handlePatientSearchInput(this.value)">
+                <div id="patientSearchResults" style="display:none; position:absolute; top:100%; left:0; right:0; background:var(--paper); border:1px solid var(--border-color); border-radius:8px; box-shadow:var(--shadow-md); z-index:50; max-height:180px; overflow-y:auto;"></div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Patient ID *</label>
+                  <input type="text" id="walkinPatientId" class="form-control" required placeholder="PT100..." readonly style="background:var(--bg-main);">
+                </div>
+                <div class="form-group">
+                  <label>Patient Full Name *</label>
+                  <input type="text" id="walkinPatientName" class="form-control" required placeholder="Enter full name">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Contact Phone Number *</label>
+                  <input type="text" id="walkinPatientPhone" class="form-control" required placeholder="+91 98765 00000">
+                </div>
+                <div class="form-group">
+                  <label>Email Address</label>
+                  <input type="email" id="walkinPatientEmail" class="form-control" placeholder="patient@example.com">
+                </div>
+              </div>
+
+              <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="form-group">
+                  <label>Age</label>
+                  <input type="number" id="walkinPatientAge" class="form-control" value="30" min="1" max="120">
+                </div>
+                <div class="form-group">
+                  <label>Gender</label>
+                  <select id="walkinPatientGender" class="form-control">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Blood Group</label>
+                  <select id="walkinPatientBlood" class="form-control">
+                    <option value="O+">O+</option>
+                    <option value="A+">A+</option>
+                    <option value="B+">B+</option>
+                    <option value="AB+">AB+</option>
+                    <option value="O-">O-</option>
+                    <option value="A-">A-</option>
+                    <option value="B-">B-</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Step 2: Appointment Details -->
+              <h4 style="margin:20px 0 12px 0; color:var(--teal); font-size:0.95rem; border-bottom:1px solid var(--border-color); padding-bottom:6px;">
+                2. Consulting Doctor & Schedule
+              </h4>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Appointment Date *</label>
+                  <input type="date" id="walkinDate" class="form-control" required onchange="onWalkinDateOrDoctorChange()">
+                </div>
+                <div class="form-group">
+                  <label>Select Consulting Doctor *</label>
+                  <select id="walkinDoctor" class="form-control" required onchange="onWalkinDateOrDoctorChange()">
+                    <option value="">-- Choose Doctor --</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Available Time Slot *</label>
+                  <select id="walkinTimeSlot" class="form-control" required>
+                    <option value="">-- Select Time Slot --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Applicable Consultation Fee</label>
+                  <input type="text" id="walkinFee" class="form-control" value="₹800.00" readonly style="background:var(--bg-main); font-weight:700; color:#D97706;">
+                </div>
+              </div>
+
+              <!-- Step 3: Payment Handling -->
+              <h4 style="margin:20px 0 12px 0; color:var(--teal); font-size:0.95rem; border-bottom:1px solid var(--border-color); padding-bottom:6px;">
+                3. Payment Handling at Front Counter
+              </h4>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Payment Method</label>
+                  <select id="walkinPaymentMethod" class="form-control">
+                    <option value="Counter Cash">Cash Payment (Immediate)</option>
+                    <option value="Counter UPI">UPI / QR Code Scan (Immediate)</option>
+                    <option value="Counter Card">Debit/Credit Card POS (Immediate)</option>
+                    <option value="Pending Counter">Pay at Desk Later (Pending)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Payment Collection Status</label>
+                  <select id="walkinPaymentStatus" class="form-control">
+                    <option value="Paid">Mark as PAID & Issue Official Receipt</option>
+                    <option value="Unpaid">Keep UNPAID (Route to Counter Queue)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="margin-top:24px; display:flex; justify-content:flex-end; gap:12px;">
+                <button type="reset" class="btn btn-secondary">Clear Form</button>
+                <button type="submit" class="btn btn-primary" id="btnConfirmWalkin" style="padding:10px 24px; font-size:0.95rem;">
+                  ✓ Confirm Walk-in Appointment & Print Slip
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 5. PAY AT COUNTER COLLECTIONS ================= -->
+      <section id="secCounterPayments" class="view-section">
+        <div class="card" style="border: 2px solid var(--warning); background: #FFFDF9;">
+          <div class="card-header" style="background: rgba(245,158,11,0.08); border-bottom: 1px solid rgba(245,158,11,0.2);">
+            <div>
+              <div class="card-title" style="color:#92400E;">
+                <span>🎟️</span> <span>Pending Pay at Counter Collections</span>
+                <span class="badge" id="badgeCounterHeader" style="background:#D97706; color:#fff;">0 Pending</span>
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                Bookings made online or at desk requiring in-person fee payment. Collect cash or UPI, record payment, and generate official patient tax receipts.
+              </p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="loadCounterPayments()">🔄 Refresh Queue</button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr style="background: rgba(245,158,11,0.06);">
+                  <th>Token / Appt ID</th>
+                  <th>Patient Name & ID</th>
+                  <th>Consulting Doctor & Dept</th>
+                  <th>Date & Time</th>
+                  <th>Fee Due</th>
+                  <th>Payment Status</th>
+                  <th>Counter Action</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyCounterQueue">
+                <tr><td colspan="7" style="text-align:center; padding:24px;">Loading pending payments...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 6. RECEPTIONIST IPD & BED INFORMATION ================= -->
+      <section id="secIpdBeds" class="view-section">
+        <!-- Bed Status Overview Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-lbl">Total Hospital Beds</div>
+            <div class="stat-val" id="ipdStatTotalBeds">0</div>
+          </div>
+          <div class="stat-card alert-card">
+            <div class="stat-lbl">Occupied Beds (Inpatients)</div>
+            <div class="stat-val" id="ipdStatOccupiedBeds" style="color:var(--danger);">0</div>
+          </div>
+          <div class="stat-card green-card">
+            <div class="stat-lbl">Available Beds</div>
+            <div class="stat-val" id="ipdStatAvailableBeds" style="color:var(--success);">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-lbl">Real-time Occupancy Rate</div>
+            <div class="stat-val" id="ipdStatOccupancyRate">0%</div>
+          </div>
+        </div>
+
+        <!-- Block Filter Selector -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>🛏️</span> <span>Hospital Bed Occupancy by Wing</span>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm block-tab active" onclick="filterIpdBedBlock('ALL', this)">All Blocks</button>
+              <button class="btn btn-secondary btn-sm block-tab" onclick="filterIpdBedBlock('Block A', this)">Block A (North Wing)</button>
+              <button class="btn btn-secondary btn-sm block-tab" onclick="filterIpdBedBlock('Block B', this)">Block B (South Wing)</button>
+              <button class="btn btn-secondary btn-sm block-tab" onclick="filterIpdBedBlock('Block C', this)">Block C (Critical Care)</button>
+              <button class="btn btn-secondary btn-sm block-tab" onclick="filterIpdBedBlock('Block D', this)">Block D (Maternity & Child)</button>
+            </div>
+          </div>
+
+          <!-- Bed Cards Grid -->
+          <div id="gridIpdBeds" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap:14px; padding:20px;">
+            <div style="text-align:center; padding:20px; grid-column:1/-1; color:var(--text-muted);">
+              Loading live bed records...
+            </div>
+          </div>
+        </div>
+
+        <!-- Inpatient Admissions Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📋</span> <span>Current Inpatient Admissions & Discharges</span>
+            </div>
+            <span class="badge badge-info" id="badgeIpdAdmissionsCount">0 Admissions</span>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Admission ID</th>
+                  <th>Patient Name & ID</th>
+                  <th>Block & Ward</th>
+                  <th>Assigned Bed</th>
+                  <th>Attending Doctor</th>
+                  <th>Admission Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyIpdAdmissions">
+                <tr><td colspan="7" style="text-align:center; padding:24px;">Loading admissions data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ================= PAYMENT COLLECTION MODAL ================= -->
+  <div class="modal-overlay" id="modalPayment">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>💵 Collect Counter Payment</h3>
+        <button class="modal-close" onclick="closeModal('modalPayment')">✖</button>
+      </div>
+      <div class="modal-body">
+        <form id="formPaymentCollection" onsubmit="submitPaymentCollection(event)">
+          <input type="hidden" id="payApptId">
+          <input type="hidden" id="payPatientId">
+
+          <div style="background:var(--bg-main); padding:14px; border-radius:10px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Appointment ID:</span>
+              <strong id="payLblApptId" style="font-family:'JetBrains Mono'; color:var(--teal);">--</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Patient Name:</span>
+              <strong id="payLblPatientName">--</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Consulting Doctor:</span>
+              <strong id="payLblDoctorName">--</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Consultation Fee:</span>
+              <strong id="payLblFee" style="color:#D97706; font-size:1.1rem;">₹800.00</strong>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Select Payment Mode *</label>
+            <select id="payModeSelect" class="form-control" required>
+              <option value="Counter Cash">💵 Cash Payment at Counter</option>
+              <option value="Counter UPI">📱 UPI / QR Code (PhonePe, GPay, Paytm)</option>
+              <option value="Counter POS Card">💳 Debit / Credit Card (POS Terminal)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Reference / Transaction Note (Optional)</label>
+            <input type="text" id="payRefNote" class="form-control" placeholder="e.g. Cash Handover / UPI Ref #">
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modalPayment')">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btnConfirmPay" style="background:#059669;">
+              ✅ Confirm Payment & Print Receipt
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PRINTABLE RECEIPT / SLIP MODAL ================= -->
+  <div class="modal-overlay" id="modalReceipt">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header no-print">
+        <h3>🧾 Hospital Receipt / Token Slip</h3>
+        <button class="modal-close" onclick="closeModal('modalReceipt')">✖</button>
+      </div>
+      <div class="modal-body" id="printArea">
+        <div style="text-align:center; border-bottom:2px dashed #CBD5E1; padding-bottom:14px; margin-bottom:16px;">
+          <h2 style="font-family:'Sora'; color:#0F2A4A; font-size:1.4rem; margin-bottom:4px;">NIRAMAYA HOSPITALS</h2>
+          <p style="font-size:0.75rem; color:#64748B;">Multi-Specialty Smart Healthcare & Research Center</p>
+          <p style="font-size:0.72rem; color:#64748B;">GSTIN: 33AAACN1234F1Z5 | Reg: NH/2026/TN-0842</p>
+          <p style="font-size:0.75rem; font-weight:700; margin-top:6px; color:#0A7A70;">OFFICIAL OUTPATIENT RECEIPT & SLIP</p>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:10px;">
+          <span>Receipt #: <strong id="rcptNo" style="font-family:'JetBrains Mono';">RCT-98124</strong></span>
+          <span>Date: <strong id="rcptDate">--</strong></span>
+        </div>
+
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.82rem;">
+          <div style="margin-bottom:4px;"><b>Token ID:</b> <span id="rcptToken" style="font-weight:700; color:#0D6EFD;">--</span></div>
+          <div style="margin-bottom:4px;"><b>Patient:</b> <span id="rcptPatient">--</span></div>
+          <div style="margin-bottom:4px;"><b>Patient ID:</b> <span id="rcptPatientId">--</span></div>
+          <div style="margin-bottom:4px;"><b>Doctor:</b> <span id="rcptDoctor">--</span></div>
+          <div style="margin-bottom:4px;"><b>Department:</b> <span id="rcptDept">--</span></div>
+          <div style="margin-bottom:4px;"><b>Appointment:</b> <span id="rcptDateTime">--</span></div>
+          <div><b>Booking Type:</b> <span id="rcptType">Walk-in</span></div>
+        </div>
+
+        <table style="margin-bottom:14px;">
+          <thead>
+            <tr>
+              <th style="padding:6px;">Description</th>
+              <th style="padding:6px; text-align:right;">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:8px 6px;">Outpatient Consultation Charge</td>
+              <td style="padding:8px 6px; text-align:right; font-weight:700;" id="rcptFee">₹800.00</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 6px;">Registration & Portal Service</td>
+              <td style="padding:8px 6px; text-align:right; font-weight:700;">₹0.00</td>
+            </tr>
+            <tr style="border-top:2px solid #CBD5E1; font-size:0.95rem;">
+              <td style="padding:10px 6px; font-weight:800;">Total Amount Paid</td>
+              <td style="padding:10px 6px; text-align:right; font-weight:800; color:#059669;" id="rcptTotal">₹800.00</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#64748B; border-top:1px dashed #CBD5E1; padding-top:10px; margin-bottom:16px;">
+          <span>Payment Status: <b style="color:#059669;" id="rcptStatus">PAID ✓</b></span>
+          <span>Cashier: <b id="rcptCashier">Ramesh Verma</b></span>
+        </div>
+
+        <div style="text-align:center; font-size:0.72rem; color:#94A3B8;">
+          Thank you for choosing Niramaya Smart Healthcare. Please retain this slip for consultation room entry.
+        </div>
+      </div>
+      <div class="modal-footer no-print" style="padding:16px 24px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn btn-secondary" onclick="closeModal('modalReceipt')">Close</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Print Slip / Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CLIENT JAVASCRIPT ================= -->
+  <script>
+    // Global State
+    let allAppointments = [];
+    let allDoctors = [];
+    let doctorAvailability = [];
+    let pendingCounterPayments = [];
+    let ipdBeds = [];
+    let ipdAdmissions = [];
+    let currentIpdBlock = 'ALL';
+    let currentReceptionistName = sessionStorage.getItem('niramaya_name') || 'Ramesh Verma';
+    let currentReceptionistEmail = sessionStorage.getItem('niramaya_email') || 'reception@niramaya.health';
+
+    // Broadcast Channels for Real-time Synchronization
+    let ipdSyncChannel = null;
+    let paymentSyncChannel = null;
+    try {
+      ipdSyncChannel = new BroadcastChannel('niramaya_ipd_sync_channel');
+      ipdSyncChannel.onmessage = (ev) => {
+        if (ev.data && (ev.data.type === 'IPD_ADMIT' || ev.data.type === 'IPD_DISCHARGE' || ev.data.type === 'REFRESH_BEDS')) {
+          loadIpdData();
+        }
+      };
+      paymentSyncChannel = new BroadcastChannel('niramaya_payment_status_channel');
+      paymentSyncChannel.onmessage = (ev) => {
+        if (ev.data && ev.data.type === 'APPOINTMENT_PAID') {
+          loadCounterPayments();
+          loadAppointments();
+        }
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel not supported in this browser.', e);
+    }
+
+    // Initialize Dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      initUserInfo();
+      startLiveClock();
+      setAvailDateToday();
+      setDefaultWalkinDate();
+      refreshAllData();
+
+      // Periodic auto-refresh every 12 seconds
+      setInterval(() => {
+        loadCounterPayments(true);
+        loadAppointments(true);
+      }, 12000);
+    });
+
+    function initUserInfo() {
+      const name = sessionStorage.getItem('niramaya_name') || 'Ramesh Verma';
+      document.getElementById('lblUserName').textContent = name;
+      document.getElementById('rcptCashier').textContent = name;
+      const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'RV';
+      document.getElementById('lblUserInitials').textContent = initials;
+    }
+
+    function startLiveClock() {
+      const el = document.getElementById('lblLiveClock');
+      function update() {
+        const d = new Date();
+        el.textContent = d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('en-IN');
+      }
+      update();
+      setInterval(update, 1000);
+    }
+
+    function toggleTheme() {
+      const current = document.body.getAttribute('data-theme');
+      if (current === 'dark') document.body.removeAttribute('data-theme');
+      else document.body.setAttribute('data-theme', 'dark');
+    }
+
+    function switchSection(secId, navEl) {
+      document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+
+      const target = document.getElementById(secId);
+      if (target) target.classList.add('active');
+      if (navEl) navEl.classList.add('active');
+
+      const headings = {
+        secOverview: 'Reception Desk Overview',
+        secAppointments: 'All Doctor Appointments',
+        secDoctorAvailability: 'Doctor Schedules & Slot Availability',
+        secWalkinBooking: 'On-the-Spot Walk-in Booking',
+        secCounterPayments: 'Pay at Counter Payment Collections',
+        secIpdBeds: 'Inpatient Department (IPD) & Bed Status'
+      };
+      document.getElementById('pageHeading').textContent = headings[secId] || 'Receptionist Portal';
+    }
+
+    function openModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.classList.add('show');
+    }
+
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.classList.remove('show');
+    }
+
+    async function refreshAllData() {
+      await Promise.all([
+        loadAppointments(),
+        loadDoctors(),
+        loadDoctorAvailability(),
+        loadCounterPayments(),
+        loadIpdData(),
+        loadTotalPatientsStat()
+      ]);
+      updateDashboardStats();
+    }
+
+    // =============================================================
+    // 1. APPOINTMENTS MODULE
+    // =============================================================
+    async function loadAppointments(silent = false) {
+      try {
+        const res = await fetch('/api/appointments');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        allAppointments = await res.json();
+        applyAppointmentFilters();
+        renderTodayQueue();
+        updateDashboardStats();
+      } catch (err) {
+        if (!silent) console.error('Failed to load appointments:', err);
+      }
+    }
+
+    function renderTodayQueue() {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayList = allAppointments.filter(a => {
+        const d = a.date || a.appointmentDate || '';
+        return d === todayStr || d.toLowerCase() === 'today';
+      });
+
+      const tbody = document.getElementById('tbodyTodayQueue');
+      if (!tbody) return;
+      if (todayList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">No outpatient appointments scheduled for today yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = todayList.slice(0, 8).map(a => {
+        const isPaid = (a.paymentStatus || '').toLowerCase().includes('paid');
+        const isWalkin = (a.appointmentType || '').toLowerCase().includes('walk');
+        return `
+          <tr>
+            <td><strong style="color:var(--teal); font-family:'JetBrains Mono';">${escapeHTML(a.appointmentId)}</strong></td>
+            <td><strong>${escapeHTML(a.patientName)}</strong><br><small style="color:var(--text-muted);">${escapeHTML(a.patientId)}</small></td>
+            <td>${escapeHTML(a.doctorName)}</td>
+            <td>${escapeHTML(a.time || a.appointmentTime || '')}</td>
+            <td><span class="badge ${isWalkin ? 'badge-purple' : 'badge-info'}">${isWalkin ? 'Walk-in' : 'Online'}</span></td>
+            <td><span class="badge ${isPaid ? 'badge-success' : 'badge-warning'}">${isPaid ? 'Paid' : 'Unpaid'}</span></td>
+            <td>
+              ${!isPaid ? `<button class="btn btn-warning btn-sm" onclick="openPaymentModal('${escapeHTML(a.appointmentId)}', '${escapeHTML(a.patientId)}', '${escapeHTML(a.patientName)}', '${escapeHTML(a.doctorName)}', '₹800.00')" style="padding:3px 8px; font-size:0.75rem;">💵 Pay</button>`
+                        : `<button class="btn btn-secondary btn-sm" onclick="viewReceipt('${escapeHTML(a.appointmentId)}')" style="padding:3px 8px; font-size:0.75rem;">Slip</button>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function applyAppointmentFilters() {
+      const q = (document.getElementById('searchAppts')?.value || '').toLowerCase().trim();
+      const dateVal = document.getElementById('filterApptDate')?.value || '';
+      const docVal = document.getElementById('filterApptDoctor')?.value || 'ALL';
+      const typeVal = document.getElementById('filterApptType')?.value || 'ALL';
+      const statusVal = document.getElementById('filterApptStatus')?.value || 'ALL';
+      const payVal = document.getElementById('filterApptPayment')?.value || 'ALL';
+
+      const filtered = allAppointments.filter(a => {
+        const apptDate = a.date || a.appointmentDate || '';
+        const apptDoc = a.doctorId || a.doctorName || '';
+        const apptType = a.appointmentType || 'Online Booking';
+        const apptStatus = a.status || '';
+        const apptPay = a.paymentStatus || '';
+
+        const matchesQ = !q || (a.appointmentId && a.appointmentId.toLowerCase().includes(q))
+                            || (a.patientName && a.patientName.toLowerCase().includes(q))
+                            || (a.patientId && a.patientId.toLowerCase().includes(q))
+                            || (a.doctorName && a.doctorName.toLowerCase().includes(q));
+
+        const matchesDate = !dateVal || apptDate === dateVal || (dateVal === new Date().toISOString().split('T')[0] && apptDate.toLowerCase() === 'today');
+        const matchesDoc = docVal === 'ALL' || apptDoc.toLowerCase().includes(docVal.toLowerCase());
+        const matchesType = typeVal === 'ALL' || apptType.toLowerCase().includes(typeVal.toLowerCase());
+        const matchesStatus = statusVal === 'ALL' || apptStatus.toLowerCase() === statusVal.toLowerCase();
+        const matchesPay = payVal === 'ALL' || (payVal === 'Paid' ? apptPay.toLowerCase().includes('paid') : !apptPay.toLowerCase().includes('paid'));
+
+        return matchesQ && matchesDate && matchesDoc && matchesType && matchesStatus && matchesPay;
+      });
+
+      const countBadge = document.getElementById('badgeTotalApptsCount');
+      if (countBadge) countBadge.textContent = `${filtered.length} Records`;
+
+      const tbody = document.getElementById('tbodyAppointments');
+      if (!tbody) return;
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">No appointments found matching your filter criteria.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(a => {
+        const isPaid = (a.paymentStatus || '').toLowerCase().includes('paid');
+        const isWalkin = (a.appointmentType || '').toLowerCase().includes('walk');
+        return `
+          <tr>
+            <td><strong style="color:var(--teal); font-family:'JetBrains Mono';">${escapeHTML(a.appointmentId)}</strong></td>
+            <td>
+              <div style="font-weight:700;">${escapeHTML(a.patientName || 'Patient')}</div>
+              <small style="color:var(--text-muted);">${escapeHTML(a.patientId || '')}</small>
+            </td>
+            <td>
+              <div>${escapeHTML(a.doctorName || 'Doctor')}</div>
+              <small style="color:var(--text-muted);">${escapeHTML(a.department || 'General')}</small>
+            </td>
+            <td>
+              <div>${escapeHTML(a.date || a.appointmentDate || '')}</div>
+              <small style="color:var(--text-muted); font-weight:600;">${escapeHTML(a.time || a.appointmentTime || '')}</small>
+            </td>
+            <td>
+              <span class="badge ${isWalkin ? 'badge-purple' : 'badge-info'}">
+                ${isWalkin ? '⚡ Walk-in' : '🌐 Online'}
+              </span>
+            </td>
+            <td>
+              <span class="badge ${a.status === 'COMPLETED' ? 'badge-success' : (isPaid ? 'badge-info' : 'badge-warning')}">
+                ${escapeHTML(a.status || 'Confirmed')}
+              </span>
+            </td>
+            <td>
+              <span class="badge ${isPaid ? 'badge-success' : 'badge-warning'}">
+                ${isPaid ? 'Paid ✓' : '⚠️ Unpaid'}
+              </span>
+            </td>
+            <td style="display:flex; gap:6px;">
+              ${!isPaid ? `
+                <button class="btn btn-warning btn-sm" onclick="openPaymentModal('${escapeHTML(a.appointmentId)}', '${escapeHTML(a.patientId)}', '${escapeHTML(a.patientName)}', '${escapeHTML(a.doctorName)}', '₹800.00')" style="font-size:0.75rem; padding:4px 8px;">
+                  💵 Collect
+                </button>
+              ` : ''}
+              <button class="btn btn-secondary btn-sm" onclick="viewReceipt('${escapeHTML(a.appointmentId)}')" style="font-size:0.75rem; padding:4px 8px;">
+                🧾 Slip
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function resetAppointmentFilters() {
+      document.getElementById('searchAppts').value = '';
+      document.getElementById('filterApptDate').value = '';
+      document.getElementById('filterApptDoctor').value = 'ALL';
+      document.getElementById('filterApptType').value = 'ALL';
+      document.getElementById('filterApptStatus').value = 'ALL';
+      document.getElementById('filterApptPayment').value = 'ALL';
+      applyAppointmentFilters();
+    }
+
+    // =============================================================
+    // 2. DOCTOR AVAILABILITY & SCHEDULING MODULE
+    // =============================================================
+    async function loadDoctors() {
+      try {
+        const res = await fetch('/api/doctors');
+        allDoctors = await res.json();
+
+        // Populate dropdowns
+        const docOpts = allDoctors.map(d => `<option value="${escapeHTML(d.doctorName || d.name)}">${escapeHTML(d.doctorName || d.name)} (${escapeHTML(d.department || d.specialization || d.category || 'General')})</option>`).join('');
+        const filterSel = document.getElementById('filterApptDoctor');
+        if (filterSel) filterSel.innerHTML = '<option value="ALL">All Doctors</option>' + docOpts;
+
+        const walkinSel = document.getElementById('walkinDoctor');
+        if (walkinSel) walkinSel.innerHTML = '<option value="">-- Choose Doctor --</option>' + docOpts;
+      } catch (err) {
+        console.error('Failed to load doctors:', err);
+      }
+    }
+
+    function setAvailDateToday() {
+      const today = new Date().toISOString().split('T')[0];
+      const el = document.getElementById('availDatePicker');
+      if (el) {
+        el.value = today;
+        loadDoctorAvailability();
+      }
+    }
+
+    async function loadDoctorAvailability() {
+      const dateVal = document.getElementById('availDatePicker')?.value || new Date().toISOString().split('T')[0];
+      const grid = document.getElementById('gridDoctorAvailability');
+      const rosterWidget = document.getElementById('quickDoctorRoster');
+
+      try {
+        const res = await fetch('/api/doctor/availability?date=' + encodeURIComponent(dateVal));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        doctorAvailability = await res.json();
+
+        let onlineDutyCount = 0;
+        doctorAvailability.forEach(d => {
+          if (d.isAvailableOnDate && d.remainingSlotsCount > 0) onlineDutyCount++;
+        });
+        document.getElementById('statAvailDocs').textContent = onlineDutyCount;
+
+        // Render Doctor Cards Grid
+        if (doctorAvailability.length === 0) {
+          grid.innerHTML = '<div style="grid-column:1/-1; padding:30px; text-align:center; color:var(--text-muted);">No doctor profiles configured in database.</div>';
+          return;
+        }
+
+        grid.innerHTML = doctorAvailability.map(d => {
+          const isAvail = d.isAvailableOnDate;
+          const statusBadge = isAvail
+            ? `<span class="badge badge-success">🟢 Available on Date</span>`
+            : `<span class="badge badge-danger">⚪ Not Available</span>`;
+
+          const slotsHtml = (d.availableSlots || []).map(s => `<span class="slot-chip avail">${escapeHTML(s)}</span>`).join('') +
+                            (d.bookedSlots || []).map(s => `<span class="slot-chip booked" title="Already Booked">${escapeHTML(s)}</span>`).join('');
+
+          return `
+            <div class="doc-card" style="${isAvail ? 'border-top:4px solid var(--teal);' : 'border-top:4px solid var(--border-color); opacity:0.85;'}">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                  <div>
+                    <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-main); margin-bottom:2px;">${escapeHTML(d.doctorName)}</h3>
+                    <p style="font-size:0.75rem; color:var(--teal); font-weight:700;">${escapeHTML(d.specialization)} · ${escapeHTML(d.qualification || 'MBBS')}</p>
+                  </div>
+                  ${statusBadge}
+                </div>
+
+                <div style="margin:12px 0; font-size:0.8rem; background:var(--bg-main); padding:10px; border-radius:8px;">
+                  <div style="margin-bottom:4px;"><b>Schedule:</b> ${escapeHTML(d.workingDays || 'Mon - Sat')}</div>
+                  <div style="margin-bottom:4px;"><b>Hours:</b> ${escapeHTML(d.workingHours || '09:00 AM - 05:00 PM')}</div>
+                  <div><b>Fee:</b> <span style="font-weight:700; color:#D97706;">₹${d.consultationFee || 800}</span></div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:6px;">
+                  <span>Remaining Bookable Slots:</span>
+                  <strong style="color:${d.remainingSlotsCount > 0 ? 'var(--teal)' : 'var(--danger)'};">${d.remainingSlotsCount} of ${d.totalSlots}</strong>
+                </div>
+
+                <div class="slot-chips-container">
+                  ${slotsHtml || '<span style="font-size:0.75rem; color:var(--text-muted); padding:4px;">No slots available</span>'}
+                </div>
+              </div>
+
+              <div style="margin-top:16px;">
+                ${isAvail && d.remainingSlotsCount > 0 ? `
+                  <button class="btn btn-primary" onclick="quickBookDoctor('${escapeHTML(d.doctorName)}')" style="width:100%; justify-content:center; font-size:0.82rem;">
+                    ⚡ Book Walk-in with Dr. ${escapeHTML(d.doctorName.replace('Dr. ', ''))}
+                  </button>
+                ` : `
+                  <button class="btn btn-secondary" disabled style="width:100%; justify-content:center; font-size:0.82rem; cursor:not-allowed;">
+                    Fully Booked / Off Duty
+                  </button>
+                `}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Render Quick Widget on Overview
+        if (rosterWidget) {
+          const onDuty = doctorAvailability.filter(d => d.isAvailableOnDate);
+          if (onDuty.length === 0) {
+            rosterWidget.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:16px;">No doctors available today.</div>';
+          } else {
+            rosterWidget.innerHTML = onDuty.slice(0, 5).map(d => `
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-main);">
+                <div>
+                  <strong style="font-size:0.88rem;">${escapeHTML(d.doctorName)}</strong>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(d.specialization)}</div>
+                </div>
+                <div style="text-align:right;">
+                  <span class="badge badge-success" style="font-size:0.7rem;">${d.remainingSlotsCount} slots left</span>
+                  <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">${escapeHTML(d.workingHours)}</div>
+                </div>
+              </div>
+            `).join('');
+          }
+        }
+
+      } catch (err) {
+        console.error('Failed to load doctor availability:', err);
+      }
+    }
+
+    function quickBookDoctor(docName) {
+      switchSection('secWalkinBooking');
+      const docSel = document.getElementById('walkinDoctor');
+      if (docSel) {
+        docSel.value = docName;
+        onWalkinDateOrDoctorChange();
+      }
+    }
+
+    // =============================================================
+    // 3. ON-THE-SPOT WALK-IN BOOKING MODULE
+    // =============================================================
+    function openWalkinModal() {
+      switchSection('secWalkinBooking');
+      setDefaultWalkinDate();
+      document.getElementById('walkinPatientSearch')?.focus();
+    }
+
+    function setDefaultWalkinDate() {
+      const today = new Date().toISOString().split('T')[0];
+      const dInput = document.getElementById('walkinDate');
+      if (dInput && !dInput.value) {
+        dInput.value = today;
+      }
+    }
+
+    let searchDebounce = null;
+    async function handlePatientSearchInput(query) {
+      clearTimeout(searchDebounce);
+      const resContainer = document.getElementById('patientSearchResults');
+      if (!query || query.trim().length < 2) {
+        resContainer.style.display = 'none';
+        return;
+      }
+
+      searchDebounce = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/patients?search=' + encodeURIComponent(query.trim()));
+          const list = await res.json();
+          if (!list || list.length === 0) {
+            resContainer.innerHTML = `
+              <div style="padding:10px 14px; font-size:0.8rem; color:var(--text-muted);">
+                No existing patient found. Fill fields below to register as a new walk-in patient.
+              </div>`;
+            resContainer.style.display = 'block';
+            return;
+          }
+
+          resContainer.innerHTML = list.map(p => `
+            <div onclick="selectWalkinPatient('${escapeHTML(p.patientId)}', '${escapeHTML(p.name)}', '${escapeHTML(p.phone)}', '${escapeHTML(p.email || '')}', ${p.age || 30}, '${escapeHTML(p.gender || 'Other')}', '${escapeHTML(p.bloodGroup || 'O+')}')"
+                 style="padding:8px 14px; border-bottom:1px solid var(--border-color); cursor:pointer; font-size:0.85rem;"
+                 onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background='transparent'">
+              <strong>${escapeHTML(p.name)}</strong> · <span style="font-family:'JetBrains Mono'; color:var(--teal);">${escapeHTML(p.patientId)}</span> · ${escapeHTML(p.phone)}
+            </div>
+          `).join('');
+          resContainer.style.display = 'block';
+        } catch (e) {
+          console.error('Patient search error:', e);
+        }
+      }, 300);
+    }
+
+    function selectWalkinPatient(id, name, phone, email, age, gender, blood) {
+      document.getElementById('walkinPatientId').value = id;
+      document.getElementById('walkinPatientName').value = name;
+      document.getElementById('walkinPatientPhone').value = phone;
+      document.getElementById('walkinPatientEmail').value = email || (id.toLowerCase() + '@niramaya.health');
+      document.getElementById('walkinPatientAge').value = age || 30;
+      document.getElementById('walkinPatientGender').value = gender || 'Other';
+      document.getElementById('walkinPatientBlood').value = blood || 'O+';
+      document.getElementById('patientSearchResults').style.display = 'none';
+      document.getElementById('walkinPatientSearch').value = `${name} (${id})`;
+    }
+
+    async function onWalkinDateOrDoctorChange() {
+      const docName = document.getElementById('walkinDoctor').value;
+      const dateVal = document.getElementById('walkinDate').value;
+      const slotSel = document.getElementById('walkinTimeSlot');
+      const feeInput = document.getElementById('walkinFee');
+
+      if (!docName || !dateVal) return;
+
+      slotSel.innerHTML = '<option value="">Loading available slots...</option>';
+
+      try {
+        const res = await fetch('/api/doctor/availability?date=' + encodeURIComponent(dateVal));
+        const list = await res.json();
+        const docInfo = list.find(d => (d.doctorName || '').toLowerCase() === docName.toLowerCase());
+
+        if (!docInfo) {
+          slotSel.innerHTML = '<option value="">Doctor schedule not found</option>';
+          return;
+        }
+
+        feeInput.value = '₹' + (docInfo.consultationFee || 800) + '.00';
+
+        if (!docInfo.isAvailableOnDate || !docInfo.availableSlots || docInfo.availableSlots.length === 0) {
+          slotSel.innerHTML = '<option value="">⚠️ No available slots on this date (Full / Off Duty)</option>';
+          return;
+        }
+
+        slotSel.innerHTML = '<option value="">-- Choose Available Slot --</option>' +
+          docInfo.availableSlots.map(s => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
+
+      } catch (err) {
+        console.error('Error fetching doctor slots:', err);
+        slotSel.innerHTML = '<option value="">Failed to load slots</option>';
+      }
+    }
+
+    async function submitWalkinBooking(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnConfirmWalkin');
+      btn.disabled = true;
+
+      try {
+        let pId = document.getElementById('walkinPatientId').value.trim();
+        const pName = document.getElementById('walkinPatientName').value.trim();
+        const pPhone = document.getElementById('walkinPatientPhone').value.trim();
+        const pEmail = document.getElementById('walkinPatientEmail').value.trim();
+        const pAge = document.getElementById('walkinPatientAge').value || '30';
+        const pGender = document.getElementById('walkinPatientGender').value;
+        const pBlood = document.getElementById('walkinPatientBlood').value;
+
+        // If new patient, register them first in backend
+        if (!pId) {
+          pId = 'PT' + Math.floor(100000 + Math.random() * 900000);
+          await fetch('/api/patients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              patientId: pId,
+              name: pName,
+              phone: pPhone,
+              email: pEmail || (pId.toLowerCase() + '@niramaya.health'),
+              age: pAge,
+              gender: pGender,
+              bloodGroup: pBlood
+            })
+          });
+        }
+
+        const docName = document.getElementById('walkinDoctor').value;
+        const apptDate = document.getElementById('walkinDate').value;
+        const apptTime = document.getElementById('walkinTimeSlot').value;
+        const payMethod = document.getElementById('walkinPaymentMethod').value;
+        const payStatus = document.getElementById('walkinPaymentStatus').value;
+        const feeStr = document.getElementById('walkinFee').value;
+
+        if (!apptTime) {
+          alert('Please select a valid available time slot.');
+          btn.disabled = false;
+          return;
+        }
+
+        const apptId = 'TK-' + Math.floor(100000 + Math.random() * 900000);
+
+        // Find doctor details
+        const docObj = allDoctors.find(d => (d.doctorName || d.name || '').toLowerCase() === docName.toLowerCase());
+        const docId = docObj ? docObj.doctorId : '';
+        const dept = docObj ? (docObj.department || docObj.specialization || docObj.category || 'General Medicine') : 'General Medicine';
+
+        // 1. Create appointment in backend
+        const apptRes = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            appointmentId: apptId,
+            patientId: pId,
+            patientName: pName,
+            doctorId: docId,
+            doctorName: docName,
+            department: dept,
+            appointmentDate: apptDate,
+            appointmentTime: apptTime,
+            status: payStatus === 'Paid' ? 'Confirmed' : 'Pending Approval',
+            paymentStatus: payStatus,
+            appointmentType: 'Walk-in',
+            source: 'Reception Desk'
+          })
+        });
+
+        const apptData = await apptRes.json();
+        if (!apptRes.ok || apptData.error) {
+          alert('Booking Failed: ' + (apptData.error || 'Conflict or server error'));
+          btn.disabled = false;
+          return;
+        }
+
+        // 2. If marked paid, also update payment transaction and broadcast
+        if (payStatus === 'Paid') {
+          await fetch('/api/admin/mark-appointment-paid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              appointmentId: apptId,
+              paymentMode: payMethod
+            })
+          });
+
+          try {
+            if (paymentSyncChannel) {
+              paymentSyncChannel.postMessage({
+                type: 'APPOINTMENT_PAID',
+                appointmentId: apptId,
+                patientId: pId,
+                paymentStatus: 'Paid',
+                status: 'Confirmed'
+              });
+            }
+          } catch (e) {}
+        }
+
+        alert(`✅ Walk-in Appointment Confirmed!\nToken ID: ${apptId}\nPatient: ${pName}\nDoctor: ${docName}\nTime: ${apptTime}`);
+
+        // Reset form & reload
+        document.getElementById('formWalkinBooking').reset();
+        document.getElementById('walkinPatientId').value = '';
+        setDefaultWalkinDate();
+        await refreshAllData();
+
+        // Show receipt slip modal for immediate print
+        showReceiptSlip({
+          receiptNo: 'RCT-' + Math.floor(10000 + Math.random() * 90000),
+          token: apptId,
+          patientName: pName,
+          patientId: pId,
+          doctorName: docName,
+          department: dept,
+          dateTime: apptDate + ' ' + apptTime,
+          type: 'Walk-in (Counter)',
+          fee: feeStr,
+          total: feeStr,
+          status: payStatus === 'Paid' ? 'PAID ✓' : 'PENDING COUNTER'
+        });
+
+      } catch (err) {
+        console.error('Walk-in booking error:', err);
+        alert('Booking error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // =============================================================
+    // 4. PAY AT COUNTER COLLECTIONS MODULE
+    // =============================================================
+    async function loadCounterPayments(silent = false) {
+      try {
+        const res = await fetch('/api/receptionist/counter-payments');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        pendingCounterPayments = await res.json();
+
+        const countStr = pendingCounterPayments.length.toString();
+        document.getElementById('badgeCounterNav').textContent = countStr;
+        document.getElementById('badgeCounterHeader').textContent = countStr + ' Pending';
+        document.getElementById('statPendingPayments').textContent = countStr;
+
+        const tbody = document.getElementById('tbodyCounterQueue');
+        if (!tbody) return;
+
+        if (pendingCounterPayments.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#059669; font-weight:700;">✅ No pending counter collections! All bookings are cleared.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = pendingCounterPayments.map(a => `
+          <tr>
+            <td><strong style="color:var(--teal); font-family:'JetBrains Mono';">${escapeHTML(a.appointmentId)}</strong></td>
+            <td>
+              <strong style="color:var(--text-main);">${escapeHTML(a.patientName || 'Patient')}</strong>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(a.patientId || '')}</div>
+            </td>
+            <td>
+              <div>${escapeHTML(a.doctorName || 'Doctor')}</div>
+              <small style="color:var(--text-muted);">${escapeHTML(a.department || 'General')}</small>
+            </td>
+            <td>${escapeHTML(a.date || '')} ${escapeHTML(a.time || '')}</td>
+            <td><strong style="color:#D97706; font-size:0.95rem;">${escapeHTML(a.fee || '₹800.00')}</strong></td>
+            <td><span class="badge badge-warning">⚠️ Pay at Desk</span></td>
+            <td>
+              <button class="btn btn-warning btn-sm" onclick="openPaymentModal('${escapeHTML(a.appointmentId)}', '${escapeHTML(a.patientId)}', '${escapeHTML(a.patientName)}', '${escapeHTML(a.doctorName)}', '${escapeHTML(a.fee || '₹800.00')}')" style="background:#059669; border-color:#059669; color:#fff; font-weight:700;">
+                💵 Collect & Mark Paid
+              </button>
+            </td>
+          </tr>
+        `).join('');
+
+      } catch (err) {
+        if (!silent) console.error('Failed to load counter payments:', err);
+      }
+    }
+
+    function openPaymentModal(apptId, patientId, patientName, doctorName, fee) {
+      document.getElementById('payApptId').value = apptId;
+      document.getElementById('payPatientId').value = patientId;
+      document.getElementById('payLblApptId').textContent = apptId;
+      document.getElementById('payLblPatientName').textContent = patientName || patientId;
+      document.getElementById('payLblDoctorName').textContent = doctorName;
+      document.getElementById('payLblFee').textContent = fee || '₹800.00';
+      openModal('modalPayment');
+    }
+
+    async function submitPaymentCollection(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnConfirmPay');
+      btn.disabled = true;
+
+      const apptId = document.getElementById('payApptId').value;
+      const patientId = document.getElementById('payPatientId').value;
+      const patientName = document.getElementById('payLblPatientName').textContent;
+      const doctorName = document.getElementById('payLblDoctorName').textContent;
+      const fee = document.getElementById('payLblFee').textContent;
+      const payMode = document.getElementById('payModeSelect').value;
+
+      try {
+        const res = await fetch('/api/receptionist/mark-appointment-paid', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            appointmentId: apptId,
+            paymentMode: payMode
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          // Broadcast payment status across portals
+          try {
+            if (paymentSyncChannel) {
+              paymentSyncChannel.postMessage({
+                type: 'APPOINTMENT_PAID',
+                appointmentId: apptId,
+                patientId: patientId,
+                paymentStatus: 'Paid',
+                status: 'Confirmed'
+              });
+            }
+          } catch (e) {}
+
+          // Sync localStorage across tabs
+          try {
+            let allA = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+            allA.forEach(a => {
+              if (a.appointmentId === apptId || a.token === apptId) {
+                a.paymentStatus = 'Paid';
+                a.status = 'Confirmed';
+                a.isPaid = true;
+              }
+            });
+            localStorage.setItem('niramaya_all_appointments', JSON.stringify(allA));
+
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('niramaya_user_bookings_')) {
+                try {
+                  let ub = JSON.parse(localStorage.getItem(k) || '[]');
+                  let mod = false;
+                  ub.forEach(b => {
+                    if (b.token === apptId || b.id === apptId || b.appointmentId === apptId) {
+                      b.paymentStatus = 'Paid';
+                      b.status = 'Confirmed & Paid ✓';
+                      b.isPaid = true;
+                      mod = true;
+                    }
+                  });
+                  if (mod) localStorage.setItem(k, JSON.stringify(ub));
+                } catch(e){}
+              }
+            }
+          } catch(e){}
+
+          closeModal('modalPayment');
+          alert(`✅ Payment of ${fee} received via ${payMode}!\nReceipt generated and patient invoice unlocked.`);
+          await refreshAllData();
+
+          // Show printable receipt
+          showReceiptSlip({
+            receiptNo: 'RCT-' + Math.floor(10000 + Math.random() * 90000),
+            token: apptId,
+            patientName: patientName,
+            patientId: patientId,
+            doctorName: doctorName,
+            department: 'General OPD',
+            dateTime: new Date().toLocaleDateString('en-IN') + ' ' + new Date().toLocaleTimeString('en-IN'),
+            type: 'Pay at Counter (' + payMode + ')',
+            fee: fee,
+            total: fee,
+            status: 'PAID ✓'
+          });
+
+        } else {
+          alert('Failed to mark payment as paid: ' + (data.message || 'Server error'));
+        }
+      } catch (err) {
+        console.error('Payment collection error:', err);
+        alert('Network error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function viewReceipt(apptId) {
+      const appt = allAppointments.find(a => a.appointmentId === apptId);
+      if (!appt) {
+        alert('Appointment details not found.');
+        return;
+      }
+      showReceiptSlip({
+        receiptNo: 'RCT-' + Math.floor(10000 + Math.random() * 90000),
+        token: appt.appointmentId,
+        patientName: appt.patientName,
+        patientId: appt.patientId,
+        doctorName: appt.doctorName,
+        department: appt.department,
+        dateTime: (appt.date || '') + ' ' + (appt.time || ''),
+        type: appt.appointmentType || 'Online Booking',
+        fee: '₹800.00',
+        total: '₹800.00',
+        status: (appt.paymentStatus || '').toLowerCase().includes('paid') ? 'PAID ✓' : 'UNPAID'
+      });
+    }
+
+    function showReceiptSlip(data) {
+      document.getElementById('rcptNo').textContent = data.receiptNo;
+      document.getElementById('rcptDate').textContent = new Date().toLocaleDateString('en-IN');
+      document.getElementById('rcptToken').textContent = data.token;
+      document.getElementById('rcptPatient').textContent = data.patientName;
+      document.getElementById('rcptPatientId').textContent = data.patientId;
+      document.getElementById('rcptDoctor').textContent = data.doctorName;
+      document.getElementById('rcptDept').textContent = data.department;
+      document.getElementById('rcptDateTime').textContent = data.dateTime;
+      document.getElementById('rcptType').textContent = data.type;
+      document.getElementById('rcptFee').textContent = data.fee;
+      document.getElementById('rcptTotal').textContent = data.total;
+      document.getElementById('rcptStatus').textContent = data.status;
+      openModal('modalReceipt');
+    }
+
+    // =============================================================
+    // 5. IPD BED & ADMISSION TRACKER (VIEW-ONLY RECEPTIONIST ROLE)
+    // =============================================================
+    async function loadIpdData() {
+      try {
+        const [bRes, aRes] = await Promise.all([
+          fetch('/api/ipd/beds'),
+          fetch('/api/ipd/admissions?status=all')
+        ]);
+        ipdBeds = await bRes.json();
+        ipdAdmissions = await aRes.json();
+
+        let occ = 0, avail = 0;
+        ipdBeds.forEach(b => {
+          if (b.status === 'Occupied') occ++;
+          else if (b.status === 'Available') avail++;
+        });
+
+        document.getElementById('ipdStatTotalBeds').textContent = ipdBeds.length;
+        document.getElementById('ipdStatOccupiedBeds').textContent = occ;
+        document.getElementById('ipdStatAvailableBeds').textContent = avail;
+        const rate = ipdBeds.length > 0 ? Math.round((occ / ipdBeds.length) * 100) : 0;
+        document.getElementById('ipdStatOccupancyRate').textContent = rate + '%';
+
+        document.getElementById('statActiveInpatients').textContent = occ;
+        document.getElementById('statAvailBeds').textContent = avail;
+        document.getElementById('statBedOccupancyRate').textContent = rate + '%';
+        document.getElementById('badgeIpdAdmissionsCount').textContent = ipdAdmissions.length + ' Admissions';
+
+        renderIpdBedCards(currentIpdBlock);
+        renderIpdAdmissionsTable();
+
+      } catch (err) {
+        console.error('Failed to load IPD beds:', err);
+      }
+    }
+
+    function filterIpdBedBlock(blockName, btn) {
+      currentIpdBlock = blockName;
+      document.querySelectorAll('.block-tab').forEach(b => {
+        b.classList.remove('active', 'btn-primary');
+        b.classList.add('btn-secondary');
+      });
+      if (btn) {
+        btn.classList.add('active', 'btn-primary');
+        btn.classList.remove('btn-secondary');
+      }
+      renderIpdBedCards(blockName);
+    }
+
+    function renderIpdBedCards(blockName) {
+      const grid = document.getElementById('gridIpdBeds');
+      if (!grid) return;
+      const filtered = blockName === 'ALL' ? ipdBeds : ipdBeds.filter(b => (b.blockName || '').includes(blockName));
+
+      if (!filtered || filtered.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; padding:20px; text-align:center; color:var(--text-muted);">No beds found in this block.</div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(b => {
+        let cardBorder = 'border: 2px solid #10B981; background: #ECFDF5;';
+        let badgeStyle = 'background: #10B981; color: #fff;';
+        let statusLabel = 'Available';
+
+        if (b.status === 'Occupied') {
+          cardBorder = 'border: 2px solid #EF4444; background: #FEF2F2;';
+          badgeStyle = 'background: #EF4444; color: #fff;';
+          statusLabel = 'Occupied';
+        } else if (b.status === 'Under Maintenance') {
+          cardBorder = 'border: 2px solid #F59E0B; background: #FFFBEB;';
+          badgeStyle = 'background: #F59E0B; color: #fff;';
+          statusLabel = 'Maintenance';
+        }
+
+        return `
+          <div style="border-radius:12px; padding:14px; display:flex; flex-direction:column; justify-content:space-between; ${cardBorder}">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                <div>
+                  <strong style="font-size:1.15rem; color:#0F172A;">${escapeHTML(b.bedNumber)}</strong>
+                  <div style="font-size:0.75rem; color:#64748B;">Room: ${escapeHTML(b.roomNumber)}</div>
+                </div>
+                <span style="font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; ${badgeStyle}">${statusLabel}</span>
+              </div>
+              <div style="font-size:0.8rem; font-weight:700; color:var(--teal);">${escapeHTML(b.wardType)}</div>
+              <div style="font-size:0.72rem; color:#64748B;">${escapeHTML(b.blockName)}</div>
+
+              ${b.status === 'Occupied' ? `
+                <div style="margin-top:8px; padding-top:6px; border-top:1px dashed #FCA5A5; font-size:0.8rem;">
+                  <div style="font-weight:700; color:#991B1B;">👤 ${escapeHTML(b.currentPatientName || 'Patient Admitted')}</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderIpdAdmissionsTable() {
+      const tbody = document.getElementById('tbodyIpdAdmissions');
+      if (!tbody) return;
+      if (ipdAdmissions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">No inpatient admission records in database.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = ipdAdmissions.map(a => {
+        const isAdmitted = a.status === 'Admitted';
+        const badgeStyle = isAdmitted ? 'badge-success' : 'badge-info';
+        return `
+          <tr>
+            <td><strong style="font-family:'JetBrains Mono'; color:var(--teal);">${escapeHTML(a.admissionId)}</strong></td>
+            <td>
+              <div style="font-weight:700;">${escapeHTML(a.patientName)}</div>
+              <small style="color:var(--text-muted);">${escapeHTML(a.patientId)}</small>
+            </td>
+            <td>
+              <div>${escapeHTML(a.blockName)}</div>
+              <small style="color:var(--text-muted);">${escapeHTML(a.wardType)}</small>
+            </td>
+            <td><strong>${escapeHTML(a.roomNumber)} - ${escapeHTML(a.bedNumber)}</strong></td>
+            <td>${escapeHTML(a.attendingDoctor || 'Assigned')}</td>
+            <td>${escapeHTML(a.admissionDate)}</td>
+            <td><span class="badge ${badgeStyle}">${escapeHTML(a.status)}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function loadTotalPatientsStat() {
+      try {
+        const res = await fetch('/api/patients');
+        const list = await res.json();
+        document.getElementById('statTotalPatients').textContent = list.length || 0;
+      } catch (e) {}
+    }
+
+    function updateDashboardStats() {
+      const todayStr = new Date().toISOString().split('T')[0];
+      let todayCount = 0;
+      let walkinCount = 0;
+
+      allAppointments.forEach(a => {
+        const d = a.date || a.appointmentDate || '';
+        if (d === todayStr || d.toLowerCase() === 'today') {
+          todayCount++;
+        }
+        if ((a.appointmentType || '').toLowerCase().includes('walk')) {
+          walkinCount++;
+        }
+      });
+
+      document.getElementById('statTodayAppts').textContent = todayCount;
+      document.getElementById('statWalkinAppts').textContent = walkinCount;
+    }
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+  </script>
+  <script src="assets/js/mobile-responsive.js"></script>
+</body>
+
+</html>

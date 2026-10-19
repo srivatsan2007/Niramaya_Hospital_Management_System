@@ -1649,9 +1649,9 @@
         fee: parseInt(docProfile.fee) || 800,
         consultationFees: parseInt(docProfile.fee) || 800,
         phone: docProfile.phone,
-        days: docProfile.days || 'Mon - Sat',
-        workingDays: docProfile.days || 'Mon - Sat',
-        timing: `${docProfile.morning || '09:00 AM - 01:00 PM'}, ${docProfile.evening || '04:00 PM - 08:00 PM'} (${docProfile.days || 'Mon - Sat'})`,
+        days: docProfile.days || 'Mon - Sun',
+        workingDays: docProfile.days || 'Mon - Sun',
+        timing: `${docProfile.morning || '09:00 AM - 01:00 PM'}, ${docProfile.evening || '04:00 PM - 08:00 PM'} (${docProfile.days || 'Mon - Sun'})`,
         workingHours: `${docProfile.morning || '09:00 AM - 01:00 PM'}, ${docProfile.evening || '04:00 PM - 08:00 PM'}`,
         status: isOnline ? 'Online & Accepting Appointments' : 'Offline / Not Accepting Appointments',
         availableStatus: isOnline ? 'Online & Accepting Appointments' : 'Offline / Not Accepting Appointments',
@@ -1670,7 +1670,7 @@
       const cleanEmail = currentUserEmail || 'doctor@niramaya.health';
       const cleanName = docProfile.name || 'Doctor';
       const cleanDept = docProfile.dept || 'General Medicine';
-      const cleanDays = docProfile.days || 'Mon - Sat';
+      const cleanDays = docProfile.days || 'Mon - Sun';
 
       // 1. Post to Neon & SQLite Database API
       fetch('/api/doctor/toggle-availability', {
@@ -1882,8 +1882,8 @@
           ...a,
           token: a.token || a.id || a.appointmentId || '#APT-' + Math.floor(1000 + Math.random()*9000),
           patientId: a.patientId || 'PT' + Math.floor(100000 + Math.random()*900000),
-          patientName: a.patientName || a.patient || 'Guest Patient',
-          ageGender: a.ageGender || `${a.age || '28'} Yrs / ${a.gender || 'Female'}`,
+          patientName: a.patientName || a.patient || 'Patient',
+          ageGender: a.ageGender || `${a.age || '28'} Yrs / ${a.gender || 'Male'}`,
           slotTime: a.slotTime || a.time || a.appointmentTime || '10:40 AM',
           bookingDate: a.bookingDate || a.date || a.appointmentDate || 'Today',
           status: a.status || 'PENDING'
@@ -1911,14 +1911,14 @@
       if (!Array.isArray(completedAppts)) completedAppts = [];
 
       const appts = todaysAppts.map(a => ({
-        token: a.appointmentId || '#APT-' + Math.floor(1000 + Math.random()*9000),
+        token: a.appointmentId || a.token || '#APT-' + Math.floor(1000 + Math.random()*9000),
         patientId: a.patientId,
-        patientName: a.doctorName ? ('Patient (' + a.patientId + ')') : (a.patientName || 'Patient (' + a.patientId + ')'),
-        ageGender: 'Adult',
+        patientName: a.patientName || a.patient || 'Patient',
+        ageGender: a.ageGender || `${a.age || '28'} Yrs / ${a.gender || 'Male'}`,
         slotTime: a.appointmentTime || a.time || '10:00 AM',
         bookingDate: a.appointmentDate || a.date || 'Today',
         status: (a.status || 'Confirmed').toUpperCase(),
-        docName: a.doctorName,
+        docName: a.doctorName || a.docName,
         doctorId: a.doctorId
       }));
 
@@ -2200,7 +2200,7 @@
       tbody.appendChild(tr);
     }
 
-    async function loadPatientVitalsForDoctor(pId) {
+    async function loadPatientVitalsForDoctor(pId, apptToken) {
       const container = document.getElementById('vitalsGridDisplay');
       if (!pId) {
         container.innerHTML = `<div style="color:var(--ink-soft);">No patient selected.</div>`;
@@ -2208,7 +2208,12 @@
       }
       container.innerHTML = `<div style="color:var(--primary);">Loading live vitals from database...</div>`;
       try {
-        const res = await fetch('/api/doctor/patient-vitals?patientId=' + encodeURIComponent(pId));
+        let url = '/api/doctor/patient-vitals?patientId=' + encodeURIComponent(pId);
+        const token = apptToken || document.getElementById('pFormApptToken')?.value || '';
+        if (token) {
+          url += '&appointmentId=' + encodeURIComponent(token);
+        }
+        const res = await fetch(url);
         const data = await res.json();
         if (data && data.hasVitals) {
           container.innerHTML = `
@@ -2229,6 +2234,10 @@
               <div style="font-size:1rem; font-weight:800; color:#0F172A;">${data.oxygenSaturation || 'N/A'}</div>
             </div>
             <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0;">
+              <div style="font-size:0.72rem; color:#64748B; font-weight:700;">BLOOD SUGAR</div>
+              <div style="font-size:1rem; font-weight:800; color:#0F172A;">${data.bloodSugar || 'N/A'}</div>
+            </div>
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #E2E8F0;">
               <div style="font-size:0.72rem; color:#64748B; font-weight:700;">WEIGHT / HEIGHT</div>
               <div style="font-size:0.9rem; font-weight:700; color:#0F172A;">${data.weight || 'N/A'} / ${data.height || 'N/A'}</div>
             </div>
@@ -2239,7 +2248,10 @@
             </div>
           `;
         } else {
-          container.innerHTML = `<div style="color:#D97706; font-size:0.88rem; padding:4px 0;">⚠️ ${data.message || 'No vital checks recorded yet for this patient by nurse.'}</div>`;
+          container.innerHTML = `
+            <div style="grid-column: 1 / -1; background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; font-size:0.9rem; font-weight:600; display:flex; align-items:center; gap:8px;">
+              <span>⚠️</span> <span>Pending Nurse Assessment: No vital checks recorded yet for this appointment/patient.</span>
+            </div>`;
         }
       } catch(e) {
         container.innerHTML = `<div style="color:#EF4444;">Failed to load live vitals.</div>`;
@@ -2260,21 +2272,48 @@
       addMedicineRow('Paracetamol 650mg', 1, 0, 1, 'After Food', 5);
       addMedicineRow('Amoxicillin 500mg', 1, 0, 1, 'After Food', 5);
 
-      loadPatientVitalsForDoctor(pId);
+      loadPatientVitalsForDoctor(pId, apptToken);
     }
 
-    function searchPatientForPrescription() {
+    async function searchPatientForPrescription() {
       const searchId = document.getElementById('prescSearchId').value.trim().toUpperCase();
       if (!searchId) return showToast('⚠️ Enter Patient ID to search!');
 
       const tokenInput = document.getElementById('pFormApptToken');
       if (tokenInput) tokenInput.value = '';
       document.getElementById('pFormId').value = searchId;
-      document.getElementById('pFormName').value = 'Patient (' + searchId + ')';
-      document.getElementById('pFormAgeGender').value = 'Adult';
+
+      let pName = '';
+      let pAgeGender = '28 Yrs / Male';
+
+      try {
+        const allAppts = JSON.parse(localStorage.getItem('niramaya_all_appointments') || '[]');
+        const matched = allAppts.find(a => (a.patientId && a.patientId.toUpperCase() === searchId) || (a.token && a.token.toUpperCase() === searchId));
+        if (matched) {
+          pName = matched.patient || matched.patientName || '';
+          pAgeGender = matched.ageGender || `${matched.age || '28'} Yrs / ${matched.gender || 'Male'}`;
+        }
+      } catch(e){}
+
+      if (!pName) {
+        try {
+          const res = await fetch('/api/patients');
+          if (res.ok) {
+            const pts = await res.json();
+            const found = pts.find(p => p.patientId === searchId || p.id === searchId);
+            if (found) {
+              pName = found.name;
+              pAgeGender = `${found.age || '28'} Yrs / ${found.gender || 'Male'}`;
+            }
+          }
+        } catch(e){}
+      }
+
+      document.getElementById('pFormName').value = pName || ('Patient ' + searchId);
+      document.getElementById('pFormAgeGender').value = pAgeGender;
       document.getElementById('pFormBlood').value = 'O+';
       loadPatientVitalsForDoctor(searchId);
-      showToast(`✅ Patient ${searchId} loaded successfully!`);
+      showToast(`✅ Patient ${pName || searchId} loaded successfully!`);
     }
 
     function handleSavePrescription(e) {

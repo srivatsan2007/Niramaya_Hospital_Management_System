@@ -113,10 +113,6 @@ public class PatientDAO {
         } catch (SQLException e) {
             System.err.println("Error fetching patients: " + e.getMessage());
         }
-        if (list.isEmpty()) {
-            list.add(new Patient("PT100842", "Rekha Prasad", "patient@niramaya.health", "+91 98765 43210", 28, "Female", "O+"));
-            list.add(new Patient("PT394821", "Aniket Sharma", "aniket@niramaya.health", "+91 98123 45678", 29, "Male", "B+"));
-        }
         return list;
     }
 

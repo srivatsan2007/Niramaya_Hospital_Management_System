@@ -8,6 +8,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * JDBC Database Connection Manager for Niramaya Hospitals.
@@ -40,18 +45,90 @@ public class DBConnection {
     private static volatile long lastPostgresAttemptTime = 0;
     private static final long POSTGRES_RETRY_INTERVAL_MS = 60000; // 60s cooldown if PostgreSQL failed
 
+    // High-performance Connection Pool to eliminate multi-second SSL handshakes
+    private static class PooledConnectionHolder {
+        final Connection connection;
+        final String dbType;
+        volatile long lastUsedTime;
+
+        PooledConnectionHolder(Connection connection, String dbType) {
+            this.connection = connection;
+            this.dbType = dbType;
+            this.lastUsedTime = System.currentTimeMillis();
+        }
+    }
+
+    private static final int MAX_POOL_SIZE = 12;
+    private static final BlockingQueue<PooledConnectionHolder> connectionPool = new LinkedBlockingQueue<>();
+    private static final ScheduledExecutorService poolMaintenance = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "DBConnection-Pool-Keeper");
+        t.setDaemon(true);
+        return t;
+    });
+
     static {
         // Verify Neon PostgreSQL connection when application starts
         verifyNeonPostgreSQLConnection();
 
-        // Initialize tables on startup
+        // Initialize tables on startup if not already initialized
         try {
-            initTables();
-            verifyTablesExist();
+            boolean tablesExist = false;
+            try (Connection checkConn = getConnection();
+                 Statement checkStmt = checkConn.createStatement();
+                 ResultSet rs = checkStmt.executeQuery("SELECT 1 FROM patients LIMIT 1")) {
+                tablesExist = true;
+                System.out.println("✓ JDBC Database Tables already verified active (Fast Startup).");
+            } catch (Exception notExist) {
+                tablesExist = false;
+            }
+
+            if (!tablesExist) {
+                initTables();
+                verifyTablesExist();
+            }
         } catch (Exception e) {
             System.err.println("[SQL Exception] DB Connection Init Warning: " + e.getMessage());
             e.printStackTrace();
         }
+
+        // Pre-warm pool in background daemon thread
+        new Thread(() -> {
+            try {
+                Thread.sleep(300);
+                for (int i = 0; i < 4; i++) {
+                    try {
+                        Connection c = createRawConnection();
+                        if (c != null && !c.isClosed() && c.isValid(2)) {
+                            String dbType = isPostgreSQLAvailable ? ("Neon PostgreSQL (" + POSTGRES_URL + ")") :
+                                            (isMySQLAvailable ? ("MySQL (" + MYSQL_URL + ")") : ("SQLite Embedded (" + SQLITE_URL + ")"));
+                            connectionPool.offer(new PooledConnectionHolder(c, dbType));
+                        }
+                    } catch (Exception ignored) {}
+                }
+                System.out.println("[DB POOL] Pre-warmed " + connectionPool.size() + " persistent database connections.");
+            } catch (Exception ignored) {}
+        }, "DBConnection-Prewarmer").start();
+
+        // Keep-alive timer every 30 seconds to keep pooled connections fresh
+        poolMaintenance.scheduleAtFixedRate(() -> {
+            try {
+                int size = connectionPool.size();
+                for (int i = 0; i < size; i++) {
+                    PooledConnectionHolder h = connectionPool.poll();
+                    if (h != null) {
+                        try {
+                            if (!h.connection.isClosed() && h.connection.isValid(2)) {
+                                connectionPool.offer(h);
+                            } else {
+                                try { h.connection.close(); } catch (Exception ignored) {}
+                            }
+                        } catch (Exception ex) {
+                            try { h.connection.close(); } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }, 30, 30, TimeUnit.SECONDS);
     }
 
     private static final long SERVER_START_TIME = System.currentTimeMillis();
@@ -83,14 +160,36 @@ public class DBConnection {
 
     private static Connection wrapConnection(Connection conn, String dbType) {
         if (conn == null) return null;
-        System.out.println("[JDBC OPEN] Connection opened to " + dbType + " at " + new java.util.Date());
+        return wrapConnection(new PooledConnectionHolder(conn, dbType));
+    }
+
+    private static Connection wrapConnection(PooledConnectionHolder holder) {
+        if (holder == null || holder.connection == null) return null;
+        Connection conn = holder.connection;
+        String dbType = holder.dbType;
         return (Connection) java.lang.reflect.Proxy.newProxyInstance(
             DBConnection.class.getClassLoader(),
             new Class<?>[]{Connection.class},
             (proxy, method, methodArgs) -> {
                 String name = method.getName();
                 if ("close".equals(name)) {
-                    System.out.println("[JDBC CLOSE] Connection closed for " + dbType + " at " + new java.util.Date());
+                    // Recycle connection back into pool instead of physically closing
+                    if (!conn.isClosed() && connectionPool.size() < MAX_POOL_SIZE) {
+                        try {
+                            if (!conn.getAutoCommit()) {
+                                conn.setAutoCommit(true);
+                            }
+                            holder.lastUsedTime = System.currentTimeMillis();
+                            connectionPool.offer(holder);
+                            return null;
+                        } catch (Exception ex) {
+                            try { conn.close(); } catch (Exception ignored) {}
+                            return null;
+                        }
+                    } else {
+                        try { conn.close(); } catch (Exception ignored) {}
+                        return null;
+                    }
                 } else if ("prepareStatement".equals(name) || "createStatement".equals(name) || "prepareCall".equals(name)) {
                     if (methodArgs != null && methodArgs.length > 0 && methodArgs[0] instanceof String) {
                         logQuery((String) methodArgs[0]);
@@ -344,6 +443,30 @@ public class DBConnection {
     }
 
     public static Connection getConnection() throws SQLException {
+        // 1. Check pool for warm, valid connection (0ms overhead)
+        PooledConnectionHolder holder;
+        while ((holder = connectionPool.poll()) != null) {
+            try {
+                if (!holder.connection.isClosed() && holder.connection.isValid(2)) {
+                    holder.lastUsedTime = System.currentTimeMillis();
+                    return wrapConnection(holder);
+                } else {
+                    try { holder.connection.close(); } catch (Exception ignored) {}
+                }
+            } catch (Exception e) {
+                try { holder.connection.close(); } catch (Exception ignored) {}
+            }
+        }
+
+        // 2. Open new raw connection if pool was empty
+        Connection rawConn = createRawConnection();
+        String dbType = isPostgreSQLAvailable ? ("Neon PostgreSQL (" + POSTGRES_URL + ")") :
+                        (isMySQLAvailable ? ("MySQL (" + MYSQL_URL + ")") : ("SQLite Embedded (" + SQLITE_URL + ")"));
+        PooledConnectionHolder newHolder = new PooledConnectionHolder(rawConn, dbType);
+        return wrapConnection(newHolder);
+    }
+
+    private static Connection createRawConnection() throws SQLException {
         long now = System.currentTimeMillis();
         // 1. Try Neon PostgreSQL if configured / available or if cooldown elapsed
         boolean hasPgEnv = System.getenv("POSTGRES_URL") != null || System.getenv("NEON_DB_URL") != null;
@@ -353,7 +476,7 @@ public class DBConnection {
                 lastPostgresAttemptTime = now;
                 Connection conn = DriverManager.getConnection(POSTGRES_URL, POSTGRES_USER, POSTGRES_PASS);
                 isPostgreSQLAvailable = true;
-                return wrapConnection(conn, "Neon PostgreSQL (" + POSTGRES_URL + ")");
+                return conn;
             } catch (Exception pgEx) {
                 isPostgreSQLAvailable = false;
                 lastPostgresAttemptTime = now;
@@ -366,19 +489,17 @@ public class DBConnection {
             Class.forName("com.mysql.cj.jdbc.Driver");
             Connection conn = DriverManager.getConnection(MYSQL_URL, MYSQL_USER, MYSQL_PASS);
             isMySQLAvailable = true;
-            return wrapConnection(conn, "MySQL (" + MYSQL_URL + ")");
+            return conn;
         } catch (Exception mysqlEx) {
             isMySQLAvailable = false;
             // 3. Fall back gracefully to SQLite embedded database
             try {
                 Class.forName("org.sqlite.JDBC");
-                Connection conn = DriverManager.getConnection(SQLITE_URL);
-                return wrapConnection(conn, "SQLite Embedded (" + SQLITE_URL + ")");
+                return DriverManager.getConnection(SQLITE_URL);
             } catch (Exception sqliteEx) {
                 logSQLException(sqliteEx);
                 try {
-                    Connection conn = DriverManager.getConnection("jdbc:sqlite::memory:");
-                    return wrapConnection(conn, "SQLite In-Memory");
+                    return DriverManager.getConnection("jdbc:sqlite::memory:");
                 } catch (Exception inMemEx) {
                     logSQLException(inMemEx);
                     throw new SQLException("Could not establish JDBC connection to Neon PostgreSQL / Fallback DB");
@@ -540,6 +661,7 @@ public class DBConnection {
                     "payment_status VARCHAR(30) DEFAULT 'Paid'" +
                     ");");
             try { stmt.execute("ALTER TABLE appointments ADD COLUMN patient_name VARCHAR(100);"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE appointments ADD COLUMN appointment_type VARCHAR(50) DEFAULT 'Online Booking';"); } catch (Exception ignored) {}
 
             // 4. PRESCRIPTIONS TABLE
             stmt.execute("CREATE TABLE IF NOT EXISTS prescriptions (" +
@@ -581,10 +703,10 @@ public class DBConnection {
             try {
                 if (isPostgreSQL()) {
                     stmt.execute("INSERT INTO patients (patient_id, name, email, phone, age, gender, blood_group) VALUES " +
-                            "('PT100842', 'Rekha Prasad', 'patient@niramaya.health', '+91 98765 43210', 28, 'Female', 'O+') ON CONFLICT (patient_id) DO NOTHING;");
+                            "('PT100842', 'SRIVATSAN R', 'patient@niramaya.health', '+91 98765 43210', 28, 'Male', 'O+') ON CONFLICT (patient_id) DO NOTHING;");
                 } else {
                     stmt.execute("INSERT OR IGNORE INTO patients (patient_id, name, email, phone, age, gender, blood_group) VALUES " +
-                            "('PT100842', 'Rekha Prasad', 'patient@niramaya.health', '+91 98765 43210', 28, 'Female', 'O+');");
+                            "('PT100842', 'SRIVATSAN R', 'patient@niramaya.health', '+91 98765 43210', 28, 'Male', 'O+');");
                 }
             } catch (Exception ignored) {}
 
@@ -592,14 +714,14 @@ public class DBConnection {
             try {
                 if (isPostgreSQL()) {
                     stmt.execute("INSERT INTO users (email, password, role, name, phone) VALUES " +
-                            "('patient@niramaya.health', 'demo1234', 'patient', 'Rekha Prasad', '+91 98765 43210'), " +
+                            "('patient@niramaya.health', 'demo1234', 'patient', 'SRIVATSAN R', '+91 98765 43210'), " +
                             "('doctor@niramaya.health', 'demo1234', 'doctor', 'Dr. Ananya Rao', '+91 98765 43211'), " +
                             "('labtech@tech.in', 'demo1234', 'technician', 'Senior Pathology Specialist', '+91 98765 43213'), " +
                             "('pharmacy@niramaya.health', 'demo1234', 'pharmacy', 'Chief Pharmacist', '+91 98765 43214'), " +
                             "('admin@niramaya.health', 'demo1234', 'admin', 'Hospital Admin', '+91 98765 43212') ON CONFLICT (email) DO NOTHING;");
                 } else {
                     stmt.execute("INSERT OR IGNORE INTO users (email, password, role, name, phone) VALUES " +
-                            "('patient@niramaya.health', 'demo1234', 'patient', 'Rekha Prasad', '+91 98765 43210'), " +
+                            "('patient@niramaya.health', 'demo1234', 'patient', 'SRIVATSAN R', '+91 98765 43210'), " +
                             "('doctor@niramaya.health', 'demo1234', 'doctor', 'Dr. Ananya Rao', '+91 98765 43211'), " +
                             "('labtech@tech.in', 'demo1234', 'technician', 'Senior Pathology Specialist', '+91 98765 43213'), " +
                             "('pharmacy@niramaya.health', 'demo1234', 'pharmacy', 'Chief Pharmacist', '+91 98765 43214'), " +

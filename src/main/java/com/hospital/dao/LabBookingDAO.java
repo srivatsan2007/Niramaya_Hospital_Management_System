@@ -48,9 +48,18 @@ public class LabBookingDAO {
         }
     }
 
+    private static final String BASE_SELECT =
+        "SELECT b.booking_id, b.patient_id, b.doctor_id, b.prescription_id, b.test_name, " +
+        "b.booking_date, b.booking_time, b.status, b.payment_status, b.created_at, " +
+        "p.name AS patient_name, p.age AS patient_age, p.gender AS patient_gender, " +
+        "d.name AS doctor_name, d.department AS doctor_department " +
+        "FROM lab_bookings b " +
+        "LEFT JOIN patients p ON b.patient_id = p.patient_id " +
+        "LEFT JOIN doctors d ON b.doctor_id = d.doctor_id ";
+
     public LabBooking getBookingById(String bookingId) {
         if (bookingId == null || bookingId.trim().isEmpty()) return null;
-        String sql = "SELECT * FROM lab_bookings WHERE booking_id = ? LIMIT 1";
+        String sql = BASE_SELECT + "WHERE b.booking_id = ? LIMIT 1";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, bookingId.trim());
@@ -68,7 +77,7 @@ public class LabBookingDAO {
     public List<LabBooking> getBookingsByPatient(String patientId) {
         if (patientId == null || patientId.trim().isEmpty()) return new ArrayList<>();
         List<LabBooking> list = new ArrayList<>();
-        String sql = "SELECT * FROM lab_bookings WHERE patient_id = ? ORDER BY created_at DESC";
+        String sql = BASE_SELECT + "WHERE b.patient_id = ? ORDER BY b.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, patientId.trim());
@@ -86,7 +95,7 @@ public class LabBookingDAO {
     public List<LabBooking> getBookingsByDoctor(String doctorId) {
         if (doctorId == null || doctorId.trim().isEmpty()) return new ArrayList<>();
         List<LabBooking> list = new ArrayList<>();
-        String sql = "SELECT * FROM lab_bookings WHERE doctor_id = ? ORDER BY created_at DESC";
+        String sql = BASE_SELECT + "WHERE b.doctor_id = ? ORDER BY b.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, doctorId.trim());
@@ -103,7 +112,7 @@ public class LabBookingDAO {
 
     public List<LabBooking> getAllBookings() {
         List<LabBooking> list = new ArrayList<>();
-        String sql = "SELECT * FROM lab_bookings ORDER BY created_at DESC";
+        String sql = BASE_SELECT + "ORDER BY b.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -119,16 +128,10 @@ public class LabBookingDAO {
     public List<LabBooking> getTodaysLabOrders() {
         List<LabBooking> list = new ArrayList<>();
         String todayStr = java.time.LocalDate.now().toString();
-        String sql;
-        if (DBConnection.isPostgreSQL()) {
-            sql = "SELECT * FROM lab_bookings WHERE (booking_date = CURRENT_DATE::text OR booking_date = ? OR LOWER(booking_date) = 'today') AND UPPER(status) NOT IN ('REPORT_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY created_at DESC";
-        } else {
-            sql = "SELECT * FROM lab_bookings WHERE (booking_date = ? OR LOWER(booking_date) = 'today' OR SUBSTR(created_at,1,10) = ?) AND UPPER(status) NOT IN ('REPORT_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY created_at DESC";
-        }
+        String sql = BASE_SELECT + "WHERE (b.booking_date = ? OR LOWER(b.booking_date) = 'today') AND UPPER(b.status) NOT IN ('REPORT_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY b.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, todayStr);
-            if (!DBConnection.isPostgreSQL()) ps.setString(2, todayStr);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(mapResultSet(rs));
@@ -142,7 +145,7 @@ public class LabBookingDAO {
 
     public List<LabBooking> getCompletedReports() {
         List<LabBooking> list = new ArrayList<>();
-        String sql = "SELECT * FROM lab_bookings WHERE UPPER(status) IN ('REPORT_COMPLETED', 'COMPLETED', 'READY') ORDER BY created_at DESC";
+        String sql = BASE_SELECT + "WHERE UPPER(b.status) IN ('REPORT_COMPLETED', 'COMPLETED', 'READY') ORDER BY b.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -153,6 +156,48 @@ public class LabBookingDAO {
             System.err.println("Error fetching completed lab reports: " + e.getMessage());
         }
         return list;
+    }
+
+    public List<LabBooking> getUnpaidLabBookings() {
+        List<LabBooking> list = new ArrayList<>();
+        String sql = BASE_SELECT + "WHERE UPPER(b.payment_status) IN ('UNPAID', 'PENDING') ORDER BY b.created_at DESC";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching unpaid lab bookings: " + e.getMessage());
+        }
+        return list;
+    }
+
+    public boolean updatePaymentStatus(String bookingId, String paymentStatus) {
+        String sql = "UPDATE lab_bookings SET payment_status = ? WHERE booking_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, paymentStatus);
+            ps.setString(2, bookingId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating lab booking payment status: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean updatePaymentStatusAndMethod(String bookingId, String paymentStatus, String paymentMethod) {
+        String sql = "UPDATE lab_bookings SET payment_status = ?, payment_method = ? WHERE booking_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, paymentStatus);
+            ps.setString(2, paymentMethod);
+            ps.setString(3, bookingId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            // If payment_method column is absent in fallback, update payment_status alone
+            return updatePaymentStatus(bookingId, paymentStatus);
+        }
     }
 
     public boolean markTestCompleted(String bookingId) {
@@ -168,10 +213,29 @@ public class LabBookingDAO {
     }
 
     private LabBooking mapResultSet(ResultSet rs) throws SQLException {
+        String pName = "";
+        String pAge = "";
+        String pGender = "";
+        String dName = "";
+        String dept = "";
+        try { pName = rs.getString("patient_name"); } catch (Exception ignored) {}
+        try {
+            int ageVal = rs.getInt("patient_age");
+            if (ageVal > 0) pAge = ageVal + " Yrs";
+        } catch (Exception ignored) {}
+        try { pGender = rs.getString("patient_gender"); } catch (Exception ignored) {}
+        try { dName = rs.getString("doctor_name"); } catch (Exception ignored) {}
+        try { dept = rs.getString("doctor_department"); } catch (Exception ignored) {}
+
         return new LabBooking(
             rs.getString("booking_id"),
             rs.getString("patient_id"),
+            pName != null && !pName.isEmpty() ? pName : "Patient",
+            pAge != null && !pAge.isEmpty() ? pAge : "28 Yrs",
+            pGender != null && !pGender.isEmpty() ? pGender : "Male",
             rs.getString("doctor_id"),
+            dName != null && !dName.isEmpty() ? dName : "Consulting Doctor",
+            dept != null && !dept.isEmpty() ? dept : "Diagnostics",
             rs.getString("prescription_id"),
             rs.getString("test_name"),
             rs.getString("booking_date"),

@@ -253,16 +253,10 @@ public class NurseDAO {
     public List<NurseAssignment> getTodaysAssignedPatients(String nurseId) {
         List<NurseAssignment> list = new ArrayList<>();
         String todayStr = java.time.LocalDate.now().toString();
-        String sql;
-        if (isPostgreSQL()) {
-            sql = "SELECT * FROM appointment_assignments WHERE (appointment_date = CURRENT_DATE::text OR appointment_date = ? OR LOWER(appointment_date) = 'today') AND UPPER(status) NOT IN ('VITALS_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY created_at DESC";
-        } else {
-            sql = "SELECT * FROM appointment_assignments WHERE (appointment_date = ? OR LOWER(appointment_date) = 'today' OR SUBSTR(created_at,1,10) = ?) AND UPPER(status) NOT IN ('VITALS_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY created_at DESC";
-        }
+        String sql = "SELECT * FROM appointment_assignments WHERE (appointment_date = ? OR LOWER(appointment_date) = 'today') AND UPPER(status) NOT IN ('VITALS_COMPLETED', 'COMPLETED', 'CANCELLED') ORDER BY created_at DESC";
         try (Connection conn = DBConnection.getValidatedConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, todayStr);
-            if (!isPostgreSQL()) ps.setString(2, todayStr);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     NurseAssignment a = new NurseAssignment();
@@ -380,6 +374,21 @@ public class NurseDAO {
             }
         } catch (Exception ignored) {}
 
+        if (patientName == null || patientName.isEmpty() || patientName.startsWith("Patient PT")) {
+            try (Connection conn = DBConnection.getValidatedConnection();
+                 PreparedStatement psAppt = conn.prepareStatement("SELECT patient_name FROM appointments WHERE appointment_id = ? LIMIT 1")) {
+                psAppt.setString(1, appointmentId);
+                try (ResultSet rsAppt = psAppt.executeQuery()) {
+                    if (rsAppt.next()) {
+                        String aName = rsAppt.getString("patient_name");
+                        if (aName != null && !aName.isEmpty() && !aName.equalsIgnoreCase("Patient")) {
+                            patientName = aName;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
         String assignmentId = "ASN-" + System.currentTimeMillis();
         String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 
@@ -436,33 +445,35 @@ public class NurseDAO {
     public boolean recordVitals(PatientVital vital) {
         String sql;
         if (isPostgreSQL()) {
-            sql = "INSERT INTO patient_vitals (vital_id, patient_id, nurse_id, nurse_name, temperature, blood_pressure, pulse_rate, respiratory_rate, oxygen_saturation, blood_sugar, weight, height, recorded_date, recorded_time, created_at) " +
-                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (vital_id) DO UPDATE SET " +
-                  "temperature=EXCLUDED.temperature, blood_pressure=EXCLUDED.blood_pressure, pulse_rate=EXCLUDED.pulse_rate, oxygen_saturation=EXCLUDED.oxygen_saturation;";
+            sql = "INSERT INTO patient_vitals (vital_id, appointment_id, patient_id, nurse_id, nurse_name, temperature, blood_pressure, pulse_rate, respiratory_rate, oxygen_saturation, blood_sugar, weight, height, recorded_date, recorded_time, created_at, status) " +
+                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (vital_id) DO UPDATE SET " +
+                  "temperature=EXCLUDED.temperature, blood_pressure=EXCLUDED.blood_pressure, pulse_rate=EXCLUDED.pulse_rate, oxygen_saturation=EXCLUDED.oxygen_saturation, blood_sugar=EXCLUDED.blood_sugar, status='Completed';";
         } else {
-            sql = "INSERT OR REPLACE INTO patient_vitals (vital_id, patient_id, nurse_id, nurse_name, temperature, blood_pressure, pulse_rate, respiratory_rate, oxygen_saturation, blood_sugar, weight, height, recorded_date, recorded_time, created_at) " +
-                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+            sql = "INSERT OR REPLACE INTO patient_vitals (vital_id, appointment_id, patient_id, nurse_id, nurse_name, temperature, blood_pressure, pulse_rate, respiratory_rate, oxygen_saturation, blood_sugar, weight, height, recorded_date, recorded_time, created_at, status) " +
+                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
         }
         try (Connection conn = DBConnection.getValidatedConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             String id = vital.getVitalId() != null ? vital.getVitalId() : "VIT-" + System.currentTimeMillis();
             ps.setString(1, id);
-            ps.setString(2, vital.getPatientId());
-            ps.setString(3, vital.getNurseId());
-            ps.setString(4, vital.getNurseName());
-            ps.setString(5, vital.getTemperature());
-            ps.setString(6, vital.getBloodPressure());
-            ps.setString(7, vital.getPulseRate());
-            ps.setString(8, vital.getRespiratoryRate());
-            ps.setString(9, vital.getOxygenSaturation());
-            ps.setString(10, vital.getBloodSugar());
-            ps.setString(11, vital.getWeight());
-            ps.setString(12, vital.getHeight());
+            ps.setString(2, vital.getAppointmentId());
+            ps.setString(3, vital.getPatientId());
+            ps.setString(4, vital.getNurseId());
+            ps.setString(5, vital.getNurseName());
+            ps.setString(6, vital.getTemperature());
+            ps.setString(7, vital.getBloodPressure());
+            ps.setString(8, vital.getPulseRate());
+            ps.setString(9, vital.getRespiratoryRate());
+            ps.setString(10, vital.getOxygenSaturation());
+            ps.setString(11, vital.getBloodSugar());
+            ps.setString(12, vital.getWeight());
+            ps.setString(13, vital.getHeight());
             String todayDate = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
             String todayTime = new SimpleDateFormat("hh:mm a").format(new Date());
-            ps.setString(13, vital.getRecordedDate() != null ? vital.getRecordedDate() : todayDate);
-            ps.setString(14, vital.getRecordedTime() != null ? vital.getRecordedTime() : todayTime);
-            ps.setString(15, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+            ps.setString(14, vital.getRecordedDate() != null ? vital.getRecordedDate() : todayDate);
+            ps.setString(15, vital.getRecordedTime() != null ? vital.getRecordedTime() : todayTime);
+            ps.setString(16, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+            ps.setString(17, "Completed");
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             DBConnection.logSQLException(e);
@@ -478,29 +489,51 @@ public class NurseDAO {
             ps.setString(1, patientId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    PatientVital v = new PatientVital();
-                    v.setVitalId(rs.getString("vital_id"));
-                    v.setPatientId(rs.getString("patient_id"));
-                    v.setNurseId(rs.getString("nurse_id"));
-                    v.setNurseName(rs.getString("nurse_name"));
-                    v.setTemperature(rs.getString("temperature"));
-                    v.setBloodPressure(rs.getString("blood_pressure"));
-                    v.setPulseRate(rs.getString("pulse_rate"));
-                    v.setRespiratoryRate(rs.getString("respiratory_rate"));
-                    v.setOxygenSaturation(rs.getString("oxygen_saturation"));
-                    v.setBloodSugar(rs.getString("blood_sugar"));
-                    v.setWeight(rs.getString("weight"));
-                    v.setHeight(rs.getString("height"));
-                    v.setRecordedDate(rs.getString("recorded_date"));
-                    v.setRecordedTime(rs.getString("recorded_time"));
-                    v.setCreatedAt(rs.getString("created_at"));
-                    list.add(v);
+                    list.add(mapVitalResultSet(rs));
                 }
             }
         } catch (SQLException e) {
             DBConnection.logSQLException(e);
         }
         return list;
+    }
+
+    public PatientVital getVitalsForAppointment(String appointmentId) {
+        if (appointmentId == null || appointmentId.trim().isEmpty()) return null;
+        String sql = "SELECT * FROM patient_vitals WHERE appointment_id = ? ORDER BY created_at DESC LIMIT 1";
+        try (Connection conn = DBConnection.getValidatedConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, appointmentId.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapVitalResultSet(rs);
+                }
+            }
+        } catch (SQLException e) {
+            DBConnection.logSQLException(e);
+        }
+        return null;
+    }
+
+    private PatientVital mapVitalResultSet(ResultSet rs) throws SQLException {
+        PatientVital v = new PatientVital();
+        v.setVitalId(rs.getString("vital_id"));
+        try { v.setAppointmentId(rs.getString("appointment_id")); } catch (Exception ignored) {}
+        v.setPatientId(rs.getString("patient_id"));
+        v.setNurseId(rs.getString("nurse_id"));
+        v.setNurseName(rs.getString("nurse_name"));
+        v.setTemperature(rs.getString("temperature"));
+        v.setBloodPressure(rs.getString("blood_pressure"));
+        v.setPulseRate(rs.getString("pulse_rate"));
+        v.setRespiratoryRate(rs.getString("respiratory_rate"));
+        v.setOxygenSaturation(rs.getString("oxygen_saturation"));
+        v.setBloodSugar(rs.getString("blood_sugar"));
+        v.setWeight(rs.getString("weight"));
+        v.setHeight(rs.getString("height"));
+        v.setRecordedDate(rs.getString("recorded_date"));
+        v.setRecordedTime(rs.getString("recorded_time"));
+        v.setCreatedAt(rs.getString("created_at"));
+        return v;
     }
 
     // Nursing Notes

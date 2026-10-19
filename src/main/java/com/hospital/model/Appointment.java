@@ -14,18 +14,25 @@ public class Appointment {
     private String appointmentTime;
     private String status;
     private String paymentStatus;
+    private String appointmentType;
 
     public Appointment() {}
 
     public Appointment(String appointmentId, String patientId, String doctorId, String doctorName,
                        String department, String appointmentDate, String appointmentTime,
                        String status, String paymentStatus) {
-        this(appointmentId, patientId, "Patient", doctorId, doctorName, department, appointmentDate, appointmentTime, status, paymentStatus);
+        this(appointmentId, patientId, "Patient", doctorId, doctorName, department, appointmentDate, appointmentTime, status, paymentStatus, "Online Booking");
     }
 
     public Appointment(String appointmentId, String patientId, String patientName, String doctorId, String doctorName,
                        String department, String appointmentDate, String appointmentTime,
                        String status, String paymentStatus) {
+        this(appointmentId, patientId, patientName, doctorId, doctorName, department, appointmentDate, appointmentTime, status, paymentStatus, "Online Booking");
+    }
+
+    public Appointment(String appointmentId, String patientId, String patientName, String doctorId, String doctorName,
+                       String department, String appointmentDate, String appointmentTime,
+                       String status, String paymentStatus, String appointmentType) {
         this.appointmentId = appointmentId;
         this.patientId = patientId;
         this.patientName = patientName;
@@ -36,6 +43,7 @@ public class Appointment {
         this.appointmentTime = appointmentTime;
         this.status = status;
         this.paymentStatus = paymentStatus;
+        this.appointmentType = (appointmentType != null && !appointmentType.isEmpty()) ? appointmentType : "Online Booking";
     }
 
     public String getAppointmentId() { return appointmentId; }
@@ -67,4 +75,7 @@ public class Appointment {
 
     public String getPaymentStatus() { return paymentStatus; }
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
+    public String getAppointmentType() { return appointmentType != null ? appointmentType : "Online Booking"; }
+    public void setAppointmentType(String appointmentType) { this.appointmentType = appointmentType; }
 }

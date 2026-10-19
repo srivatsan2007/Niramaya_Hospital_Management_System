@@ -9,6 +9,12 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="/css/style.css">
+<link rel="prefetch" href="dashboard.html">
+<link rel="prefetch" href="doctor-dashboard.html">
+<link rel="prefetch" href="admin-dashboard.html">
+<link rel="prefetch" href="nurse-dashboard.html">
+<link rel="prefetch" href="pharmacy-dashboard.html">
+<link rel="prefetch" href="lab-dashboard.html">
 <style>
   .auth-mode-tabs {
     display: flex;
@@ -557,7 +563,7 @@
     if (role === 'nurse' || (email && email.endsWith('@nurse.in'))) return 'nurse-dashboard.html';
     if (role === 'doctor' || (email && email.endsWith('@doctor.in'))) return 'doctor-dashboard.html';
     if (role === 'admin' || (email && email.endsWith('@admin.in'))) return 'admin-dashboard.html';
-    if (role === 'receptionist' || role === 'reception') return 'admin-dashboard.html';
+    if (role === 'receptionist' || role === 'reception') return 'receptionist-dashboard.html';
     if (role === 'technician' || role === 'lab_tech' || (email && email.endsWith('@tech.in'))) return 'lab-dashboard.html';
     if (role === 'pharmacy' || (email && email.endsWith('@pharmacy.in'))) return 'pharmacy-dashboard.html';
     return 'dashboard.html';
@@ -935,6 +941,8 @@
         resolvedName = 'Patient User';
       }
     }
+    existingProfile.name = resolvedName;
+    try { localStorage.setItem(userKey, JSON.stringify(existingProfile)); } catch(e){}
 
     const resolvedPatientId = (extra && extra.patientId) || existingProfile.patientId || (matchedRegUser && matchedRegUser.patientId) || ('PT' + Math.floor(100000 + Math.random() * 900000));
 
@@ -1050,7 +1058,7 @@
       const data = await res.json();
 
       if (data.success) {
-        successBox.textContent = 'Authentication successful — redirecting to your dashboard…';
+        successBox.textContent = 'Authenticated — loading dashboard…';
         successBox.classList.add('show');
         saveUserSession(data.role, data.name, {
           email: email,
@@ -1064,7 +1072,7 @@
         });
         const targetDash = data.targetDashboard || resolveTargetDashboard(data.role, email);
         showToast('Welcome back, ' + data.name);
-        setTimeout(() => window.location.href = targetDash, 250);
+        window.location.replace(targetDash);
       } else {
         restoreBtn();
 

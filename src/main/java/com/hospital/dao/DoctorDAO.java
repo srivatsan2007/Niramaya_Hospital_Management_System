@@ -150,7 +150,9 @@ public class DoctorDAO {
 
     public List<Doctor> getOnlineAvailableDoctors() {
         List<Doctor> list = new ArrayList<>();
-        String sql = "SELECT * FROM doctors WHERE (appointment_available = 1 OR appointment_available = true OR accept_appointments = 'Yes' OR accept_appointments = '1' OR accept_appointments = 'true') AND (available_status IS NULL OR (LOWER(available_status) NOT LIKE '%offline%' AND LOWER(available_status) NOT LIKE '%leave%' AND LOWER(available_status) NOT LIKE '%inactive%')) AND (status IS NULL OR (LOWER(status) NOT LIKE '%offline%' AND LOWER(status) NOT LIKE '%leave%' AND LOWER(status) NOT LIKE '%inactive%')) ORDER BY doctor_id ASC";
+        String sql = DBConnection.isPostgreSQL()
+            ? "SELECT * FROM doctors WHERE (appointment_available = true OR accept_appointments = 'Yes' OR accept_appointments = '1' OR accept_appointments = 'true') AND (available_status IS NULL OR (LOWER(available_status) NOT LIKE '%offline%' AND LOWER(available_status) NOT LIKE '%leave%' AND LOWER(available_status) NOT LIKE '%inactive%')) AND (status IS NULL OR (LOWER(status) NOT LIKE '%offline%' AND LOWER(status) NOT LIKE '%leave%' AND LOWER(status) NOT LIKE '%inactive%')) ORDER BY doctor_id ASC"
+            : "SELECT * FROM doctors WHERE (appointment_available = 1 OR appointment_available = true OR accept_appointments = 'Yes' OR accept_appointments = '1' OR accept_appointments = 'true') AND (available_status IS NULL OR (LOWER(available_status) NOT LIKE '%offline%' AND LOWER(available_status) NOT LIKE '%leave%' AND LOWER(available_status) NOT LIKE '%inactive%')) AND (status IS NULL OR (LOWER(status) NOT LIKE '%offline%' AND LOWER(status) NOT LIKE '%leave%' AND LOWER(status) NOT LIKE '%inactive%')) ORDER BY doctor_id ASC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -219,7 +221,7 @@ public class DoctorDAO {
         d1.setQualification("MD Cardiology");
         d1.setCategory("Cardiology");
         d1.setConsultationFees(800.0);
-        d1.setWorkingDays("Mon - Sat");
+        d1.setWorkingDays("Mon - Sun");
         d1.setWorkingHours("09:00 AM - 02:00 PM");
         d1.setAvailableStatus("Online");
         d1.setAppointmentAvailable(true);

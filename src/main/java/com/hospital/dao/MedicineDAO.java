@@ -129,8 +129,18 @@ public class MedicineDAO {
         IN_MEMORY_MEDICINES.put(med.getMedicineId(), med);
         IN_MEMORY_MEDICINES.put(med.getMedicineName().toLowerCase(), med);
 
-        String sql = "INSERT INTO medicines (medicine_id, medicine_name, generic_name, category, strength, dosage_form, manufacturer, batch_number, manufacturing_date, expiry_date, purchase_price, selling_price, unit_price, gst_percentage, stock_quantity, minimum_stock, rack_number, supplier_name, supplier_contact, storage_instructions, prescription_required, description, status, created_at, updated_at) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql;
+        if (DBConnection.isPostgreSQL()) {
+            sql = "INSERT INTO medicines (medicine_id, medicine_name, generic_name, category, strength, dosage_form, manufacturer, batch_number, manufacturing_date, expiry_date, purchase_price, selling_price, unit_price, gst_percentage, stock_quantity, minimum_stock, rack_number, supplier_name, supplier_contact, storage_instructions, prescription_required, description, status, created_at, updated_at) " +
+                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                  "ON CONFLICT (medicine_id) DO UPDATE SET " +
+                  "medicine_name = EXCLUDED.medicine_name, generic_name = EXCLUDED.generic_name, category = EXCLUDED.category, strength = EXCLUDED.strength, dosage_form = EXCLUDED.dosage_form, " +
+                  "stock_quantity = EXCLUDED.stock_quantity, minimum_stock = EXCLUDED.minimum_stock, selling_price = EXCLUDED.selling_price, unit_price = EXCLUDED.unit_price, " +
+                  "expiry_date = EXCLUDED.expiry_date, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at;";
+        } else {
+            sql = "INSERT OR REPLACE INTO medicines (medicine_id, medicine_name, generic_name, category, strength, dosage_form, manufacturer, batch_number, manufacturing_date, expiry_date, purchase_price, selling_price, unit_price, gst_percentage, stock_quantity, minimum_stock, rack_number, supplier_name, supplier_contact, storage_instructions, prescription_required, description, status, created_at, updated_at) " +
+                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        }
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, med.getMedicineId());
@@ -162,7 +172,7 @@ public class MedicineDAO {
             return pstmt.executeUpdate() > 0;
         } catch (Exception e) {
             System.err.println("MedicineDAO createMedicine error: " + e.getMessage());
-            return true;
+            return false;
         }
     }
 

@@ -1262,30 +1262,30 @@
           </div>
         </div>
 
-        <!-- Counter Payments & Unpaid Patient Tokens Ticket Center -->
-        <div class="card" style="border: 2px solid #E8A94C; background: #FFFDF9;">
-          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(232,169,76,0.3); padding-bottom:12px;">
+        <!-- Counter Payments Audit Center (Routed to Reception Desk) -->
+        <div class="card" style="border: 2px solid #CBD5E1; background: #F8FAFC;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
             <div>
-              <div class="card-title" style="color: #92400E; display:flex; align-items:center; gap:8px;">
+              <div class="card-title" style="color: #1E293B; display:flex; align-items:center; gap:8px;">
                 <span style="font-size:1.3rem;">🎟️</span>
-                <span>Counter Payments & Patient Token Approvals</span>
-                <span class="badge-count" id="badgeCounterUnpaid" style="background:#D97706; color:#fff; font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:700;">0 Pending</span>
+                <span>Counter Payment Audit Log (Reception Desk Queue)</span>
+                <span class="badge-count" id="badgeCounterUnpaid" style="background:#0284C7; color:#fff; font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:700;">0 Pending</span>
               </div>
-              <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">Patients who booked with <b>Pay at Counter</b>. Once cash/UPI is collected at the desk, mark as Paid to confirm appointment and unlock their official tax invoice receipt.</p>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">Appointments booked with <b>Pay at Counter</b>. Cash/UPI collection and receipt generation are managed directly by the Receptionist module.</p>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="loadCounterPaymentsTable()">🔄 Refresh Tickets</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadCounterPaymentsTable()">🔄 Refresh Audit</button>
           </div>
           <div class="table-container">
             <table>
               <thead>
-                <tr style="background: rgba(232,169,76,0.08);">
+                <tr style="background: rgba(2,132,199,0.06);">
                   <th>Token / Appt ID</th>
                   <th>Patient ID & Name</th>
                   <th>Doctor & Dept</th>
                   <th>Date & Time</th>
                   <th>Consultation Fee</th>
                   <th>Payment Status</th>
-                  <th>Counter Action</th>
+                  <th>Desk Routing Status</th>
                 </tr>
               </thead>
               <tbody id="tbodyCounterPayments">
@@ -2925,11 +2925,11 @@
             <td><strong>${a.doctorName || a.doctorId || '-'}</strong><br><small style="color:var(--text-muted);">${a.department || 'General'}</small></td>
             <td>${a.date || ''} ${a.time || ''}</td>
             <td><strong style="color:#D97706; font-size:0.95rem;">${a.fee || '₹800.00'}</strong></td>
-            <td><span class="badge" style="background:#FEF3C7; color:#92400E; font-weight:700; border:1px solid #FCD34D;">⚠️ Unpaid (Pay at Desk)</span></td>
+            <td><span class="badge" style="background:#FEF3C7; color:#92400E; font-weight:700; border:1px solid #FCD34D;">⚠️ Pending Counter Collection</span></td>
             <td>
-              <button class="btn btn-primary btn-sm" onclick="markAppointmentPaidAtCounter('${a.appointmentId}', '${a.patientId}', '${a.fee || '₹800.00'}')" style="background:#059669; border-color:#059669; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
-                💵 Collect & Mark Paid
-              </button>
+              <span class="badge" style="background:#EFF6FF; color:#1D4ED8; font-weight:700; border:1px solid #BFDBFE; display:inline-flex; align-items:center; gap:4px; padding:4px 8px;">
+                📍 In Receptionist Queue
+              </span>
             </td>
           </tr>
         `).join('');
@@ -3045,7 +3045,7 @@
           : (isPaid ? `<span class="badge badge-primary">Confirmed</span>` : `<span class="badge badge-warning">Pending Payment ⏳</span>`);
 
         const actionBtn = !isPaid
-          ? `<button class="btn btn-primary btn-sm" onclick="markAppointmentPaidAtCounter('${a.appointmentId}', '${a.patientId}', '₹800.00')" style="background:#059669; font-size:0.75rem; padding:4px 8px;">💵 Collect</button>`
+          ? `<span class="badge" style="background:#EFF6FF; color:#1D4ED8; font-weight:700; font-size:0.75rem; padding:4px 8px; border:1px solid #BFDBFE;">📍 Reception Desk</span>`
           : `<span style="color:#059669; font-weight:700; font-size:0.8rem;">✓ Verified</span>`;
 
         return `
@@ -3902,6 +3902,10 @@
           closeModal("modalAdmitPatient");
           document.getElementById("formAdmitPatient").reset();
           loadIpdBedsData();
+          try {
+            const ch = new BroadcastChannel('niramaya_ipd_sync_channel');
+            ch.postMessage({ type: 'IPD_ADMIT', bedId: payload.bedId, patientName: payload.patientName, timestamp: Date.now() });
+          } catch(e){}
         } else {
           alert("Error: " + data.message);
         }
@@ -3937,6 +3941,10 @@
         const data = await res.json();
         if (data.success) {
           loadIpdBedsData();
+          try {
+            const ch = new BroadcastChannel('niramaya_ipd_sync_channel');
+            ch.postMessage({ type: 'IPD_DISCHARGE', bedId: bedId, timestamp: Date.now() });
+          } catch(e){}
         }
       } catch (err) {
         alert("Failed to update bed status: " + err.message);
@@ -3959,6 +3967,10 @@
           alert("✓ " + data.message);
           closeModal("modalDischargePatient");
           loadIpdBedsData();
+          try {
+            const ch = new BroadcastChannel('niramaya_ipd_sync_channel');
+            ch.postMessage({ type: 'IPD_DISCHARGE', admissionId: admId, timestamp: Date.now() });
+          } catch(e){}
         } else {
           alert("Error: " + data.message);
         }
@@ -3976,6 +3988,23 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
     }
+    // Real-time synchronization listeners for IPD and Payments
+    try {
+      const adminIpdChannel = new BroadcastChannel('niramaya_ipd_sync_channel');
+      adminIpdChannel.onmessage = (ev) => {
+        if (ev.data && (ev.data.type === 'IPD_ADMIT' || ev.data.type === 'IPD_DISCHARGE' || ev.data.type === 'REFRESH_BEDS')) {
+          loadIpdBedsData();
+        }
+      };
+      const adminPayChannel = new BroadcastChannel('niramaya_payment_status_channel');
+      adminPayChannel.onmessage = (ev) => {
+        if (ev.data && ev.data.type === 'APPOINTMENT_PAID') {
+          loadCounterPaymentsTable();
+          loadAppointmentsTable();
+          loadAllLiveStats();
+        }
+      };
+    } catch(e){}
   </script>
   <script src="assets/js/mobile-responsive.js"></script>
 </body>

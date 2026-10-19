@@ -64,22 +64,22 @@ public class LabBooking {
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
 
-    public String getPatientName() { return patientName != null ? patientName : "Rekha Prasad"; }
+    public String getPatientName() { return patientName != null ? patientName : ""; }
     public void setPatientName(String patientName) { this.patientName = patientName; }
 
-    public String getPatientAge() { return patientAge != null ? patientAge : "28 Yrs"; }
+    public String getPatientAge() { return patientAge != null ? patientAge : ""; }
     public void setPatientAge(String patientAge) { this.patientAge = patientAge; }
 
-    public String getPatientGender() { return patientGender != null ? patientGender : "Female"; }
+    public String getPatientGender() { return patientGender != null ? patientGender : ""; }
     public void setPatientGender(String patientGender) { this.patientGender = patientGender; }
 
     public String getDoctorId() { return doctorId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
 
-    public String getDoctorName() { return doctorName != null ? doctorName : "Attending Physician"; }
+    public String getDoctorName() { return doctorName != null ? doctorName : ""; }
     public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
 
-    public String getDepartment() { return department != null ? department : "General Medicine"; }
+    public String getDepartment() { return department != null ? department : ""; }
     public void setDepartment(String department) { this.department = department; }
 
     public String getPrescriptionId() { return prescriptionId; }
